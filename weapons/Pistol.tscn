@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3 uid="uid://bp6rpoearuugu"]
+
+[ext_resource type="Script" path="res://weapons/Pistol.gd" id="1_nwjpq"]
+[ext_resource type="PackedScene" uid="uid://byxm3hp7pydum" path="res://weapons/Bullet.tscn" id="2_sp1uv"]
+[ext_resource type="PackedScene" uid="uid://cf1dcxwv6bvl3" path="res://models/Pistol.glb" id="3_0ia4u"]
+
+[node name="Pistol" type="Node3D"]
+script = ExtResource("1_nwjpq")
+BulletScene = ExtResource("2_sp1uv")
+
+[node name="Pistol" parent="." instance=ExtResource("3_0ia4u")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00441742, 0.0234731, 0.0762664)
+
+[node name="Muzzle" type="Node3D" parent="."]
+transform = Transform3D(0.999213, 0.0118846, 0.037833, -0.00985353, 0.998523, -0.0534269, -0.0384121, 0.0530121, 0.997855, -0.187891, -0.104417, -0.0349864)
