@@ -10,21 +10,19 @@ class_name Bullet
 @export var damage: float = 1.0
 @export var color: Color = Color(1, 1, 1)
 
-# Use a backing variable for the radius.
-@export var radius: float = 0.5 : set = set_radius, get = get_radius
+# Backing variable for the radius.
+@export var radius: float = 0.5: set = set_radius, get = get_radius
 var _radius: float = 0.5
 
 # Array for trails.
 @export var trails: Array = []
-
-# Exported gradient for the trail.
 @export var trail_gradient: Gradient = Gradient.new()
 
 # Internal reference for the bullet's visual mesh.
 var _mesh: MeshInstance3D
 
-# Array to hold physics process callables.
-var physics_processes: Array = []
+# Array for collision handlers.
+var collision_handlers: Array = []
 
 func set_radius(new_radius: float) -> void:
 	_radius = new_radius
@@ -42,17 +40,12 @@ func _init() -> void:
 	default_trail.gradient.set_color(0, Color.WHITE)
 	default_trail.gradient.set_color(1, Color.YELLOW)
 	default_trail.base_width = radius
-	# For example, we can set a short lifetime for trail points.
-	default_trail.lifetime = 0.1
+	default_trail.lifetime = 0.1 # Short lifetime for trail points.
 	trails.append(default_trail)
 
 func _ready() -> void:
-	# Ensure that both process and physics process are enabled.
 	set_process(true)
 	set_physics_process(true)
-	
-	# Add the default physics process.
-	physics_processes.append(Callable(self, "default_physics_process"))
 	
 	# Force a uniform scale.
 	self.scale = Vector3.ONE
@@ -71,33 +64,25 @@ func _ready() -> void:
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mesh.material_override = mat
 	
-	# Create the physical collision shape that is used for movement.
-	# (Place it on a collision layer that does not interact with the player.)
+	# Create the physical collision shape.
 	var collision_shape = CollisionShape3D.new()
 	var sphere_shape = SphereShape3D.new()
 	sphere_shape.radius = radius + 0.5
 	collision_shape.shape = sphere_shape
 	add_child(collision_shape)
-	# For example, set this bullet’s collision layer to 2.
-	# (Make sure the player is not on layer 2 so the bullet doesn’t physically affect the player.)
 	collision_layer = 2
-	collision_mask = 0  # No physical collision response.
+	collision_mask = 0
 	
-	# Create an Area3D to detect collisions (including with the player).
+	# Create an Area3D to detect collisions (e.g. with the player).
 	var detection_area = Area3D.new()
 	var area_collision_shape = CollisionShape3D.new()
 	var area_sphere = SphereShape3D.new()
 	area_sphere.radius = radius + 0.5
 	area_collision_shape.shape = area_sphere
 	detection_area.add_child(area_collision_shape)
-	# Configure the detection area to “see” the player.
-	# For example, if the player is on collision layer 1, then set the mask accordingly.
-	detection_area.collision_layer = 0  # It doesn't need to be on a physical layer.
-	detection_area.collision_mask = 1   # Detect bodies on layer 1 (player's layer).
+	detection_area.collision_layer = 0
+	detection_area.collision_mask = 1
 	add_child(detection_area)
-	
-	# Connect the Area3D’s signal to register collisions.
-	detection_area.body_entered.connect(_on_body_entered)
 	
 	# Set the bullet's initial velocity.
 	velocity = direction.normalized() * speed
@@ -110,34 +95,39 @@ func _ready() -> void:
 			trail.initialize(_mesh)
 			parent_node.add_child(trail)
 	
-	# Life time timer for the bullet.
+	# Timer to free the bullet after its life time.
 	await get_tree().create_timer(life_time).timeout
 	for t in trails:
 		if t and t.has_method("stop_trail"):
 			t.stop_trail()
 	queue_free()
 
-func default_physics_process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	velocity += Vector3.DOWN * gravity * delta
 	
-	# Optionally, you can also check for other collisions here if needed.
-	var collision_count = get_slide_collision_count()
-	for i in range(collision_count):
-		var collision = get_slide_collision(i)
-		var collider = collision.get_collider()
-		if collider is Enemy:
-			print("Hit enemy")
-			collider.take_damage(10)
-			
-		print("Bullet collided with (via move_and_slide): ", collision.get_collider())
-
-func _physics_process(delta: float) -> void:
-	for process in physics_processes:
-		if process and process.is_valid():
-			process.call(delta)
+	# Collision prediction: cast a ray from current to predicted position.
+	var current_position: Vector3 = global_transform.origin
+	var predicted_motion: Vector3 = velocity * delta
+	var predicted_position: Vector3 = current_position + predicted_motion
+	
+	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.new()
+	query.from = current_position
+	query.to = predicted_position
+	query.exclude = [self]
+	
+	var collision = get_world_3d().direct_space_state.intersect_ray(query)
+	if collision:
+		# Invoke each collision handler (in the order they were added).
+		for handler in collision_handlers:
+			# Each handler now receives three arguments: collision, bullet, and impact_properties.
+			handler.call(collision, self)
+		# Base damage collision is applied last
+		_on_bullet_collision(collision, self)
 	move_and_slide()
 
-# This function will be called whenever the detection Area3D overlaps a body.
-func _on_body_entered(body: Node) -> void:
-	print("Bullet detected collision with: ", body)
-	# Optionally, handle damage or other effects here.
+func _on_bullet_collision(collision: Dictionary, _bullet: Bullet) -> void:
+	print(collision)
+	if collision.collider.is_in_group("enemies"):
+		var enemy = collision.collider
+		if enemy.has_method("take_damage"):
+			enemy.take_damage(damage)
