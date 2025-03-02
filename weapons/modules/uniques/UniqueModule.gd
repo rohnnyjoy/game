@@ -1,0 +1,2 @@
+extends WeaponModule
+class_name UniqueModule

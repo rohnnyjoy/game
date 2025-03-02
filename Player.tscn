@@ -1,7 +1,7 @@
 [gd_scene load_steps=11 format=3 uid="uid://xcjrjq5cbn7y"]
 
 [ext_resource type="Script" path="res://Player.gd" id="1_2g2e2"]
-[ext_resource type="PackedScene" uid="uid://bp6rpoearuugu" path="res://weapons/Pistol.tscn" id="2_gpvmb"]
+[ext_resource type="PackedScene" uid="uid://bbqxn5xc7ejyb" path="res://weapons/uniques/OlReliable.tscn" id="2_w4x7k"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_xk8km"]
 
@@ -109,7 +109,7 @@ floor_block_on_wall = false
 floor_max_angle = 1.0472
 floor_snap_length = 0.2
 script = ExtResource("1_2g2e2")
-pistol_scene = ExtResource("2_gpvmb")
+pistol_scene = ExtResource("2_w4x7k")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

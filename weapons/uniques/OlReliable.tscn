@@ -1,12 +1,16 @@
-[gd_scene load_steps=3 format=3 uid="uid://5rm8jtnbbpmg"]
+[gd_scene load_steps=3 format=3 uid="uid://bbqxn5xc7ejyb"]
 
-[ext_resource type="Script" path="res://weapons/BulletWeapon.gd" id="1_t3ptv"]
-[ext_resource type="PackedScene" uid="uid://cf1dcxwv6bvl3" path="res://models/Pistol.glb" id="3_0ia4u"]
+[ext_resource type="Script" path="res://weapons/uniques/OlReliable.gd" id="1_2tdg2"]
+[ext_resource type="PackedScene" uid="uid://cf1dcxwv6bvl3" path="res://models/Pistol.glb" id="2_jg2u7"]
 
-[node name="Pistol" type="Node3D"]
-script = ExtResource("1_t3ptv")
+[node name="OlReliable" type="Node3D"]
+script = ExtResource("1_2tdg2")
+fire_rate = null
+reload_speed = null
+ammo = null
+damage = null
 
-[node name="Pistol" parent="." instance=ExtResource("3_0ia4u")]
+[node name="Pistol" parent="." instance=ExtResource("2_jg2u7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00441742, 0.0234731, 0.0762664)
 
 [node name="Muzzle" type="Node3D" parent="."]
