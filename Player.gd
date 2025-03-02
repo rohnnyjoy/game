@@ -141,9 +141,11 @@ func _handle_camera_rotation(event):
 		# Clamp vertical camera rotation.
 		camera.rotation.x = clamp(camera.rotation.x, - PI / 2, PI / 2)
 #
-func _handle_shooting(_event):
+func _handle_shooting(event):
 	if Input.is_action_just_pressed("shoot"):
-		current_weapon.use()
+		current_weapon.on_press()
+	elif Input.is_action_just_released("shoot"):
+		current_weapon.on_release()
 
 func _handle_dash(_event):
 	if Input.is_action_just_pressed("dash"):
