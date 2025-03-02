@@ -4,12 +4,13 @@ class_name AimbotModule
 @export var aim_cone_angle: float = deg_to_rad(90) # Maximum allowed angle from bullet's current direction.
 @export var vertical_offset: float = 0.0 # Vertical adjustment (0 aims at the enemy's center).
 
-func modify_bullet(bullet: Bullet) -> Bullet:
-    # This module doesn't need to change bullet properties on creation,
-    # so just return the bullet as-is.
-    return bullet
+func on_collision(_collision: Dictionary, bullet: Bullet) -> void:
+    aimbot(bullet)
 
 func on_fire(bullet: Bullet) -> void:
+    aimbot(bullet)
+
+func aimbot(bullet: Bullet) -> void:
     # This function is called after all modify_bullet calls, in the module order.
     # Use the bullet's current velocity as the base direction.
     var origin: Vector3 = bullet.global_position
@@ -28,6 +29,7 @@ func on_fire(bullet: Bullet) -> void:
     
     # If an enemy was found, adjust the bullet's velocity.
     if best_enemy:
+        print("HOMING")
         var aim_point: Vector3
         # If available, use the enemy's AABB center for a more accurate target.
         if best_enemy.has_method("get_aabb"):
