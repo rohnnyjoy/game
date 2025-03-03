@@ -37,12 +37,13 @@ func _fire_bullet() -> void:
 	bullet.speed = get_weapon_config().bullet_speed
 	bullet.color = Color.YELLOW
 	bullet.radius = 0.05
+	bullet.damage = get_weapon_config().damage
 	bullet.global_transform = bullet_origin.global_transform
 
 	# First, let each module modify the bullet.
 	for module in modules:
 		bullet = module.modify_bullet(bullet)
-		bullet.collision_handlers.append(Callable(module, "on_collision"))
+		bullet.collision_handlers.append(module)
 
 	get_tree().current_scene.add_child(bullet)
 

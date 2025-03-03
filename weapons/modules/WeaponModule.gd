@@ -13,5 +13,5 @@ func on_fire(_bullet: Bullet) -> void:
 	pass
 
 # New on_impact callback that modules can override for impact effects.
-func on_collision(_collision: Dictionary, _bullet: Bullet, ) -> void:
+func on_collision(_collision: Dictionary, bullet: Bullet) -> void:
 	pass

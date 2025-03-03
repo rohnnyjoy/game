@@ -8,6 +8,7 @@ var max_bounces: int = 3
 func modify_bullet(bullet: Bullet) -> Bullet:
 	if not bullet.has_meta("bounce_count"):
 		bullet.set_meta("bounce_count", 0)
+	bullet.destroy_on_impact = false
 	return bullet
 
 func on_collision(collision: Dictionary, bullet: Bullet) -> void:

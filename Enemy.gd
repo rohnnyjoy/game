@@ -11,7 +11,7 @@ const SPEED: float = 5.0
 const DETECTION_RADIUS: float = 20.0
 const ATTACK_RADIUS: float = 2.0
 
-var health: int = 5
+var health: int = 100
 var target: Node = null
 
 @onready var anim_player: AnimationPlayer = $AnimationPlayer
