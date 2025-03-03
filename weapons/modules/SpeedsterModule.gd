@@ -4,7 +4,7 @@ class_name SpeedsterModule
 @export var default_trail_width: float = 0.5 # Fallback width if bullet.trail is nil.
 
 func modify_bullet(bullet: Bullet) -> Bullet:
-	var extra_trail = BulletTrail.new()
+	var extra_trail = Trail.new()
 	# Use the new transparency_mode property instead of shading_mode.
 	extra_trail.transparency_mode = BaseMaterial3D.TRANSPARENCY_ALPHA
 	

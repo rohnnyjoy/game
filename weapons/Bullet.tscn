@@ -11,6 +11,15 @@ height = 0.001
 
 [node name="Bullet" type="CharacterBody3D"]
 script = ExtResource("1_61a6k")
+life_time = null
+gravity = null
+direction = null
+speed = null
+damage = null
+color = null
+destroy_on_impact = null
+radius = null
+trails = null
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("SphereShape3D_0gyed")

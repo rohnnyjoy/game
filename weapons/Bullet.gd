@@ -32,10 +32,10 @@ func get_radius() -> float:
     return _radius
 
 func _init() -> void:
-    var default_trail = BulletTrail.new()
+    var default_trail = Trail.new()
     default_trail.gradient = Gradient.new()
-    default_trail.gradient.set_color(0, Color.WHITE)
-    default_trail.gradient.set_color(1, Color.YELLOW)
+    default_trail.gradient.set_color(1, Color.WHITE)
+    default_trail.gradient.set_color(0, Color.YELLOW)
     default_trail.base_width = radius
     default_trail.lifetime = 0.1
     trails.append(default_trail)

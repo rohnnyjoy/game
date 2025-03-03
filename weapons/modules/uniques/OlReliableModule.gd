@@ -7,10 +7,10 @@ func modify_bullet(bullet: Bullet) -> Bullet:
 	return bullet
 
 func modify_weapon(config: WeaponConfig) -> WeaponConfig:
-	config.fire_rate = 0.05
+	config.fire_rate = 0.2
 	config.ammo = 400
 	config.reload_speed = 1
 	config.damage = 2
-	config.bullet_speed = 200
+	config.bullet_speed = 30
 	config.accuracy = 1
 	return config

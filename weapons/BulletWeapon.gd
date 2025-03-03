@@ -35,7 +35,7 @@ func _fire_bullet() -> void:
 	# (Set up spread, bullet properties, etc.)
 	bullet.direction = base_direction # or your deviated direction from spread logic.
 	bullet.speed = get_weapon_config().bullet_speed
-	bullet.color = Color.YELLOW
+	bullet.color = Color.WHITE
 	bullet.radius = 0.05
 	bullet.damage = get_weapon_config().damage
 	bullet.global_transform = bullet_origin.global_transform
