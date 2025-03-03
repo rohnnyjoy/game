@@ -67,7 +67,7 @@ func _physics_process(delta: float) -> void:
 # Patrol Movement
 #===============================================================================
 func _patrol(delta: float) -> void:
-	velocity.x = direction * SPEED
+	velocity.x = direction * SPEED * speed_multiplier
 
 	if global_transform.origin.x >= start_x + MOVE_DISTANCE:
 		direction = -1  # Move left
@@ -104,16 +104,16 @@ func _find_nearest_player() -> Node:
 func _move_towards_target(delta: float) -> void:
 	anim_player.play("move")
 	var move_direction: Vector3 = (target.global_transform.origin - global_transform.origin).normalized()
-	velocity = move_direction * SPEED
+	velocity = move_direction * SPEED * speed_multiplier
 
 func _attack_target() -> void:
 	anim_player.play("attack")
 	if target.has_method("take_damage"):
 		target.take_damage(1)
 		
+var speed_multiplier: float = 1.0  # Default multiplier
 func set_speed_multiplier(multiplier: float) -> void:
-	velocity *= multiplier  # Adjust current velocity
-	move_and_slide()  # Ensure the enemy moves with the new speed
+	speed_multiplier = multiplier
 
 
 #===============================================================================
