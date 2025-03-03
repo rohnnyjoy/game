@@ -39,6 +39,7 @@ func _init() -> void:
     default_trail.base_width = radius
     default_trail.lifetime = 0.1
     trails.append(default_trail)
+
 func _ready() -> void:
     set_process(true)
     set_physics_process(true)
@@ -119,7 +120,9 @@ func _physics_process(delta: float) -> void:
     var collision = get_world_3d().direct_space_state.intersect_ray(query)
     if collision:
         # Check if the collider is the same as last frame.
-        if collision.collider.is_in_group("enemy") && collision.collider_id == _last_collision_collider_id:
+        # print("Collision id", collision.collider_id, "last id", _last_collision_collider_id, "collider", collision.collider, "enemy", collision.collider.is_in_group("enemy"))
+        if collision.collider.is_in_group("enemies") && collision.collider_id == _last_collision_collider_id:
+            print("Skipping")
             # Skip triggering collision events and simply update position.
             global_transform.origin = predicted_position
         else:

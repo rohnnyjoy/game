@@ -4,7 +4,7 @@ class_name OlReliableBulletWeapon
 func _ready() -> void:
 	super._ready()
 	unique_module = OlReliableModule.new()
-	# modules = [PenetratingModule.new(), AimbotModule.new(), SpeedsterModule.new()]
-	# modules = [BouncingModule.new(), HomingModule.new(), SlowModule.new()]
-	modules = [PenetratingModule.new()]
+	modules = [BouncingModule.new(), ExplosiveModule.new()]
+	modules = [BouncingModule.new(), TrackingModule.new(), SlowModule.new()]
+	# modules = [PenetratingModule.new(), ExplosiveModule.new()]
 	# modules = [BouncingModule.new()]

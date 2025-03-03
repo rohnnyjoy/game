@@ -15,6 +15,7 @@ func modify_bullet(bullet: Bullet) -> Bullet:
 func on_collision(collision: Dictionary, bullet: Bullet) -> void:
     var collider: Node = collision["collider"]
     if collider.is_in_group("enemies"):
+        print("pen count", bullet.get_meta("penetration_count"))
         var penetration_count: int = bullet.get_meta("penetration_count")
         penetration_count += 1
         bullet.set_meta("penetration_count", penetration_count)
@@ -24,3 +25,5 @@ func on_collision(collision: Dictionary, bullet: Bullet) -> void:
 
         if penetration_count >= max_penetrations:
             bullet.destroy_on_impact = true
+    else:
+        bullet.destroy_on_impact = true

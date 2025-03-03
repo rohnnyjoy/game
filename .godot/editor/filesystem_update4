@@ -21,3 +21,5 @@ res://weapons/modules/WeaponConfig.gd
 res://MuzzleFlash.gd
 res://Enemy.tscn
 res://weapons/Weapon.gd
+res://weapons/modules/ExplosiveModule.gd
+res://weapons/modules/TrackingModule.gd
