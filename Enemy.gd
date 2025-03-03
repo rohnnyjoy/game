@@ -110,6 +110,11 @@ func _attack_target() -> void:
 	anim_player.play("attack")
 	if target.has_method("take_damage"):
 		target.take_damage(1)
+		
+func set_speed_multiplier(multiplier: float) -> void:
+	velocity *= multiplier  # Adjust current velocity
+	move_and_slide()  # Ensure the enemy moves with the new speed
+
 
 #===============================================================================
 # Damage & Death
@@ -117,6 +122,7 @@ func _attack_target() -> void:
 func take_damage(amount: int) -> void:
 	health -= amount
 	health_bar.value = health # Update the health bar display
+	print("Enemy health:", health, "Health Bar:", health_bar.value)
 	if health <= 0:
 		_die()
 
