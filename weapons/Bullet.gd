@@ -39,16 +39,25 @@ func _init() -> void:
     default_trail.base_width = radius
     default_trail.lifetime = 0.1
     trails.append(default_trail)
-
 func _ready() -> void:
     set_process(true)
     set_physics_process(true)
     scale = Vector3.ONE
 
+    # Apply a random rotation
+    randomize()
+    rotation_degrees = Vector3(
+        randf_range(0, 360),
+        randf_range(0, 360),
+        randf_range(0, 360)
+    )
+
     _mesh = MeshInstance3D.new()
     var sphere_mesh = SphereMesh.new()
     sphere_mesh.radius = radius
     sphere_mesh.height = radius * 2
+    sphere_mesh.radial_segments = 4
+    sphere_mesh.rings = 2
     _mesh.mesh = sphere_mesh
     _mesh.scale = Vector3.ONE
     add_child(_mesh)
@@ -94,6 +103,7 @@ func _ready() -> void:
     await get_tree().create_timer(life_time).timeout
     _cleanup()
 
+
 func _physics_process(delta: float) -> void:
     velocity += Vector3.DOWN * gravity * delta
     
@@ -108,10 +118,8 @@ func _physics_process(delta: float) -> void:
     
     var collision = get_world_3d().direct_space_state.intersect_ray(query)
     if collision:
-        print("Collision detected with id: ", collision.collider_id, "last", _last_collision_collider_id)
         # Check if the collider is the same as last frame.
-        if collision.collider_id == _last_collision_collider_id:
-            print("Skipping collision event for the same collider.")
+        if collision.collider.is_in_group("enemy") && collision.collider_id == _last_collision_collider_id:
             # Skip triggering collision events and simply update position.
             global_transform.origin = predicted_position
         else:

@@ -126,7 +126,6 @@ func set_speed_multiplier(multiplier: float) -> void:
 func take_damage(amount: int) -> void:
 	health -= amount
 	health_bar.value = health # Update the health bar display
-	print("Enemy health:", health, "Health Bar:", health_bar.value)
 	if health <= 0:
 		_die()
 

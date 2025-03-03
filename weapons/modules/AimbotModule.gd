@@ -144,10 +144,7 @@ func flash_line(bullet: Node, start: Vector3, end: Vector3) -> void:
     line_instance.material_override = material
 
     parent_node.add_child(line_instance)
-    
-    # Debug print.
-    print("Flash line added at: ", mid_point, " with distance: ", distance)
-    
+        
     # Keep the flash visible for target_line_duration seconds, then remove.
     await tree.create_timer(target_line_duration).timeout
     line_instance.queue_free()

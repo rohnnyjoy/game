@@ -13,10 +13,8 @@ func on_physics_process(delta: float, bullet: Bullet) -> void:
 	var closest_enemy = null
 	var closest_distance = homing_radius
 	for enemy in bullet.get_tree().get_nodes_in_group("enemies"):
-		print(enemy)
 		# Ensure the enemy is a Node3D so we can access its global_position.
 		if enemy is Node3D:
-			print(enemy)
 			var enemy_position: Vector3 = enemy.global_position
 			var distance: float = bullet.global_position.distance_to(enemy_position)
 			if distance < closest_distance:

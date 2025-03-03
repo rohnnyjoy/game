@@ -25,5 +25,6 @@ func on_collision(collision: Dictionary, bullet: Bullet) -> void:
 	bullet.global_transform.origin = collision["position"] + normal * 0.01
 	
 	# Remove bullet if it has exceeded the maximum allowed bounces.
+	print("Bounce count: ", bounce_count)
 	if bounce_count >= max_bounces:
 		bullet.queue_free()
