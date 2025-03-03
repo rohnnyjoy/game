@@ -1,7 +1,7 @@
 extends CharacterBody3D
 class_name Bullet
 
-@export var life_time: float = 3.0
+@export var life_time: float = 30.0
 @export var gravity: float = 0.0
 @export var direction: Vector3 = Vector3.FORWARD
 @export var speed: float = 20.0
@@ -15,6 +15,7 @@ var _radius: float = 0.5
 
 @export var trails: Array = []
 @export var trail_gradient: Gradient = Gradient.new()
+@export var modules: Array[WeaponModule] = []
 
 var _mesh: MeshInstance3D
 var collision_handlers: Array = []
@@ -75,6 +76,9 @@ func _ready() -> void:
     add_child(detection_area)
     
     velocity = direction.normalized() * speed
+
+    for module in modules:
+        await module.on_fire(self)
     
     # Wait one frame so that the bullet and its trails are fully initialized in the scene
     await get_tree().process_frame
@@ -111,10 +115,9 @@ func _physics_process(delta: float) -> void:
             "rid": collision.rid,
         }
         
-        for handler in collision_handlers:
-            if handler and handler.has_method("on_collision"):
-                handler.on_collision(collision_data, self)
-        
+        for module in modules:
+            await module.on_collision(collision_data, self)
+
         _on_bullet_collision(collision_data, self)
         
         if destroy_on_impact:
@@ -126,11 +129,15 @@ func _physics_process(delta: float) -> void:
     else:
         global_transform.origin = predicted_position
 
+    for module in modules:
+        await module.on_physics_process(delta, self)
 
     _process_enemies_inside()
 
 func _on_bullet_collision(collision: Dictionary, bullet: Bullet) -> void:
     var hit = collision.get("collider")
+    if !is_instance_valid(hit):
+        return
     if hit and hit.is_in_group("enemies"):
         if hit.has_method("take_damage"):
             print("Hit enemy", damage)

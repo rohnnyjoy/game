@@ -4,11 +4,27 @@ class_name HomingModule
 @export var homing_radius: float = 10.0
 @export var tracking_strength: float = 0.1 # How quickly the bullet turns; 0.0 to 1.0
 
-func modify_bullet(bullet: Bullet) -> Bullet:
-    # Create and attach the homing component to the bullet.
-    var homing_component = HomingComponent.new()
-    homing_component.homing_radius = homing_radius
-    homing_component.tracking_strength = tracking_strength
-    homing_component.bullet = bullet
-    bullet.add_child(homing_component)
-    return bullet
+func on_physics_process(delta: float, bullet: Bullet) -> void:
+	if not bullet or not bullet.is_inside_tree():
+		queue_free()
+		return
+
+	# Find the closest enemy in the "enemies" group within the homing radius.
+	var closest_enemy = null
+	var closest_distance = homing_radius
+	for enemy in bullet.get_tree().get_nodes_in_group("enemies"):
+		print(enemy)
+		# Ensure the enemy is a Node3D so we can access its global_position.
+		if enemy is Node3D:
+			print(enemy)
+			var enemy_position: Vector3 = enemy.global_position
+			var distance: float = bullet.global_position.distance_to(enemy_position)
+			if distance < closest_distance:
+				closest_distance = distance
+				closest_enemy = enemy
+
+	# If an enemy was found, adjust the bullet's velocity.
+	if closest_enemy:
+		var target_direction: Vector3 = (closest_enemy.global_position - bullet.global_position).normalized()
+		var desired_velocity: Vector3 = target_direction * bullet.speed
+		bullet.velocity = bullet.velocity.lerp(desired_velocity, tracking_strength)

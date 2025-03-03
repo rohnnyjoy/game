@@ -43,15 +43,10 @@ func _fire_bullet() -> void:
 	# First, let each module modify the bullet.
 	for module in modules:
 		bullet = module.modify_bullet(bullet)
-		bullet.collision_handlers.append(module)
+	
+	bullet.modules = modules
 
 	get_tree().current_scene.add_child(bullet)
-
-	# Then, in the same order, trigger any on_fire callbacks.
-	for module in modules:
-		if module.has_method("on_fire"):
-			module.on_fire(bullet)
-
 
 	# Trigger the muzzle flash if available.
 	if muzzle_flash and muzzle_flash.has_method("trigger_flash"):

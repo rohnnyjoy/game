@@ -2,6 +2,7 @@ extends WeaponModule
 class_name StickyModule
 
 var stick_duration: float = 2.0
+var collision_damage: float = 1
 
 func modify_bullet(bullet: Bullet) -> Bullet:
     bullet.set_meta("is_sticky", false)
@@ -9,6 +10,10 @@ func modify_bullet(bullet: Bullet) -> Bullet:
     return bullet
 
 func on_collision(collision: Dictionary, bullet: Bullet) -> void:
+    if collision.collider.is_in_group("enemies"):
+        if is_instance_valid(collision.collider):
+            collision.collider.take_damage(collision_damage)
+    var initial_velocity = bullet.velocity
     # If the collision is with another bullet, try a secondary raycast to hit the object behind.
     if collision.collider is Bullet:
         var secondary_query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.new()
@@ -42,3 +47,4 @@ func on_collision(collision: Dictionary, bullet: Bullet) -> void:
     
     if is_instance_valid(bullet):
         bullet.set_meta("is_sticky", false)
+        bullet.velocity = initial_velocity

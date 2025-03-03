@@ -13,3 +13,9 @@ res://Trail.gd
 res://weapons/modules/PenetratingModule.gd
 res://weapons/modules/HomingModule.gd
 res://weapons/modules/HomingComponent.gd
+res://weapons/modules/WeaponModule.gd
+res://weapons/BulletWeapon.gd
+res://weapons/modules/SpeedsterModule.gd
+res://weapons/modules/SlowModule.gd
+res://weapons/modules/WeaponConfig.gd
+res://MuzzleFlash.gd
