@@ -141,7 +141,7 @@ func _handle_camera_rotation(event):
 		# Clamp vertical camera rotation.
 		camera.rotation.x = clamp(camera.rotation.x, - PI / 2, PI / 2)
 #
-func _handle_shooting(event):
+func _handle_shooting(_event):
 	if Input.is_action_just_pressed("shoot"):
 		current_weapon.on_press()
 	elif Input.is_action_just_released("shoot"):
@@ -184,7 +184,10 @@ func _physics_process(delta):
 	
 	# After collision resolution, if sliding, process bounce behavior.
 	if is_sliding:
-		_process_slide_collisions_post()
+		_process_slide_collisions_post()	
+	
+	if not is_on_floor and is_colliding_with_wall():
+		jumps_remaining = min(jumps_remaining + 1, MAX_JUMPS)
 
 #===============================================================================
 # Jump and Gravity
@@ -198,17 +201,34 @@ func _process_jump_and_gravity(delta):
 	# Reset available jumps when on the ground.
 	if is_on_floor():
 		jumps_remaining = MAX_JUMPS
-	
+		
+	# Wall jump detection
+	var wall_normal = is_colliding_with_wall()
+	if not is_on_floor() and wall_normal != Vector3.ZERO:
+		jumps_remaining = min(jumps_remaining + 1, MAX_JUMPS)
+		
 	# Perform jump if buffered and available.
 	if jump_buffer_timer > 0 and jumps_remaining > 0:
 		velocity.y = JUMP_VELOCITY
 		jump_buffer_timer = 0
 		jumps_remaining -= 1
+		
+		# If wall jumping, push the player away from the wall
+		if wall_normal != Vector3.ZERO:
+			velocity += wall_normal * 10.0  # Push away from wall (adjustable force)
 	
 	# Apply gravity when not on the ground.
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
 
+func is_colliding_with_wall() -> Vector3:
+	for i in range(get_slide_collision_count()):
+		var collision = get_slide_collision(i)
+		var col_normal = collision.get_normal()
+		# If normal is not floor-like (not pointing up), it's a wall
+		if abs(col_normal.dot(Vector3.UP)) < 0.7:
+			return col_normal
+	return Vector3.ZERO  # No wall detected
 #===============================================================================
 # Ground Movement
 #===============================================================================

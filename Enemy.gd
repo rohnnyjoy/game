@@ -10,9 +10,12 @@ signal enemy_died()
 const SPEED: float = 5.0
 const DETECTION_RADIUS: float = 20.0
 const ATTACK_RADIUS: float = 2.0
+const MOVE_DISTANCE: float = 10.0  # Distance the enemy will move side to side
 
 var health: int = 100
 var target: Node = null
+var start_x: float
+var direction: int = 1  # 1 = right, -1 = left
 
 @onready var anim_player: AnimationPlayer = $AnimationPlayer
 @onready var health_bar: ProgressBar = $HealthBar
@@ -21,6 +24,7 @@ var target: Node = null
 # Initialization
 #===============================================================================
 func _ready() -> void:
+	start_x = global_transform.origin.x
 	add_to_group("enemies")
 	
 	# Set up NPC enemy behavior.
@@ -42,7 +46,6 @@ func _process(delta: float) -> void:
 #===============================================================================
 func _physics_process(delta: float) -> void:
 	if target == null:
-		# Look for the nearest player if no target is set.
 		target = _find_nearest_player()
 		if target:
 			emit_signal("enemy_detected", target)
@@ -54,19 +57,37 @@ func _physics_process(delta: float) -> void:
 		elif distance <= DETECTION_RADIUS:
 			_move_towards_target(delta)
 		else:
-			# Target out of range; stop moving.
-			velocity = Vector3.ZERO
-			anim_player.play("idle")
-			target = null
+			_stop_and_reset()
 	else:
-		# No target found; remain idle.
-		anim_player.play("idle")
+		_patrol(delta)
+
+	move_and_slide()
+
+#===============================================================================
+# Patrol Movement
+#===============================================================================
+func _patrol(delta: float) -> void:
+	velocity.x = direction * SPEED * speed_multiplier
+
+	if global_transform.origin.x >= start_x + MOVE_DISTANCE:
+		direction = -1  # Move left
+	elif global_transform.origin.x <= start_x - MOVE_DISTANCE:
+		direction = 1  # Move right
+
+	anim_player.play("move")
+
+#===============================================================================
+# Stop Movement
+#===============================================================================
+func _stop_and_reset() -> void:
+	velocity = Vector3.ZERO
+	anim_player.play("idle")
+	target = null
 
 #===============================================================================
 # Targeting Methods
 #===============================================================================
 func _find_nearest_player() -> Node:
-	# Assumes all player nodes are in the "players" group.
 	var players: Array = get_tree().get_nodes_in_group("players")
 	var nearest: Node = null
 	var min_dist: float = INF
@@ -81,17 +102,19 @@ func _find_nearest_player() -> Node:
 # Movement & Attack
 #===============================================================================
 func _move_towards_target(delta: float) -> void:
-	if target:
-		anim_player.play("move")
-		var direction: Vector3 = (target.global_transform.origin - global_transform.origin).normalized()
-		velocity = direction * SPEED
-		move_and_slide()
-		
+	anim_player.play("move")
+	var move_direction: Vector3 = (target.global_transform.origin - global_transform.origin).normalized()
+	velocity = move_direction * SPEED * speed_multiplier
+
 func _attack_target() -> void:
-	# Play attack animation and inflict damage to the target.
 	anim_player.play("attack")
 	if target.has_method("take_damage"):
 		target.take_damage(1)
+		
+var speed_multiplier: float = 1.0  # Default multiplier
+func set_speed_multiplier(multiplier: float) -> void:
+	speed_multiplier = multiplier
+
 
 #===============================================================================
 # Damage & Death
@@ -99,13 +122,13 @@ func _attack_target() -> void:
 func take_damage(amount: int) -> void:
 	health -= amount
 	health_bar.value = health # Update the health bar display
+	print("Enemy health:", health, "Health Bar:", health_bar.value)
 	if health <= 0:
 		_die()
 
 func _die() -> void:
 	anim_player.play("die")
 	emit_signal("enemy_died")
-	# Optionally delay removal to allow death animation.
 	queue_free()
 
 #===============================================================================
