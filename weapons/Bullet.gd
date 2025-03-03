@@ -86,11 +86,9 @@ func _ready() -> void:
     # Wait one frame so that the bullet and its trails are fully initialized in the scene
     await get_tree().process_frame
     
-    var parent_node = get_parent()
-    if parent_node:
-        for trail in trails:
-            trail.initialize(_mesh)
-            parent_node.add_child(trail)
+    for trail in trails:
+        trail.initialize()
+        self.add_child(trail)
     
     # Bullet self-destruction after life_time
     await get_tree().create_timer(life_time).timeout

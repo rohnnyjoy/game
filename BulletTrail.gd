@@ -24,9 +24,6 @@ class_name BulletTrail
 # List of trail points.
 var points: Array = []
 
-# Reference to the target node (the one being followed).
-var _target: Node3D
-
 # A MeshInstance3D child for rendering the trail.
 var mesh_instance: MeshInstance3D
 
@@ -43,16 +40,16 @@ class TrailPoint:
 	func update(delta: float) -> void:
 		age -= delta
 
-func initialize(f_node: Node3D) -> void:
-	_target = f_node
+func initialize() -> void:
+	self.top_level = true
 	# Connect to the target's "tree_exiting" signal using a Callable.
-	if is_instance_valid(_target):
-		_target.connect("tree_exiting", Callable(self, "_on_target_exiting"))
+	if is_instance_valid(get_parent()):
+		get_parent().connect("tree_exiting", Callable(self, "_onget_parent()_exiting"))
 
 # Called once this node enters the scene tree.
 func _ready() -> void:
-	# Expect _target to be set by initialize() before _ready() is called.
-	assert(_target != null, "Trail requires a target node set via initialize()!")
+	# Expect get_parent() to be set by initialize() before _ready() is called.
+	assert(get_parent() != null, "Trail requires a target node set via initialize()!")
 	
 	# Create a MeshInstance3D for the trail mesh.
 	mesh_instance = MeshInstance3D.new()
@@ -71,8 +68,8 @@ func _ready() -> void:
 		add_child(wire_instance)
 	
 	# Add initial points so the trail starts rendering immediately.
-	add_point(_target.global_transform)
-	add_point(_target.global_transform)
+	add_point(get_parent().global_transform)
+	add_point(get_parent().global_transform)
 
 func _on_target_exiting() -> void:
 	# When the target is about to be removed from the scene tree, stop emitting new points.
@@ -89,11 +86,11 @@ func _process(delta: float) -> void:
 			queue_free()
 
 func _emit(delta: float) -> void:
-	if not _target:
+	if not get_parent():
 		return
 	# Only add a new point if moved enough.
-	if points.size() == 0 or _target.global_transform.origin.distance_squared_to(points[points.size() - 1].transform.origin) >= distance * distance:
-		add_point(_target.global_transform)
+	if points.size() == 0 or get_parent().global_transform.origin.distance_squared_to(points[points.size() - 1].transform.origin) >= distance * distance:
+		add_point(get_parent().global_transform)
 	_update_mesh()
 
 func add_point(transform: Transform3D) -> void:
@@ -147,11 +144,11 @@ func _prepare_geometry(prev_pt: TrailPoint, pt: TrailPoint, factor: float) -> Ar
 			"Y": normal = pt.transform.basis.y.normalized()
 			"Z": normal = pt.transform.basis.z.normalized()
 	else: # "Object"
-		if _target:
+		if get_parent():
 			match axe:
-				"X": normal = _target.global_transform.basis.x.normalized()
-				"Y": normal = _target.global_transform.basis.y.normalized()
-				"Z": normal = _target.global_transform.basis.z.normalized()
+				"X": normal = get_parent().global_transform.basis.x.normalized()
+				"Y": normal = get_parent().global_transform.basis.y.normalized()
+				"Z": normal = get_parent().global_transform.basis.z.normalized()
 		else:
 			normal = Vector3.UP
 
