@@ -19,3 +19,5 @@ res://weapons/modules/SpeedsterModule.gd
 res://weapons/modules/SlowModule.gd
 res://weapons/modules/WeaponConfig.gd
 res://MuzzleFlash.gd
+res://Enemy.tscn
+res://weapons/Weapon.gd

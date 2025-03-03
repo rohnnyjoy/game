@@ -58,5 +58,5 @@ func _reload() -> void:
 	reloading = true
 	# Wait for the reload speed duration.
 	await get_tree().create_timer(get_weapon_config().reload_speed).timeout
-	current_ammo = ammo
+	current_ammo = get_weapon_config().ammo
 	reloading = false

@@ -17,11 +17,12 @@ func on_collision(collision: Dictionary, bullet: Bullet) -> void:
     if collider.is_in_group("enemies"):
         var penetration_count: int = bullet.get_meta("penetration_count")
         penetration_count += 1
+        print("Penetration count: ", penetration_count)
         bullet.set_meta("penetration_count", penetration_count)
 
         bullet.damage *= (1.0 - damage_reduction)
         bullet.velocity *= velocity_factor
-        
+
         if penetration_count >= max_penetrations:
             bullet.queue_free()
     else:

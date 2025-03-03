@@ -20,6 +20,9 @@ var _radius: float = 0.5
 var _mesh: MeshInstance3D
 var collision_handlers: Array = []
 
+# New variable to store last collider id
+var _last_collision_collider_id: int = -1
+
 func set_radius(new_radius: float) -> void:
     _radius = new_radius
     for trail in trails:
@@ -107,26 +110,37 @@ func _physics_process(delta: float) -> void:
     
     var collision = get_world_3d().direct_space_state.intersect_ray(query)
     if collision:
-        var collision_data = {
-            "position": collision.position,
-            "normal": collision.normal,
-            "collider_id": collision.collider_id,
-            "collider": collision.collider,
-            "rid": collision.rid,
-        }
-        
-        for module in modules:
-            await module.on_collision(collision_data, self)
+        print("Collision detected with id: ", collision.collider_id, "last", _last_collision_collider_id)
+        # Check if the collider is the same as last frame.
+        if collision.collider_id == _last_collision_collider_id:
+            print("Skipping collision event for the same collider.")
+            # Skip triggering collision events and simply update position.
+            global_transform.origin = predicted_position
+        else:
+            #  teleport bullet to the collision point
+            global_transform.origin = collision.position
 
-        _on_bullet_collision(collision_data, self)
-        
-        if destroy_on_impact:
-            _cleanup()
-            return
-        
-        # If not destroyed, place the bullet at or just beyond the collision point.
-        global_transform.origin = collision.position + velocity.normalized() * 0.001
+            _last_collision_collider_id = collision.collider_id
+            
+            var collision_data = {
+                "position": collision.position,
+                "normal": collision.normal,
+                "collider_id": collision.collider_id,
+                "collider": collision.collider,
+                "rid": collision.rid,
+            }
+            
+            for module in modules:
+                await module.on_collision(collision_data, self)
+    
+            _on_bullet_collision(collision_data, self)
+            
+            if destroy_on_impact:
+                _cleanup()
+                return
     else:
+        # Reset the last collision ID when no collision occurs.
+        # _last_collision_collider_id = -1
         global_transform.origin = predicted_position
 
     for module in modules:
@@ -140,14 +154,12 @@ func _on_bullet_collision(collision: Dictionary, bullet: Bullet) -> void:
         return
     if hit and hit.is_in_group("enemies"):
         if hit.has_method("take_damage"):
-            print("Hit enemy", damage)
             hit.take_damage(damage)
     
-
 func _process_enemies_inside() -> void:
     var now_ms: int = Time.get_ticks_msec()
     for enemy in get_overlapping_enemies():
-        print("Hit enemy", damage)
+        pass
                 
 func get_overlapping_enemies() -> Array[Node3D]:
     var result: Array[Node3D] = []
@@ -161,6 +173,6 @@ func get_overlapping_enemies() -> Array[Node3D]:
 
 func _cleanup() -> void:
     for t in trails:
-        if t and t.has_method("stop_trail"):
+        if is_instance_valid(t) and t.has_method("stop_trail"):
             t.stop_trail()
     queue_free()
