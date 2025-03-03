@@ -1,4 +1,5 @@
 extends Control
+class_name CardStack
 
 @export var offset: float = 30.0
 @export var scale_between_cards: float = 0.05
