@@ -11,6 +11,6 @@ func modify_weapon(config: WeaponConfig) -> WeaponConfig:
 	config.ammo = 10
 	config.reload_speed = 1
 	config.damage = 10
-	config.bullet_speed = 2
+	config.bullet_speed = 4
 	config.accuracy = 1
 	return config

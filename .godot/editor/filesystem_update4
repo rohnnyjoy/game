@@ -1,2 +1,15 @@
-res://world.tscn
 res://world.gd
+res://weapons/Bullet.gd
+res://weapons/uniques/OlReliable.gd
+res://weapons/modules/AimbotModule.gd
+res://world.tscn
+res://weapons/Bullet.tscn
+res://weapons/modules/StickyModule.gd
+res://BulletTrail.gd
+res://weapons/modules/BouncingModule.gd
+res://weapons/modules/uniques/OlReliableModule.gd
+res://Enemy.gd
+res://Trail.gd
+res://weapons/modules/PenetratingModule.gd
+res://weapons/modules/HomingModule.gd
+res://weapons/modules/HomingComponent.gd

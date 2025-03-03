@@ -1,5 +1,5 @@
 ea4bc82a6ad023ab7ee23ee620429895
-::res://::1740967589
+::res://::1740968149
 BulletTrail.gd::GDScript::-1::1740949136::0::1::::BulletTrail<>Node3D<>::
 Enemy.gd::GDScript::-1::1740961198::0::1::::Enemy<>CharacterBody3D<>::
 Enemy.tscn::PackedScene::2531864207925771924::1740967452::0::1::::<><>::res://Enemy.gd
@@ -12,10 +12,10 @@ README.md::TextFile::-1::1695149700::0::1::::<><>::
 Trail2D.tscn::PackedScene::6333425073781919292::1740930980::0::1::::<><>::
 Trail.gd::GDScript::-1::1740861995::0::1::::<>Node3D<>::
 Trail.tscn::PackedScene::6362761510954123500::1740930980::0::1::::<><>::res://Trail.gd
-world.gd::GDScript::-1::1740715598::0::1::::<>Node<>::
-world.tscn::PackedScene::7118987691217281615::1740967452::0::1::::<><>::res://world.gd<>uid://c1j7an8woikyd::::res://environment.tscn<>uid://8ka2ui7sq36p::::res://addons/kenney_particle_pack/circle_05.png<>uid://bccpo0iaadmj1::::res://Enemy.tscn<>uid://xcjrjq5cbn7y::::res://Player.tscn
+world.gd::GDScript::-1::1740967912::0::1::::<>Node<>::
+world.tscn::PackedScene::7118987691217281615::1740968015::0::1::::<><>::res://world.gd<>uid://c1j7an8woikyd::::res://environment.tscn<>uid://8ka2ui7sq36p::::res://addons/kenney_particle_pack/circle_05.png<>uid://bccpo0iaadmj1::::res://Enemy.tscn<>uid://xcjrjq5cbn7y::::res://Player.tscn
 ::res://addons/::1740712683
-::res://addons/kenney_particle_pack/::1740712722
+::res://addons/kenney_particle_pack/::1740967591
 circle_01.png::CompressedTexture2D::5792837905305388373::1695149700::1740967591::1::::<><>::
 circle_02.png::CompressedTexture2D::9155534314915122365::1695149700::1740967591::1::::<><>::
 circle_03.png::CompressedTexture2D::8476206257521111262::1695149700::1740967591::1::::<><>::
@@ -97,7 +97,7 @@ window_01.png::CompressedTexture2D::2501455396793022259::1695149700::1740967590:
 window_02.png::CompressedTexture2D::3796637484027499615::1695149700::1740967590::1::::<><>::
 window_03.png::CompressedTexture2D::5558569862017982201::1695149700::1740967590::1::::<><>::
 window_04.png::CompressedTexture2D::2410144206643600020::1695149700::1740967590::1::::<><>::
-::res://addons/kenney_particle_pack/rotated/::1740712722
+::res://addons/kenney_particle_pack/rotated/::1740967591
 flame_05_rotated.png::CompressedTexture2D::8996246976011962257::1695149700::1740967591::1::::<><>::
 flame_06_rotated.png::CompressedTexture2D::4059313558129190354::1695149700::1740967591::1::::<><>::
 muzzle_01_rotated.png::CompressedTexture2D::7118615013909663361::1695149700::1740967591::1::::<><>::
@@ -116,7 +116,7 @@ trace_06_rotated.png::CompressedTexture2D::1753627048558740301::1695149700::1740
 trace_07_rotated.png::CompressedTexture2D::4394160810704362486::1695149700::1740967591::1::::<><>::
 ::res://addons/kenney_prototype_textures/::1740789904
 LICENSE.txt::TextFile::-1::1695149700::0::1::::<><>::
-::res://addons/kenney_prototype_textures/dark/::1740712721
+::res://addons/kenney_prototype_textures/dark/::1740967590
 texture_01.png::CompressedTexture2D::6423205898104160304::1695149700::1740967590::1::::<><>::
 texture_02.png::CompressedTexture2D::1157867336716202282::1695149700::1740967590::1::::<><>::
 texture_03.png::CompressedTexture2D::3985903183715489194::1695149700::1740967590::1::::<><>::
@@ -130,7 +130,7 @@ texture_10.png::CompressedTexture2D::8448563660071388312::1695149700::1740967590
 texture_11.png::CompressedTexture2D::8270902198340268757::1695149700::1740967590::1::::<><>::
 texture_12.png::CompressedTexture2D::6271979057873924093::1695149700::1740967590::1::::<><>::
 texture_13.png::CompressedTexture2D::1711030576070129673::1695149700::1740967590::1::::<><>::
-::res://addons/kenney_prototype_textures/green/::1740712721
+::res://addons/kenney_prototype_textures/green/::1740967590
 texture_01.png::CompressedTexture2D::2172685212237560063::1695149700::1740967590::1::::<><>::
 texture_02.png::CompressedTexture2D::337364678125790947::1695149700::1740967590::1::::<><>::
 texture_03.png::CompressedTexture2D::1555586752779187448::1695149700::1740967590::1::::<><>::
@@ -144,7 +144,7 @@ texture_10.png::CompressedTexture2D::8385849108785491144::1695149700::1740967590
 texture_11.png::CompressedTexture2D::192307265698471760::1695149700::1740967590::1::::<><>::
 texture_12.png::CompressedTexture2D::989024880164230156::1695149700::1740967590::1::::<><>::
 texture_13.png::CompressedTexture2D::8928645179177453013::1695149700::1740967590::1::::<><>::
-::res://addons/kenney_prototype_textures/light/::1740712721
+::res://addons/kenney_prototype_textures/light/::1740967590
 texture_01.png::CompressedTexture2D::5813035163790344872::1695149700::1740967590::1::::<><>::
 texture_02.png::CompressedTexture2D::4367285493060606844::1695149700::1740967590::1::::<><>::
 texture_03.png::CompressedTexture2D::4116503390063036593::1695149700::1740967590::1::::<><>::
@@ -158,7 +158,7 @@ texture_10.png::CompressedTexture2D::1916627345229009660::1695149700::1740967590
 texture_11.png::CompressedTexture2D::6478640408686633035::1695149700::1740967590::1::::<><>::
 texture_12.png::CompressedTexture2D::1293039194825616547::1695149700::1740967590::1::::<><>::
 texture_13.png::CompressedTexture2D::2199792587763937922::1695149700::1740967590::1::::<><>::
-::res://addons/kenney_prototype_textures/orange/::1740712721
+::res://addons/kenney_prototype_textures/orange/::1740967590
 texture_01.png::CompressedTexture2D::2565675700496175568::1695149700::1740967590::1::::<><>::
 texture_02.png::CompressedTexture2D::6719393541250198283::1695149700::1740967590::1::::<><>::
 texture_03.png::CompressedTexture2D::8489950503173011781::1695149700::1740967590::1::::<><>::
@@ -172,7 +172,7 @@ texture_10.png::CompressedTexture2D::1854734518881119760::1695149700::1740967590
 texture_11.png::CompressedTexture2D::7035814653991761079::1695149700::1740967590::1::::<><>::
 texture_12.png::CompressedTexture2D::3609564729178633325::1695149700::1740967590::1::::<><>::
 texture_13.png::CompressedTexture2D::2098810040252894917::1695149700::1740967590::1::::<><>::
-::res://addons/kenney_prototype_textures/purple/::1740712721
+::res://addons/kenney_prototype_textures/purple/::1740967590
 texture_01.png::CompressedTexture2D::7072761726709906911::1695149700::1740967590::1::::<><>::
 texture_02.png::CompressedTexture2D::4664558880747348796::1695149700::1740967590::1::::<><>::
 texture_03.png::CompressedTexture2D::7574674616134023257::1695149700::1740967590::1::::<><>::
@@ -186,7 +186,7 @@ texture_10.png::CompressedTexture2D::7284471560476089115::1695149700::1740967590
 texture_11.png::CompressedTexture2D::7686222028124143127::1695149700::1740967590::1::::<><>::
 texture_12.png::CompressedTexture2D::7717063326021155639::1695149700::1740967590::1::::<><>::
 texture_13.png::CompressedTexture2D::1888044496077578853::1695149700::1740967590::1::::<><>::
-::res://addons/kenney_prototype_textures/red/::1740712721
+::res://addons/kenney_prototype_textures/red/::1740967590
 texture_01.png::CompressedTexture2D::5954034618214774214::1695149700::1740967590::1::::<><>::
 texture_02.png::CompressedTexture2D::4324802419000391699::1695149700::1740967590::1::::<><>::
 texture_03.png::CompressedTexture2D::8798967968633649032::1695149700::1740967590::1::::<><>::
@@ -200,7 +200,7 @@ texture_10.png::CompressedTexture2D::6808975186572391150::1695149700::1740967590
 texture_11.png::CompressedTexture2D::7545086805062830587::1695149700::1740967590::1::::<><>::
 texture_12.png::CompressedTexture2D::4415144967384604254::1695149700::1740967590::1::::<><>::
 texture_13.png::CompressedTexture2D::1228184785722532910::1695149700::1740967590::1::::<><>::
-::res://models/::1740783605
+::res://models/::1740967591
 Environment.glb::PackedScene::5486801600134382820::1695149700::1740967591::1::::<><>::
 Pistol.glb::PackedScene::5177646372766412158::1695149700::1740967591::1::::<><>::
 ::res://weapons/::1740967452

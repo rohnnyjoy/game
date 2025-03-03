@@ -40,4 +40,5 @@ func on_collision(collision: Dictionary, bullet: Bullet) -> void:
     else:
         print("Warning: bullet is not in the scene tree!")
     
-    bullet.set_meta("is_sticky", false)
+    if is_instance_valid(bullet):
+        bullet.set_meta("is_sticky", false)
