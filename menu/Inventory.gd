@@ -20,7 +20,7 @@
 #     # Clear any existing children in the grid.
 #     for child in grid.get_children():
 #         child.queue_free()
-    
+	
 #     # Create new inventory items.
 #     for item in inventory_items:
 #         var inv_item = InventoryItem.new()
