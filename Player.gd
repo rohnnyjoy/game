@@ -143,7 +143,9 @@ func _handle_camera_rotation(event):
 #
 func _handle_shooting(_event):
 	if Input.is_action_just_pressed("shoot"):
-		current_weapon.use()
+		current_weapon.on_press()
+	elif Input.is_action_just_released("shoot"):
+		current_weapon.on_release()
 
 func _handle_dash(_event):
 	if Input.is_action_just_pressed("dash"):
