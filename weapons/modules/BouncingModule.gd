@@ -5,6 +5,9 @@ var damage_reduction: float = 0.2
 var bounciness: float = 0.8
 var max_bounces: int = 3
 
+func _init() -> void:
+	module_description = "Bullets bounce off surfaces, reducing damage with each bounce."
+
 func modify_bullet(bullet: Bullet) -> Bullet:
 	if not bullet.has_meta("bounce_count"):
 		bullet.set_meta("bounce_count", 0)

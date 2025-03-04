@@ -1,10 +1,10 @@
 [gd_scene load_steps=3 format=3 uid="uid://5rm8jtnbbpmg"]
 
-[ext_resource type="Script" path="res://weapons/BulletWeapon.gd" id="1_t3ptv"]
+[ext_resource type="Script" path="res://weapons/uniques/OlReliable.gd" id="1_t8gwi"]
 [ext_resource type="PackedScene" uid="uid://cf1dcxwv6bvl3" path="res://models/Pistol.glb" id="3_0ia4u"]
 
-[node name="Pistol" type="Node3D"]
-script = ExtResource("1_t3ptv")
+[node name="Weapon" type="Node3D"]
+script = ExtResource("1_t8gwi")
 
 [node name="Pistol" parent="." instance=ExtResource("3_0ia4u")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00441742, 0.0234731, 0.0762664)

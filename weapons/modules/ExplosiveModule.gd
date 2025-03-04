@@ -2,7 +2,10 @@ extends WeaponModule
 class_name ExplosiveModule
 
 @export var explosion_radius: float = 1.0
-@export var explosion_damage_multiplier: float = 0.5
+@export var explosion_damage_multiplier: float = 0.25
+
+func _init() -> void:
+  module_description = "Attacks explode on impact, dealing 25% damage in a 2-meter radius."
 
 func on_collision(collision: Dictionary, bullet: Bullet) -> void:
   var impact_point: Vector3 = collision.position

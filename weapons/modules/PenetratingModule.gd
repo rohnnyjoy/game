@@ -6,6 +6,9 @@ var velocity_factor: float = 0.9
 var max_penetrations: int = 5
 var collision_cooldown: float = 0.2
 
+func _init() -> void:
+    module_description = "Bullets can penetrate multiple enemies, reducing damage with each hit."
+
 func modify_bullet(bullet: Bullet) -> Bullet:
     if not bullet.has_meta("penetration_count"):
         bullet.set_meta("penetration_count", 0)

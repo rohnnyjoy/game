@@ -4,6 +4,9 @@ class_name HomingModule
 @export var homing_radius: float = 10.0
 @export var tracking_strength: float = 0.1 # How quickly the bullet turns; 0.0 to 1.0
 
+func _init() -> void:
+	module_description = "Attacks home in on the nearest enemy within 10m."
+
 func on_physics_process(delta: float, bullet: Bullet) -> void:
 	if not bullet or not bullet.is_inside_tree():
 		queue_free()

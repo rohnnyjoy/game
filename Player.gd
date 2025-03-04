@@ -1,7 +1,9 @@
 extends CharacterBody3D
 
 signal health_changed(health_value)
-@export var pistol_scene: PackedScene
+
+var weapon = preload("res://weapons/Weapon.tscn")
+
 
 #===============================================================================
 # AirLurchManager - Handles air lurch mechanics
@@ -84,32 +86,27 @@ var air_lurch_manager: AirLurchManager = null
 # Sliding state
 var is_sliding: bool = false
 
-var current_weapon: Weapon = null
-
+@export var current_weapon: Weapon = null
 
 # Store the horizontal velocity before collision resolution for better bounce calculations.
 var pre_slide_horizontal_velocity: Vector3 = Vector3.ZERO
 
 func equip_default_weapon():
-	var pistol = pistol_scene.instantiate()
-	$Camera3D/WeaponHolder.add_child(pistol)
-	current_weapon = pistol
+	var weapon_instance = weapon.instantiate()
+	$Camera3D/WeaponHolder.add_child(weapon_instance)
+	current_weapon = weapon_instance
 
 
 #===============================================================================
 # Multiplayer Setup & Initialization
 #===============================================================================
-func _enter_tree():
-	# Set multiplayer authority based on this node's name (as int).
-	set_multiplayer_authority(str(name).to_int())
 
 func _ready():
-	if not is_multiplayer_authority():
-		return
 	_setup_input()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	camera.current = true
 	equip_default_weapon()
+	print("HEYHEY")
 
 func _setup_input() -> void:
 	# Ensure the "slide" action exists.
@@ -184,7 +181,7 @@ func _physics_process(delta):
 	
 	# After collision resolution, if sliding, process bounce behavior.
 	if is_sliding:
-		_process_slide_collisions_post()	
+		_process_slide_collisions_post()
 	
 	if not is_on_floor and is_colliding_with_wall():
 		jumps_remaining = min(jumps_remaining + 1, MAX_JUMPS)
@@ -215,7 +212,7 @@ func _process_jump_and_gravity(delta):
 		
 		# If wall jumping, push the player away from the wall
 		if wall_normal != Vector3.ZERO:
-			velocity += wall_normal * 10.0  # Push away from wall (adjustable force)
+			velocity += wall_normal * 10.0 # Push away from wall (adjustable force)
 	
 	# Apply gravity when not on the ground.
 	if not is_on_floor():
@@ -228,7 +225,7 @@ func is_colliding_with_wall() -> Vector3:
 		# If normal is not floor-like (not pointing up), it's a wall
 		if abs(col_normal.dot(Vector3.UP)) < 0.7:
 			return col_normal
-	return Vector3.ZERO  # No wall detected
+	return Vector3.ZERO # No wall detected
 #===============================================================================
 # Ground Movement
 #===============================================================================

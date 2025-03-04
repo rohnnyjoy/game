@@ -3,6 +3,9 @@ class_name SpeedsterModule
 
 @export var default_trail_width: float = 0.5 # Fallback width if bullet.trail is nil.
 
+func _init() -> void:
+	module_description = "Bullets move faster."
+
 func modify_bullet(bullet: Bullet) -> Bullet:
 	var extra_trail = Trail.new()
 	# Use the new transparency_mode property instead of shading_mode.

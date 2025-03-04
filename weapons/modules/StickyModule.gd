@@ -4,6 +4,9 @@ class_name StickyModule
 var stick_duration: float = 1.0
 var collision_damage: float = 1
 
+func _init() -> void:
+    module_description = "Bullets stick to surfaces and enemies, detonating after a short delay."
+
 func modify_bullet(bullet: Bullet) -> Bullet:
     bullet.set_meta("is_sticky", false)
     return bullet
