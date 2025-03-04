@@ -4,18 +4,20 @@ class_name Enemy
 signal enemy_detected(target)
 signal enemy_died()
 
+@export var patrol: bool = true
+
 #===============================================================================
 # Constants & Variables
 #===============================================================================
 const SPEED: float = 5.0
 const DETECTION_RADIUS: float = 20.0
 const ATTACK_RADIUS: float = 2.0
-const MOVE_DISTANCE: float = 10.0  # Distance the enemy will move side to side
+const MOVE_DISTANCE: float = 10.0 # Distance the enemy will move side to side
 
 var health: int = 100
 var target: Node = null
 var start_x: float
-var direction: int = 1  # 1 = right, -1 = left
+var direction: int = 1 # 1 = right, -1 = left
 
 @onready var anim_player: AnimationPlayer = $AnimationPlayer
 @onready var health_bar: ProgressBar = $HealthBar
@@ -67,12 +69,14 @@ func _physics_process(delta: float) -> void:
 # Patrol Movement
 #===============================================================================
 func _patrol(delta: float) -> void:
+	if not patrol:
+		return
 	velocity.x = direction * SPEED * speed_multiplier
 
 	if global_transform.origin.x >= start_x + MOVE_DISTANCE:
-		direction = -1  # Move left
+		direction = -1 # Move left
 	elif global_transform.origin.x <= start_x - MOVE_DISTANCE:
-		direction = 1  # Move right
+		direction = 1 # Move right
 
 	anim_player.play("move")
 
@@ -111,7 +115,7 @@ func _attack_target() -> void:
 	if target.has_method("take_damage"):
 		target.take_damage(1)
 		
-var speed_multiplier: float = 1.0  # Default multiplier
+var speed_multiplier: float = 1.0 # Default multiplier
 func set_speed_multiplier(multiplier: float) -> void:
 	speed_multiplier = multiplier
 
@@ -122,7 +126,6 @@ func set_speed_multiplier(multiplier: float) -> void:
 func take_damage(amount: int) -> void:
 	health -= amount
 	health_bar.value = health # Update the health bar display
-	print("Enemy health:", health, "Health Bar:", health_bar.value)
 	if health <= 0:
 		_die()
 
