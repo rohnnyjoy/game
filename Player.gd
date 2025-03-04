@@ -104,6 +104,10 @@ func _enter_tree():
 	set_multiplayer_authority(str(name).to_int())
 
 func _ready():
+	# CRITICAL ADDITION: Add player to the "players" group so enemies can detect it
+	add_to_group("players")
+	print("Player added to 'players' group")
+	
 	if not is_multiplayer_authority():
 		return
 	_setup_input()
