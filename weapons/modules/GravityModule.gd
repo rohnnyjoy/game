@@ -1,7 +1,7 @@
 extends WeaponModule
 class_name GravityModule
 
-const GRAVITY_FORCE: float = 700.0  # Stronger gravity for aggressive curve
+const GRAVITY_FORCE: float = 30.0  # Stronger gravity for aggressive curve
 const DAMAGE_GROWTH_RATE: float = 0.1  # More damage over distance
 
 # Called when a bullet is fired
