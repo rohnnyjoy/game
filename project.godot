@@ -65,3 +65,7 @@ toggle_inventory={
 
 common/max_physics_steps_per_frame=32
 3d/solver/solver_iterations=32
+
+[rendering]
+
+environment/defaults/default_clear_color=Color(0.674815, 0.674815, 0.674814, 1)

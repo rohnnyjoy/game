@@ -1,6 +1,9 @@
 extends Node
 class_name WeaponModule
 
+@export var module_name: String = "Base Module"
+@export var module_description: String = "Base Module"
+
 # This base module can be extended to modify bullets or weapons.
 
 func modify_bullet(bullet: Bullet) -> Bullet:

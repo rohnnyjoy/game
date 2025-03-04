@@ -2,3 +2,13 @@ res://world.tscn
 res://weapons/Bullet.tscn
 res://Enemy.tscn
 res://menu/Inventory.gd
+res://menu/CardStack.gd
+res://menu/Card.gd
+res://Enemy.gd
+res://Trail.gd
+res://world.gd
+res://MenuCanvas.gd
+res://Player.gd
+res://weapons/modules/WeaponModule.gd
+res://weapons/modules/WeaponConfig.gd
+res://weapons/Bullet.gd

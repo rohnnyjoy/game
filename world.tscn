@@ -1,8 +1,10 @@
-[gd_scene load_steps=11 format=3 uid="uid://c8oqxmm2w2wvv"]
+[gd_scene load_steps=13 format=3 uid="uid://c8oqxmm2w2wvv"]
 
 [ext_resource type="Script" path="res://world.gd" id="1_6tkge"]
 [ext_resource type="PackedScene" uid="uid://c1j7an8woikyd" path="res://environment.tscn" id="1_iktak"]
 [ext_resource type="Texture2D" uid="uid://8ka2ui7sq36p" path="res://addons/kenney_particle_pack/circle_05.png" id="3_ehmxv"]
+[ext_resource type="Script" path="res://MenuCanvas.gd" id="3_nmfmg"]
+[ext_resource type="Script" path="res://menu/CardStack.gd" id="3_rc33e"]
 [ext_resource type="PackedScene" uid="uid://bccpo0iaadmj1" path="res://Enemy.tscn" id="4_xr0ro"]
 [ext_resource type="PackedScene" uid="uid://xcjrjq5cbn7y" path="res://Player.tscn" id="5_taioi"]
 
@@ -39,20 +41,31 @@ environment = SubResource("Environment_6knbf")
 transform = Transform3D(1, 0, 0, 0, 2.11626, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="MenuCanvas" type="CanvasLayer" parent="."]
-visible = false
+script = ExtResource("3_nmfmg")
 
 [node name="Inventory" type="Panel" parent="MenuCanvas"]
-offset_left = 214.0
-offset_top = 81.0
-offset_right = 909.0
-offset_bottom = 525.0
+offset_left = 234.0
+offset_top = 105.0
+offset_right = 929.0
+offset_bottom = 328.0
+script = ExtResource("3_rc33e")
+offset = null
+anim_duration = null
+anim_duration_offset = null
+stack_type = null
+inventory = null
 
-[node name="Modules" type="GridContainer" parent="MenuCanvas/Inventory"]
-layout_mode = 0
-offset_left = 41.0
-offset_top = 40.0
-offset_right = 367.0
-offset_bottom = 162.0
+[node name="Inventory2" type="Panel" parent="MenuCanvas"]
+offset_left = 235.0
+offset_top = 328.0
+offset_right = 930.0
+offset_bottom = 642.0
+script = ExtResource("3_rc33e")
+offset = null
+anim_duration = null
+anim_duration_offset = null
+stack_type = null
+inventory = null
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
