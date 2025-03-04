@@ -5,6 +5,7 @@ class_name HomingModule
 @export var tracking_strength: float = 0.1 # How quickly the bullet turns; 0.0 to 1.0
 
 func _init() -> void:
+	card_texture = preload("res://icons/homing.png")
 	module_description = "Attacks home in on the nearest enemy within 10m."
 
 func on_physics_process(delta: float, bullet: Bullet) -> void:

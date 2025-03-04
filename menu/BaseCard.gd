@@ -1,4 +1,3 @@
-# BaseCard.gd
 extends Button
 class_name BaseCard
 
@@ -13,6 +12,8 @@ var _card_color: Color = Color.WHITE
 @export var rotation_follow_speed: float = 10.0
 @export var return_speed: float = 3.0
 @export var max_angle: float = 15.0
+@export var card_texture: Texture2D
+@export var card_description: String = ""
 
 var target_rotation: float = 0.0
 var picked_up: bool = false
@@ -29,15 +30,22 @@ func get_card_color() -> Color:
 
 func _ready() -> void:
 	custom_minimum_size = card_size
-	# The pivot_offset centers the card.
 	pivot_offset = card_size * 0.5
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	
-	var style_box = StyleBoxFlat.new()
-	style_box.bg_color = Color(1, 1, 1, 1)
-	add_theme_stylebox_override("normal", style_box)
-	add_theme_stylebox_override("pressed", style_box)
-	add_theme_stylebox_override("hover", style_box)
+	if card_texture:
+		var style_box = StyleBoxTexture.new()
+		style_box.texture = card_texture
+		add_theme_stylebox_override("normal", style_box)
+		add_theme_stylebox_override("pressed", style_box)
+		add_theme_stylebox_override("hover", style_box)
+	else:
+		# Fallback style if no texture is set.
+		var style_box = StyleBoxFlat.new()
+		style_box.bg_color = Color(1, 1, 1, 1)
+		add_theme_stylebox_override("normal", style_box)
+		add_theme_stylebox_override("pressed", style_box)
+		add_theme_stylebox_override("hover", style_box)
 	
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
@@ -105,7 +113,7 @@ func _on_drag_end() -> void:
 
 func _on_mouse_entered() -> void:
 	if not picked_up:
-		tooltip_text = "This is your card description."
+		tooltip_text = card_description
 
 func _on_mouse_exited() -> void:
 	tooltip_text = ""

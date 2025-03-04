@@ -147,6 +147,7 @@ func _physics_process(delta: float) -> void:
 			}
 			
 			for module in modules:
+				# MUST AWAIT
 				await module.on_collision(collision_data, self)
 	
 			_on_bullet_collision(collision_data, self)
@@ -160,6 +161,7 @@ func _physics_process(delta: float) -> void:
 		global_transform.origin = predicted_position
 
 	for module in modules:
+		# MUST AWAIT
 		await module.on_physics_process(delta, self)
 
 	_process_enemies_inside()

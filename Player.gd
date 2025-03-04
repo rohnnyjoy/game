@@ -2,9 +2,6 @@ extends CharacterBody3D
 
 signal health_changed(health_value)
 
-var weapon = preload("res://weapons/Weapon.tscn")
-
-
 #===============================================================================
 # AirLurchManager - Handles air lurch mechanics
 #===============================================================================
@@ -86,21 +83,25 @@ var air_lurch_manager: AirLurchManager = null
 # Sliding state
 var is_sliding: bool = false
 
-@export var current_weapon: Weapon = null
+# Store the current weapon instance.
+var current_weapon: Weapon = null
 
 # Store the horizontal velocity before collision resolution for better bounce calculations.
 var pre_slide_horizontal_velocity: Vector3 = Vector3.ZERO
 
+#===============================================================================
+# Weapon Equipping using the Inventory Singleton
+#===============================================================================
 func equip_default_weapon():
-	var weapon_instance = weapon.instantiate()
-	$Camera3D/WeaponHolder.add_child(weapon_instance)
-	current_weapon = weapon_instance
-
+	# Directly access the autoload singleton Inventory.
+	if InventorySingleton.primary_weapon:
+		var weapon_instance = InventorySingleton.primary_weapon
+		$Camera3D/WeaponHolder.add_child(weapon_instance)
+		current_weapon = weapon_instance
 
 #===============================================================================
 # Multiplayer Setup & Initialization
 #===============================================================================
-
 func _ready():
 	_setup_input()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -137,7 +138,7 @@ func _handle_camera_rotation(event):
 		camera.rotate_x(- event.relative.y * 0.005)
 		# Clamp vertical camera rotation.
 		camera.rotation.x = clamp(camera.rotation.x, - PI / 2, PI / 2)
-#
+		
 func _handle_shooting(_event):
 	if Input.is_action_just_pressed("shoot"):
 		current_weapon.on_press()
@@ -210,7 +211,7 @@ func _process_jump_and_gravity(delta):
 		jump_buffer_timer = 0
 		jumps_remaining -= 1
 		
-		# If wall jumping, push the player away from the wall
+		# If wall jumping, push the player away from the wall.
 		if wall_normal != Vector3.ZERO:
 			velocity += wall_normal * 10.0 # Push away from wall (adjustable force)
 	
@@ -222,10 +223,11 @@ func is_colliding_with_wall() -> Vector3:
 	for i in range(get_slide_collision_count()):
 		var collision = get_slide_collision(i)
 		var col_normal = collision.get_normal()
-		# If normal is not floor-like (not pointing up), it's a wall
+		# If normal is not floor-like (not pointing up), it's a wall.
 		if abs(col_normal.dot(Vector3.UP)) < 0.7:
 			return col_normal
 	return Vector3.ZERO # No wall detected
+
 #===============================================================================
 # Ground Movement
 #===============================================================================

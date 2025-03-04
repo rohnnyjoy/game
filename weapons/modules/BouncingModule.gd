@@ -6,15 +6,17 @@ var bounciness: float = 0.8
 var max_bounces: int = 3
 
 func _init() -> void:
+	card_texture = preload("res://icons/bouncing.png")
 	module_description = "Bullets bounce off surfaces, reducing damage with each bounce."
 
 func modify_bullet(bullet: Bullet) -> Bullet:
 	if not bullet.has_meta("bounce_count"):
 		bullet.set_meta("bounce_count", 0)
-	bullet.destroy_on_impact = false
 	return bullet
 
 func on_collision(collision: Dictionary, bullet: Bullet) -> void:
+	var original_destroy_on_impact = bullet.destroy_on_impact
+	bullet.destroy_on_impact = false
 	var normal: Vector3 = collision["normal"]
 	
 	# Update bounce count.
@@ -30,4 +32,6 @@ func on_collision(collision: Dictionary, bullet: Bullet) -> void:
 	# Remove bullet if it has exceeded the maximum allowed bounces.
 	print("Bounce count: ", bounce_count)
 	if bounce_count >= max_bounces:
-		bullet.queue_free()
+		bullet.destroy_on_impact = original_destroy_on_impact
+
+	print("BOuncing complete with", bullet.destroy_on_impact)

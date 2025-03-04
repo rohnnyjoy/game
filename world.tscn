@@ -40,14 +40,14 @@ transform = Transform3D(1, 0, 0, 0, 2.11626, 0, 0, 0, 1, 0, 0, 0)
 [node name="MenuCanvas" type="CanvasLayer" parent="."]
 script = ExtResource("3_nmfmg")
 
-[node name="WeaponInventory" type="Panel" parent="MenuCanvas"]
+[node name="WeaponInventoryDisplay" type="Panel" parent="MenuCanvas"]
 offset_left = 234.0
 offset_top = 105.0
 offset_right = 929.0
 offset_bottom = 328.0
 script = ExtResource("4_8a8tu")
 
-[node name="Inventory" type="Panel" parent="MenuCanvas"]
+[node name="InventoryStack" type="Panel" parent="MenuCanvas"]
 offset_left = 235.0
 offset_top = 328.0
 offset_right = 930.0

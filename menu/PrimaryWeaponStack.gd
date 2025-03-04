@@ -3,21 +3,32 @@ class_name PrimaryWeaponStack
 
 func _ready() -> void:
 	super._ready()
-	var root_scene = get_tree().current_scene
-	var player = root_scene.find_child("Player", true, false)
-	for module in player.current_weapon.modules:
-			var card = WeaponModuleCard.new()
-			card.module = module
-			card.set_card_color(Color(0.5, 0.5, 0.5))
-			add_child(card)
+	InventorySingleton.inventory_changed.connect(_on_inventory_changed)
+	_populate_cards()
+
+func _populate_cards() -> void:
+	# Remove existing cards.
+	for card in get_cards():
+		card.queue_free()
+
+	# Create cards based on primary weapon's modules.
+	for module in InventorySingleton.primary_weapon.modules:
+		var card = WeaponModuleCard.new(module)
+		card.module = module
+		card.set_card_color(Color(1, 1, 1))
+		add_child(card)
+	
 	update_cards(false)
 
-func on_cards_changed(new_cards: Array[BaseCard]) -> void:
-	super.on_cards_changed(new_cards)
-	var root_scene = get_tree().current_scene
-	var player = root_scene.find_child("Player", true, false)
-	var new_modules: Array[WeaponModule] = []
-	for card in new_cards:
+func _on_inventory_changed() -> void:
+	_populate_cards()
+
+# Override to update primary_weapon.modules from the new card order.
+func _on_cards_reordered() -> void:
+	var new_modules = []
+	for card in get_cards():
 		if card is WeaponModuleCard:
 			new_modules.append(card.module)
-	player.current_weapon.modules = new_modules
+	# Instead of assigning a new array, update the existing one.
+	InventorySingleton.primary_weapon.modules.clear()
+	InventorySingleton.primary_weapon.modules.append_array(new_modules)
