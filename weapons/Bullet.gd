@@ -8,9 +8,11 @@ class_name Bullet
 @export var damage: float = 1.0
 @export var color: Color = Color(1, 1, 1)
 @export var destroy_on_impact: bool = true
+@export var initial_position: Vector3
+@export var traveled_distance: float = 0.0  # Tracks how far the bullet has traveled
 
 @export var radius: float = 0.5:
-    set = set_radius, get = get_radius
+	set = set_radius, get = get_radius
 var _radius: float = 0.5
 
 @export var trails: Array = []
@@ -24,12 +26,12 @@ var collision_handlers: Array = []
 var _last_collision_collider_id: int = -1
 
 func set_radius(new_radius: float) -> void:
-    _radius = new_radius
-    for trail in trails:
-        trail.base_width = new_radius
+	_radius = new_radius
+	for trail in trails:
+		trail.base_width = new_radius
 
 func get_radius() -> float:
-    return _radius
+	return _radius
 
 func _init() -> void:
     var default_trail = Trail.new()
@@ -67,6 +69,8 @@ func _ready() -> void:
     mat.albedo_color = color
     mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
     _mesh.material_override = mat
+    
+    initial_position = global_position  # Store spawn position
     
     var collision_shape = CollisionShape3D.new()
     var sphere_shape = SphereShape3D.new()
@@ -107,6 +111,12 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
     velocity += Vector3.DOWN * gravity * delta
+    
+    # Update distance traveled
+    traveled_distance = initial_position.distance_to(global_position)
+
+    # Debug print to verify
+    print("Traveled Distance: ", traveled_distance)
     
     var current_position = global_transform.origin
     var predicted_motion = velocity * delta
@@ -171,14 +181,14 @@ func _process_enemies_inside() -> void:
         pass
                 
 func get_overlapping_enemies() -> Array[Node3D]:
-    var result: Array[Node3D] = []
-    for child in get_children():
-        if child is Area3D:
-            var bodies := (child as Area3D).get_overlapping_bodies()
-            for b in bodies:
-                if b.is_in_group("enemies"):
-                    result.append(b)
-    return result
+	var result: Array[Node3D] = []
+	for child in get_children():
+		if child is Area3D:
+			var bodies := (child as Area3D).get_overlapping_bodies()
+			for b in bodies:
+				if b.is_in_group("enemies"):
+					result.append(b)
+	return result
 
 func _cleanup() -> void:
     for t in trails:
