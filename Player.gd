@@ -103,6 +103,14 @@ func equip_default_weapon():
 # Multiplayer Setup & Initialization
 #===============================================================================
 func _ready():
+
+	# CRITICAL ADDITION: Add player to the "players" group so enemies can detect it
+	add_to_group("players")
+	print("Player added to 'players' group")
+	
+	if not is_multiplayer_authority():
+		return
+
 	_setup_input()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	camera.current = true

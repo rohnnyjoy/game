@@ -64,7 +64,7 @@ func _ready() -> void:
 	_mesh.mesh = sphere_mesh
 	_mesh.scale = Vector3.ONE
 	add_child(_mesh)
-	
+
 	var mat = StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -81,7 +81,7 @@ func _ready() -> void:
 	# Disable physical collision so the bullet won't get stuck
 	collision_layer = 0
 	collision_mask = 0
-	
+
 	var detection_area = Area3D.new()
 	var area_collision_shape = CollisionShape3D.new()
 	var area_sphere = SphereShape3D.new()
@@ -91,11 +91,12 @@ func _ready() -> void:
 	detection_area.collision_layer = 0
 	detection_area.collision_mask = 1
 	add_child(detection_area)
-	
+
 	velocity = direction.normalized() * speed
 
 	for module in modules:
 		await module.on_fire(self)
+
 	
 	# Wait one frame so that the bullet and its trails are fully initialized in the scene
 	await get_tree().process_frame
@@ -123,7 +124,7 @@ func _physics_process(delta: float) -> void:
 	query.from = current_position
 	query.to = predicted_position
 	query.exclude = [self]
-	
+
 	var collision = get_world_3d().direct_space_state.intersect_ray(query)
 	if collision:
 		# Check if the collider is the same as last frame.
@@ -137,7 +138,7 @@ func _physics_process(delta: float) -> void:
 			global_transform.origin = collision.position
 
 			_last_collision_collider_id = collision.collider_id
-			
+
 			var collision_data = {
 				"position": collision.position,
 				"normal": collision.normal,
@@ -161,7 +162,7 @@ func _physics_process(delta: float) -> void:
 		global_transform.origin = predicted_position
 
 	for module in modules:
-		# MUST AWAIT
+
 		await module.on_physics_process(delta, self)
 
 	_process_enemies_inside()
@@ -173,12 +174,12 @@ func _on_bullet_collision(collision: Dictionary, bullet: Bullet) -> void:
 	if hit and hit.is_in_group("enemies"):
 		if hit.has_method("take_damage"):
 			hit.take_damage(damage)
-	
+
 func _process_enemies_inside() -> void:
 	var now_ms: int = Time.get_ticks_msec()
 	for enemy in get_overlapping_enemies():
 		pass
-				
+
 func get_overlapping_enemies() -> Array[Node3D]:
 	var result: Array[Node3D] = []
 	for child in get_children():
