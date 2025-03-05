@@ -209,7 +209,7 @@ BaseCard.gd::GDScript::-1::1741123436::0::1::::BaseCard<>Button<>::
 CardStack.gd::GDScript::-1::1741123154::0::1::::CardStack<>Panel<>::
 InventoryStack.gd::GDScript::-1::1741130624::0::1::::InventoryStack<>CardStack<>::
 PrimaryWeaponStack.gd::GDScript::-1::1741130559::0::1::::PrimaryWeaponStack<>CardStack<>::
-WeaponModuleCard.gd::GDScript::-1::1741130570::0::1::::WeaponModuleCard<>BaseCard<>::
+WeaponModuleCard2D.gd::GDScript::-1::1741130570::0::1::::WeaponModuleCard2D<>BaseCard<>::
 ::res://models/::1741126894
 Environment.glb::PackedScene::5486801600134382820::1695149700::1741126894::1::::<><>::
 Pistol.glb::PackedScene::5177646372766412158::1695149700::1741126894::1::::<><>::

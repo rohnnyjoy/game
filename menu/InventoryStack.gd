@@ -13,8 +13,7 @@ func _populate_cards() -> void:
 
 	# Create a card for each module in weapon_modules.
 	for module in InventorySingleton.weapon_modules:
-		var card = WeaponModuleCard.new(module)
-		card.set_card_color(Color(1, 1, 1))
+		var card = WeaponModuleCard2D.new(module)
 		add_child(card)
 	
 	update_cards(false)
@@ -26,7 +25,7 @@ func _on_inventory_changed() -> void:
 func _on_cards_reordered() -> void:
 	var new_modules = []
 	for card in get_cards():
-		if card is WeaponModuleCard:
+		if card is WeaponModuleCard2D:
 			new_modules.append(card.module)
 	InventorySingleton.weapon_modules.clear()
 	InventorySingleton.weapon_modules.append_array(new_modules)

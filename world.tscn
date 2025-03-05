@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://c8oqxmm2w2wvv"]
+[gd_scene load_steps=13 format=3 uid="uid://c8oqxmm2w2wvv"]
 
 [ext_resource type="Script" path="res://world.gd" id="1_6tkge"]
 [ext_resource type="PackedScene" uid="uid://c1j7an8woikyd" path="res://environment.tscn" id="1_iktak"]
@@ -21,12 +21,11 @@ sky = SubResource("Sky_w2qqb")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="CanvasTexture" id="CanvasTexture_jxy0g"]
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_eopxg"]
-texture = SubResource("CanvasTexture_jxy0g")
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l8uhh"]
+bg_color = Color(0.6, 0.6, 0.6, 0)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_w1h00"]
+bg_color = Color(0.6, 0.6, 0.6, 0)
 
 [node name="World" type="Node"]
 script = ExtResource("1_6tkge")
@@ -42,7 +41,7 @@ shadow_enabled = true
 environment = SubResource("Environment_6knbf")
 
 [node name="Environment" parent="." instance=ExtResource("1_iktak")]
-transform = Transform3D(1, 0, 0, 0, 2.11626, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 2.11626, 0, 0, 0, 1, 0, -1.69061, 0)
 
 [node name="MenuCanvas" type="CanvasLayer" parent="."]
 script = ExtResource("3_nmfmg")
@@ -52,16 +51,27 @@ offset_left = 234.0
 offset_top = 105.0
 offset_right = 929.0
 offset_bottom = 328.0
-theme_override_styles/panel = SubResource("StyleBoxTexture_eopxg")
+theme_override_styles/panel = SubResource("StyleBoxFlat_l8uhh")
 script = ExtResource("4_8a8tu")
+offset = null
+anim_duration = null
+anim_duration_offset = null
+suction_duration = null
+stack_type = null
+theme_override_styles/panel = SubResource("StyleBoxFlat_l8uhh")
 
 [node name="InventoryStack" type="Panel" parent="MenuCanvas"]
 offset_left = 235.0
 offset_top = 375.0
 offset_right = 930.0
-offset_bottom = 691.0
+offset_bottom = 611.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_w1h00")
 script = ExtResource("4_lt7ux")
+offset = null
+anim_duration = null
+anim_duration_offset = null
+suction_duration = null
+stack_type = null
 
 [node name="Enemy" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.4504, 5.41359, 17.1158)
