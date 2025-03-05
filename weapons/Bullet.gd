@@ -9,7 +9,7 @@ class_name Bullet
 @export var color: Color = Color(1, 1, 1)
 @export var destroy_on_impact: bool = true
 @export var initial_position: Vector3
-@export var traveled_distance: float = 0.0  # Tracks how far the bullet has traveled
+@export var traveled_distance: float = 0.0 # Tracks how far the bullet has traveled
 
 @export var radius: float = 0.5:
 	set = set_radius, get = get_radius
@@ -69,9 +69,9 @@ func _ready() -> void:
 	mat.albedo_color = color
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mesh.material_override = mat
-
-	initial_position = global_position  # Store spawn position
-
+	
+	initial_position = global_position # Store spawn position
+	
 	var collision_shape = CollisionShape3D.new()
 	var sphere_shape = SphereShape3D.new()
 	sphere_shape.radius = radius + 0.5
@@ -97,13 +97,14 @@ func _ready() -> void:
 	for module in modules:
 		await module.on_fire(self)
 
+	
 	# Wait one frame so that the bullet and its trails are fully initialized in the scene
 	await get_tree().process_frame
-
+	
 	for trail in trails:
 		trail.initialize()
 		self.add_child(trail)
-
+	
 	# Bullet self-destruction after life_time
 	await get_tree().create_timer(life_time).timeout
 	_cleanup()
@@ -111,14 +112,14 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	velocity += Vector3.DOWN * gravity * delta
-
+	
 	# Update distance traveled
 	traveled_distance = initial_position.distance_to(global_position)
-
+	
 	var current_position = global_transform.origin
 	var predicted_motion = velocity * delta
 	var predicted_position = current_position + predicted_motion
-
+	
 	var query = PhysicsRayQueryParameters3D.new()
 	query.from = current_position
 	query.to = predicted_position
@@ -145,12 +146,13 @@ func _physics_process(delta: float) -> void:
 				"collider": collision.collider,
 				"rid": collision.rid,
 			}
-
+			
 			for module in modules:
+				# MUST AWAIT
 				await module.on_collision(collision_data, self)
-
+	
 			_on_bullet_collision(collision_data, self)
-
+			
 			if destroy_on_impact:
 				_cleanup()
 				return
@@ -160,6 +162,7 @@ func _physics_process(delta: float) -> void:
 		global_transform.origin = predicted_position
 
 	for module in modules:
+
 		await module.on_physics_process(delta, self)
 
 	_process_enemies_inside()

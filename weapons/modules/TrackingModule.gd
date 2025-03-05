@@ -4,6 +4,9 @@ class_name TrackingModule
 @export var tracking_strength: float = 0.1 # How quickly the bullet turns; 0.0 to 1.0
 @export var max_ray_distance: float = 1000.0 # Maximum distance for the ray trace
 
+func _init() -> void:
+    module_description = "Bullets track the mouse cursor, adjusting their trajectory to hit it."
+
 func on_physics_process(_delta: float, bullet: Bullet) -> void:
     if not bullet or not bullet.is_inside_tree():
         queue_free()

@@ -26,4 +26,3 @@ func get_weapon_config() -> WeaponConfig:
 	for module in [unique_module] + modules:
 		config = module.modify_weapon(config)
 	return config
-

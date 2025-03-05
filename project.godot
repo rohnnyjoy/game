@@ -15,6 +15,10 @@ run/main_scene="res://world.tscn"
 config/features=PackedStringArray("4.3", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+InventorySingleton="*res://Inventory.gd"
+
 [dotnet]
 
 project/assembly_name="MultiplayerFPSTutorial"
@@ -65,3 +69,7 @@ toggle_inventory={
 
 common/max_physics_steps_per_frame=32
 3d/solver/solver_iterations=32
+
+[rendering]
+
+environment/defaults/default_clear_color=Color(0.674815, 0.674815, 0.674814, 1)

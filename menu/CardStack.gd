@@ -1,98 +1,72 @@
-extends Control
+extends Panel
 class_name CardStack
 
-@export var offset: float = 30.0
-@export var scale_between_cards: float = 0.05
-@export var anim_duration: float = 0.45
-@export var anim_duration_offset: float = 0.15
+signal card_moved(card, from_stack, to_stack)
+signal cards_changed(cards)
 
-var first_card_pos: Vector2
-var first_card_scale: Vector2
+@export var offset: float = 120.0
+@export var anim_duration: float = 0.3
+@export var anim_duration_offset: float = 0.05
+@export var stack_type: String = "inventory" # e.g., "inventory" or "weapon"
 
 var tween: Tween
-var tween_last_card: Tween
-var tween_bg: Tween
+var cards: Array[BaseCard] = [] # Exposed array to track cards in the stack.
 
 func _ready() -> void:
-	for c in %Cards.get_children():
-		c.put_back.connect(on_card_put_back.bind(c))
+	add_to_group("CardStacks")
+	update_cards(false)
+
+# Repositions all cards in the stack.
+func update_cards(animated: bool = true) -> void:
+	var new_cards = get_cards()
+	if new_cards != cards:
+		cards = new_cards
+		emit_signal("cards_changed", cards)
 	
-	var first_card: Button = %Cards.get_child(%Cards.get_child_count() - 1)
-	first_card_pos = first_card.position
-	first_card_scale = first_card.scale
-	
-	await get_tree().create_timer(0.5).timeout
-	
-	tween_bg_color(first_card.color)
-	
-	update_cards()
-	
-	await tween.finished
-	for c in %Cards.get_children():
-		c.original_position = c.global_position
-	
-func tween_bg_color(new_color: Color) -> void:
-	if tween_bg and tween_bg.is_running():
-		tween_bg.kill()
-	tween_bg = create_tween().set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween_bg.tween_property($BG, "color", new_color, anim_duration * 2.0)
-	
-func update_cards(thrown: bool = false, animated: bool = true) -> void:
+	if cards.is_empty():
+		return
+
+	var center_y = size.y * 0.5
 	if tween and tween.is_running():
 		tween.kill()
-	tween = create_tween().set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC).set_parallel(true)
+	tween = create_tween().set_parallel(true)
 	
-	var child_count: int = %Cards.get_child_count()
-	var card_ref: Button = %Cards.get_child(child_count - 1)
-	
-	for i: int in range(child_count - 1, -1, -1):
-		var c: Button = %Cards.get_child(i)
-		if c == card_ref:
-			c.disabled = false
+	for i in range(cards.size()):
+		var card = cards[i]
+		var target_pos = Vector2(20 + i * offset, center_y - card.size.y * 0.5)
+		if animated:
+			tween.tween_property(card, "position", target_pos, anim_duration + i * anim_duration_offset)
 		else:
-			c.disabled = true
-		
-		print("Button: ", c.get_name())
-		var multiplier: float = child_count - 1 - i
-		print("Multiplier: ", multiplier)
-		var card_offset: float = offset * multiplier
-		print("Card offset: ", card_offset)
-		var card_scale: float = scale_between_cards * multiplier
-		print("Card scale: ", card_scale)
-		
-		if not animated:
-			c.position = first_card_pos - Vector2(0, card_offset)
-			c.scale = first_card_scale - Vector2(card_scale, card_scale)
-		else:
-			var duration: float = anim_duration + (anim_duration_offset * multiplier)
-			tween.tween_property(c, "position", first_card_pos - Vector2(0, card_offset), duration)
-			tween.tween_property(c, "scale", first_card_scale - Vector2(card_scale, card_scale), duration)
+			card.position = target_pos
 
-func on_card_put_back(which: Button) -> void:
-	print("Put back: ", which.get_name())
-	
-	var previous_card: Button = %Cards.get_child(%Cards.get_child_count() - 2)
-	tween_bg_color(previous_card.color)
-	
-	if tween_last_card and tween_last_card.is_running():
-		tween_last_card.kill()
-	tween_last_card = create_tween().set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween_last_card.tween_property(which, "global_position", $TopPoint.global_position - (which.size / 2.0), anim_duration / 2.0)
-	tween_last_card.parallel().tween_property(which, "scale", Vector2(0.8, 0.8), anim_duration / 2.0)
-	
-	# Move card to back
-	tween_last_card.tween_callback(%Cards.move_child.bind(which, 0))
-	tween_last_card.tween_callback(update_cards.bind(true))
+func get_cards() -> Array[BaseCard]:
+	var card_list: Array[BaseCard] = []
+	for child in get_children():
+		if child is BaseCard:
+			card_list.append(child)
+	return card_list
 
-	# Move card to back
-	#%Cards.move_child(which, 0)
+# Called when a card is dropped onto this stack.
+func on_card_drop(card: Control) -> void:
+	var local_x = card.global_position.x - global_position.x
+	var new_index = int(clamp(round(local_x / offset), 0, get_card_count() - 1))
+
+	var old_parent = card.get_parent()
+	if old_parent != self:
+		old_parent.remove_child(card)
+		add_child(card)
+		emit_signal("card_moved", card, old_parent, self)
+	else:
+		move_child(card, new_index)
 	
-	# Recalculate positions
-	#update_cards(true)
+	update_cards(true)
+	# Let subclasses update the inventory.
+	_on_cards_reordered()
 
-func set_cards_3D(state: bool) -> void:
-	for c in %Cards.get_children():
-		c.is_3D = state
+func get_card_count() -> int:
+	return cards.size()
 
-func _on_check_button_toggled(toggled_on: bool) -> void:
-	set_cards_3D(toggled_on)
+# Virtual method for subclasses to override.
+func _on_cards_reordered() -> void:
+	# Base implementation does nothing.
+	pass

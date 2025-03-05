@@ -1,4 +1,2 @@
 res://world.tscn
-res://weapons/Bullet.tscn
-res://Enemy.tscn
-res://menu/Inventory.gd
+res://weapons/unique/OlReliable.tscn
