@@ -60,6 +60,7 @@ public partial class Trail : Node3D
 
     // Create and configure the MeshInstance3D for the trail.
     _meshInstance = new MeshInstance3D();
+    _meshInstance.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
     var mat = new StandardMaterial3D
     {
       VertexColorUseAsAlbedo = true,

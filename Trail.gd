@@ -46,13 +46,13 @@ func initialize() -> void:
 	if is_instance_valid(get_parent()):
 		get_parent().connect("tree_exiting", Callable(self, "_onget_parent()_exiting"))
 
-# Called once this node enters the scene tree.
 func _ready() -> void:
 	# Expect get_parent() to be set by initialize() before _ready() is called.
 	assert(get_parent() != null, "Trail requires a target node set via initialize()!")
 	
 	# Create a MeshInstance3D for the trail mesh.
 	mesh_instance = MeshInstance3D.new()
+	
 	# Create a material that uses vertex colors.
 	var mat = StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
@@ -60,11 +60,16 @@ func _ready() -> void:
 	# Assign transparency from the exported transparency_mode variable.
 	mat.transparency = transparency_mode
 	mesh_instance.material_override = mat
+	
+	# Disable shadows to lower rendering cost.
+	mesh_instance.shadow_casting_setting = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	
 	add_child(mesh_instance)
 	
 	# Optionally create a MeshInstance3D for the wireframe.
 	if show_wireframe:
 		wire_instance = MeshInstance3D.new()
+		wire_instance.shadow_casting_setting = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(wire_instance)
 	
 	# Add initial points so the trail starts rendering immediately.

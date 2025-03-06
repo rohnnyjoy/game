@@ -28,3 +28,6 @@ res://weapons/Bullet.cs
 res://cards/Card3D.cs
 res://cards/CardStack.cs
 res://weapons/modules/HomingModule.gd
+res://weapons/modules/StickyModule.gd
+res://Trail.gd
+res://weapons/modules/PenetratingModule.cs

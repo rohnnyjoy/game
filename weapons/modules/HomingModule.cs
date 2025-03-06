@@ -7,7 +7,7 @@ public partial class HomingModule : WeaponModule
   public float HomingRadius { get; set; } = 10.0f;
 
   [Export]
-  public float TrackingStrength { get; set; } = 0.06f; // How quickly the bullet turns; 0.0 to 1.0
+  public float TrackingStrength { get; set; } = 0.04f; // How quickly the bullet turns; 0.0 to 1.0
 
   public HomingModule()
   {

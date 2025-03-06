@@ -39,6 +39,7 @@ public partial class BouncingModule : WeaponModule
 
     // Update the bounce count.
     int bounceCount = (int)bullet.GetMeta("bounce_count");
+    GD.Print("Bounce count: " + bounceCount);
     bounceCount++;
     bullet.SetMeta("bounce_count", bounceCount);
 

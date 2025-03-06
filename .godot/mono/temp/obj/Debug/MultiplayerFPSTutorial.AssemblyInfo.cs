@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MultiplayerFPSTutorial")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+03fa949ea27ce825acf01eecddb34c3c4c31d9b1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+682f8388c5917705dc39f8866eb158ebb5458b46")]
 [assembly: System.Reflection.AssemblyProductAttribute("MultiplayerFPSTutorial")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MultiplayerFPSTutorial")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
