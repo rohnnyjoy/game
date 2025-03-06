@@ -95,6 +95,7 @@ var pre_slide_horizontal_velocity: Vector3 = Vector3.ZERO
 func equip_default_weapon():
 	# Directly access the autoload singleton Inventory.
 	if InventorySingleton.primary_weapon:
+		print("OKO")
 		var weapon_instance = InventorySingleton.primary_weapon
 		$Camera3D/WeaponHolder.add_child(weapon_instance)
 		current_weapon = weapon_instance
@@ -103,10 +104,8 @@ func equip_default_weapon():
 # Multiplayer Setup & Initialization
 #===============================================================================
 func _ready():
-
 	# CRITICAL ADDITION: Add player to the "players" group so enemies can detect it
 	add_to_group("players")
-	print("Player added to 'players' group")
 	
 	if not is_multiplayer_authority():
 		return
@@ -115,7 +114,6 @@ func _ready():
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	camera.current = true
 	equip_default_weapon()
-	print("HEYHEY")
 
 func _setup_input() -> void:
 	# Ensure the "slide" action exists.

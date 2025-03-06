@@ -8,6 +8,8 @@ signal enemy_died()
 
 @export var patrol: bool = true
 
+@export var move: bool = true
+
 #===============================================================================
 # Constants & Variables
 #===============================================================================
@@ -24,12 +26,12 @@ var attack_cooldown: float = 0.5
 var time_since_last_attack: float = 0.0
 const GRAVITY = 60.0
 
-var is_firing: bool = false  # Tracks if the enemy is currently firing
+var is_firing: bool = false # Tracks if the enemy is currently firing
 
 @onready var anim_player: AnimationPlayer = $AnimationPlayer
 @onready var health_bar: ProgressBar = $HealthBar
 
-var current_weapon: Weapon = null  # Changed from BulletWeapon to match Player's type
+var current_weapon: Weapon = null # Changed from BulletWeapon to match Player's type
 
 #===============================================================================
 # Initialization
@@ -40,7 +42,7 @@ func _ready() -> void:
 	
 	# Set up NPC enemy behavior.
 	set_physics_process(true)
-	anim_player.play("idle")
+	# anim_player.play("idle")
 	
 	# Initialize the health bar.
 	health_bar.max_value = health
@@ -112,18 +114,17 @@ func equip_default_weapon():
 		current_weapon = pistol
 
 func _attack_target() -> void:
-	anim_player.play("attack")
-	
+	# anim_player.play("attack")
 	# Only start firing if we're not already firing and cooldown has elapsed
 	if current_weapon and not is_firing and time_since_last_attack >= attack_cooldown:
 		is_firing = true
-		current_weapon.on_press()  # Start firing
+		current_weapon.on_press() # Start firing
 		time_since_last_attack = 0.0
 
 func _stop_firing() -> void:
 	if current_weapon and is_firing:
 		is_firing = false
-		current_weapon.on_release()  # Stop firing
+		current_weapon.on_release() # Stop firing
 		
 # Rotates the enemy to face the target
 func _aim_at_target() -> void:
@@ -131,7 +132,7 @@ func _aim_at_target() -> void:
 		return
 	
 	var direction = (target.global_transform.origin - global_transform.origin).normalized()
-	var look_rotation = Vector3(direction.x, 0, direction.z)  # Ignore Y-axis for aiming
+	var look_rotation = Vector3(direction.x, 0, direction.z) # Ignore Y-axis for aiming
 	look_at(global_transform.origin + look_rotation, Vector3.UP)
 	
 	# Also aim the weapon holder if it exists
@@ -148,21 +149,21 @@ func _patrol(delta: float) -> void:
 		return
 		
 	velocity.x = direction * SPEED * speed_multiplier
-	velocity.z = 0  # Ensure Z velocity is zero during patrol
+	velocity.z = 0 # Ensure Z velocity is zero during patrol
 
 	if global_transform.origin.x >= start_x + MOVE_DISTANCE:
 		direction = -1
 	elif global_transform.origin.x <= start_x - MOVE_DISTANCE:
 		direction = 1
 
-	anim_player.play("move")
+	# anim_player.play("move")
 
 #===============================================================================
 # Stop Movement
 #===============================================================================
 func _stop_and_reset() -> void:
 	velocity = Vector3.ZERO
-	anim_player.play("idle")
+	# anim_player.play("idle")
 	
 	# Stop shooting when no target
 	if is_firing:
@@ -188,10 +189,10 @@ func _find_nearest_player() -> Node:
 # Movement
 #===============================================================================
 func _move_towards_target(delta: float) -> void:
-	if not target:
+	if not move or not target:
 		return
 		
-	anim_player.play("move")
+	# anim_player.play("move")
 	var move_direction: Vector3 = (target.global_transform.origin - global_transform.origin).normalized()
 	
 	# Keep the enemy on the ground plane
@@ -218,24 +219,26 @@ func take_damage(amount: int) -> void:
 		pass
 
 func _die() -> void:
-	# Stop any ongoing actions
-	_stop_firing()
-	velocity = Vector3.ZERO
-	set_physics_process(false)
-	
-	# Play death animation
-	anim_player.play("die")
-	
-	# Signal that this enemy died
-	emit_signal("enemy_died")
-	
-	# Remove after animation finishes or use a timer
-	# For immediate removal:
-	queue_free()
-	
-	# For delayed removal after animation:
-	# await anim_player.animation_finished
-	# queue_free()
+		# Stop any ongoing actions
+		_stop_firing()
+		velocity = Vector3.ZERO
+		set_physics_process(false)
+		
+		# Optionally play death animation and signal death
+		emit_signal("enemy_died")
+		
+		# Release any bullets parented to this enemy
+		for child in get_children():
+				if child is Bullet:
+						remove_child(child)
+						get_tree().current_scene.add_child(child)
+						# Optionally, adjust the bullet’s transform if needed
+						# so that it maintains its global position
+						child.global_transform = child.global_transform
+		
+		# Finally, free the enemy
+		queue_free()
+
 
 #===============================================================================
 # UI Positioning

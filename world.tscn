@@ -1,12 +1,12 @@
 [gd_scene load_steps=13 format=3 uid="uid://c8oqxmm2w2wvv"]
 
-[ext_resource type="Script" path="res://world.gd" id="1_6tkge"]
+[ext_resource type="Script" uid="uid://ddsbsdyq56vkc" path="res://world.gd" id="1_6tkge"]
 [ext_resource type="PackedScene" uid="uid://c1j7an8woikyd" path="res://environment.tscn" id="1_iktak"]
-[ext_resource type="Script" path="res://MenuCanvas.gd" id="3_nmfmg"]
-[ext_resource type="Script" path="res://menu/PrimaryWeaponStack.gd" id="4_8a8tu"]
-[ext_resource type="Script" path="res://menu/InventoryStack.gd" id="4_lt7ux"]
+[ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
 [ext_resource type="PackedScene" uid="uid://bccpo0iaadmj1" path="res://Enemy.tscn" id="4_xr0ro"]
 [ext_resource type="PackedScene" uid="uid://xcjrjq5cbn7y" path="res://Player.tscn" id="5_taioi"]
+[ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://menu/PrimaryWeaponStack.cs" id="5_vq0ba"]
+[ext_resource type="Script" uid="uid://br7vpr5hwlegd" path="res://menu/InventoryStack.cs" id="6_6wwjs"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_u5pdl"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -46,32 +46,30 @@ transform = Transform3D(1, 0, 0, 0, 2.11626, 0, 0, 0, 1, 0, -1.69061, 0)
 [node name="MenuCanvas" type="CanvasLayer" parent="."]
 script = ExtResource("3_nmfmg")
 
-[node name="WeaponInventoryDisplay" type="Panel" parent="MenuCanvas"]
-offset_left = 234.0
-offset_top = 105.0
-offset_right = 929.0
-offset_bottom = 328.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_l8uhh")
-script = ExtResource("4_8a8tu")
-offset = null
-anim_duration = null
-anim_duration_offset = null
-suction_duration = null
-stack_type = null
-theme_override_styles/panel = SubResource("StyleBoxFlat_l8uhh")
+[node name="Panel" type="Panel" parent="MenuCanvas"]
+offset_left = 55.0
+offset_top = 8.0
+offset_right = 1883.0
+offset_bottom = 1080.0
+scale = Vector2(0.953259, 1.00551)
 
-[node name="InventoryStack" type="Panel" parent="MenuCanvas"]
-offset_left = 235.0
-offset_top = 375.0
-offset_right = 930.0
-offset_bottom = 611.0
+[node name="WeaponInventoryDisplay" type="Panel" parent="MenuCanvas/Panel"]
+layout_mode = 0
+offset_left = 179.0
+offset_top = 97.0
+offset_right = 874.0
+offset_bottom = 320.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_l8uhh")
+script = ExtResource("5_vq0ba")
+
+[node name="InventoryStack" type="Panel" parent="MenuCanvas/Panel"]
+layout_mode = 0
+offset_left = 180.0
+offset_top = 367.0
+offset_right = 875.0
+offset_bottom = 603.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_w1h00")
-script = ExtResource("4_lt7ux")
-offset = null
-anim_duration = null
-anim_duration_offset = null
-suction_duration = null
-stack_type = null
+script = ExtResource("6_6wwjs")
 
 [node name="Enemy" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.4504, 5.41359, 17.1158)
@@ -91,26 +89,32 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.90069, 5.41359, 13.3819)
 [node name="Enemy7" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.5406, 5.25157, -25.5269)
 patrol = false
+move = false
 
 [node name="Enemy8" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.04547, 5.25157, -25.5269)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.13679, 5.25157, -25.5269)
 patrol = false
+move = false
 
 [node name="Enemy9" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.57211, 5.25157, -22.4855)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.336574, 5.25157, -22.4855)
 patrol = false
+move = false
 
 [node name="Enemy10" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5118, 5.25157, -19.1506)
 patrol = false
+move = false
 
 [node name="Enemy11" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.884, 5.25157, -21.035)
 patrol = false
+move = false
 
 [node name="Enemy12" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.1272, 5.25157, -21.035)
 patrol = false
+move = false
 
 [node name="Enemy2" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.07898, 5.62353, 17.1158)

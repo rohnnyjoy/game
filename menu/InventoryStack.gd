@@ -19,6 +19,7 @@ func _populate_cards() -> void:
 	update_cards(false)
 
 func _on_inventory_changed() -> void:
+	print("Inventory changed")
 	_populate_cards()
 
 # Override to update InventorySingleton.weapon_modules.

@@ -12,12 +12,12 @@ config_version=5
 
 config/name="MultiplayerFPSTutorial"
 run/main_scene="res://world.tscn"
-config/features=PackedStringArray("4.3", "C#", "Forward Plus")
+config/features=PackedStringArray("4.4", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
-InventorySingleton="*res://Inventory.gd"
+InventorySingleton="*res://Inventory.cs"
 
 [display]
 

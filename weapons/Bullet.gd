@@ -2,7 +2,7 @@ extends CharacterBody3D
 class_name Bullet
 
 @export var life_time: float = 30.0
-@export var gravity: float = 0.0
+@export var gravity: float = 1
 @export var direction: Vector3 = Vector3.FORWARD
 @export var speed: float = 20.0
 @export var damage: float = 1.0
@@ -39,7 +39,7 @@ func _init() -> void:
 	default_trail.gradient.set_color(1, Color.WHITE)
 	default_trail.gradient.set_color(0, Color.YELLOW)
 	default_trail.base_width = radius
-	default_trail.lifetime = 0.1
+	default_trail.lifetime = 0.01
 	trails.append(default_trail)
 
 func _ready() -> void:
@@ -162,7 +162,6 @@ func _physics_process(delta: float) -> void:
 		global_transform.origin = predicted_position
 
 	for module in modules:
-
 		await module.on_physics_process(delta, self)
 
 	_process_enemies_inside()

@@ -1,7 +1,7 @@
 extends Node3D
 class_name Weapon
 
-@export var unique_module: UniqueModule = UniqueModule.new()
+@export var unique_module: WeaponModule = WeaponModule.new()
 @export var modules: Array[WeaponModule] = []
 @export var fire_rate: float = 0.5
 @export var reload_speed: float = 2
