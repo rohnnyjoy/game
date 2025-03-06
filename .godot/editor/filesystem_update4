@@ -31,3 +31,4 @@ res://weapons/modules/HomingModule.gd
 res://weapons/modules/StickyModule.gd
 res://Trail.gd
 res://weapons/modules/PenetratingModule.cs
+res://GameUI.cs

@@ -64,8 +64,9 @@ public partial class Card3D : RigidBody3D, IInteractable
     CustomIntegrator = true;
 
     // Disable collisions.
-    CollisionLayer = 0;
-    CollisionMask = 0;
+    CollisionLayer = 1 << 3;  // Example: Assign to layer 3
+    CollisionMask = 1 << 3;   // Allow detection on layer 3
+
 
     // Create RayCast3D for ground detection.
     _raycast = new RayCast3D();
@@ -175,10 +176,14 @@ public partial class Card3D : RigidBody3D, IInteractable
   }
 
   // Implementation of the IInteractable interface.
-  public void OnInteract()
+  public virtual void OnInteract()
   {
     GD.Print("Card picked up!");
-    // Example: Remove from scene or add to an inventory.
     QueueFree();
+  }
+
+  public string GetInteractionText()
+  {
+    return "[E] Pick up card";
   }
 }

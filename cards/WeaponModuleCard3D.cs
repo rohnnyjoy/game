@@ -26,6 +26,19 @@ public partial class WeaponModuleCard3D : Card3D
     }
   }
 
+  public override void OnInteract()
+  {
+    // Add to inventory
+    Inventory inventory = GetTree().Root.GetNode<Inventory>("InventorySingleton");
+    var newModules = new Godot.Collections.Array<WeaponModule>(inventory.WeaponModules)
+    {
+        Module
+    };
+    inventory.WeaponModules = newModules;
+    // Remove from scene
+    QueueFree();
+  }
+
   public override void _Ready()
   {
     base._Ready();

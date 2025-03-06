@@ -192,6 +192,8 @@ public partial class Card2D : Button
       if (GetParent() is CardStack parentStack)
       {
         OnDroppedOutsideStacks();
+        // Remove the card from its parent stack.
+        parentStack.RemoveChild(this);
         parentStack.UpdateCards(true, false);
         parentStack.OnCardsReordered();
       }

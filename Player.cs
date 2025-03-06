@@ -8,6 +8,7 @@ public partial class Player : CharacterBody3D
   public delegate void HealthChangedEventHandler(int healthValue);
 
   // Constants
+  private const float INTERACT_RADIUS = 2.0f;
   private const float SPEED = 8.0f;
   private const float JUMP_VELOCITY = 20.0f;
   private const float GROUND_ACCEL = 80.0f;
@@ -36,6 +37,9 @@ public partial class Player : CharacterBody3D
   private bool isSliding = false;
   private Weapon currentWeapon = null;
   private Vector3 preSlideHorizontalVelocity = Vector3.Zero;
+  private IInteractable nearbyInteractable = null;
+  private GameUI gameUI;
+
 
   public override void _Ready()
   {
@@ -50,6 +54,7 @@ public partial class Player : CharacterBody3D
     animPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
     muzzleFlash = GetNode<Node3D>("Camera3D/Pistol/MuzzleFlash");
     raycast = GetNode<RayCast3D>("Camera3D/RayCast3D");
+    gameUI = GetTree().Root.FindChild("GameUI", true, false) as GameUI;
 
     camera.Current = true;
     GD.Print(GetTree().Root.HasNode("InventorySingleton") ? "Singleton Exists!" : "Singleton Not Found!");
@@ -79,6 +84,11 @@ public partial class Player : CharacterBody3D
     HandleCameraRotation(@event);
     HandleShooting(@event);
     HandleDash(@event);
+
+    if (nearbyInteractable != null && Input.IsActionJustPressed("interact"))
+    {
+      nearbyInteractable.OnInteract();
+    }
   }
 
   private void HandleCameraRotation(InputEvent @event)
@@ -376,4 +386,37 @@ public partial class Player : CharacterBody3D
     }
   }
 
+  public override void _Process(double delta)
+  {
+    DetectInteractable();
+  }
+
+  private void DetectInteractable()
+  {
+    var spaceState = GetWorld3D().DirectSpaceState;
+
+    var query = new PhysicsShapeQueryParameters3D();
+    query.Transform = new Transform3D(Basis.Identity, GlobalTransform.Origin);
+    query.Shape = new SphereShape3D { Radius = INTERACT_RADIUS };
+    query.CollideWithBodies = true;
+
+    var results = spaceState.IntersectShape(query, 32); // Max 32 results
+
+    nearbyInteractable = null;
+
+    foreach (var result in results)
+    {
+      if (result["collider"].As<Node3D>() is Node3D node && node is IInteractable interactable)
+      {
+        nearbyInteractable = interactable;
+        gameUI.InteractionLabel.Text = interactable.GetInteractionText();
+        gameUI.InteractionLabel.Visible = true;
+        gameUI.InteractionLabel.QueueRedraw();
+        return; // Only detect the closest one
+      }
+    }
+
+    gameUI.InteractionLabel.Visible = false;
+    nearbyInteractable = null;
+  }
 }
