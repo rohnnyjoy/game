@@ -19,7 +19,11 @@ public partial class HomingModule : WeaponModule
   {
     if (bullet == null || !bullet.IsInsideTree() || !IsInstanceValid(bullet))
     {
-      QueueFree();
+      return;
+    }
+
+    if ((bool)bullet.GetMeta("is_sticky"))
+    {
       return;
     }
 

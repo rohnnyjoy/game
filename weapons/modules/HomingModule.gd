@@ -13,6 +13,10 @@ func on_physics_process(delta: float, bullet: Bullet) -> void:
 		queue_free()
 		return
 
+	if ((bool)bullet.GetMeta("is_sticky"))
+		GD.Print("Bullet is sticky, skipping homing.")
+		return
+
 	# Find the closest enemy in the "enemies" group within the homing radius.
 	var closest_enemy = null
 	var closest_distance = homing_radius

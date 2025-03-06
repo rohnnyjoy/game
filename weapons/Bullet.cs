@@ -2,7 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
-public partial class Bullet : CharacterBody3D
+public partial class Bullet : Area3D
 {
   public struct CollisionData
   {
@@ -47,6 +47,9 @@ public partial class Bullet : CharacterBody3D
   private int _lastCollisionColliderId = -1;
   private List<Action<CollisionData, Bullet>> CollisionHandlers = new List<Action<CollisionData, Bullet>>();
 
+  // Use a custom velocity since Area3D does not have one.
+  [Export] public Vector3 Velocity;
+
   public override void _Ready()
   {
     Scale = Vector3.One;
@@ -80,21 +83,19 @@ public partial class Bullet : CharacterBody3D
     // Store the spawn position.
     InitialPosition = GlobalPosition;
 
-    // Create a collision shape.
+    // Create a collision shape for detection.
     var collisionShape = new CollisionShape3D();
     collisionShape.Shape = new SphereShape3D { Radius = Radius + 0.5f };
     AddChild(collisionShape);
 
-    // Disable physical collision so the bullet doesn’t interact with the world.
-    CollisionLayer = 0;
-    CollisionMask = 0;
-
-    // Create a detection area for overlap queries.
+    // Optionally, if you need additional detection (for overlap queries), you can add a child Area3D.
+    // (If not required, you may remove this extra area.)
     var detectionArea = new Area3D();
     var areaCollisionShape = new CollisionShape3D();
     var areaSphere = new SphereShape3D { Radius = Radius + 0.5f };
     areaCollisionShape.Shape = areaSphere;
     detectionArea.AddChild(areaCollisionShape);
+    // Set layers/masks as needed.
     detectionArea.CollisionLayer = 0;
     detectionArea.CollisionMask = 1;
     AddChild(detectionArea);
@@ -235,7 +236,7 @@ public partial class Bullet : CharacterBody3D
     if (!IsInstanceValid(this))
       return;
 
-    // Reparent the trails so they aren't immediately destroyed with the bullet.
+    // Optional: Reparent the trails so they aren’t immediately destroyed with the bullet.
     // foreach (Trail t in Trails)
     // {
     //   if (!IsInstanceValid(t))
@@ -258,5 +259,4 @@ public partial class Bullet : CharacterBody3D
 
     QueueFree();
   }
-
 }

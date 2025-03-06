@@ -4,6 +4,8 @@ res://Player.tscn
 res://weapons/Weapon.tscn
 res://environment.tscn
 res://Enemy.tscn
+res://weapons/Bullet.gd
+res://Enemy.gd
 res://cards/CardCore.cs
 res://weapons/BulletWeapon.cs
 res://weapons/modules/HomingModule.cs
@@ -25,4 +27,4 @@ res://cards/WeaponModuleCard2D.cs
 res://weapons/Bullet.cs
 res://cards/Card3D.cs
 res://cards/CardStack.cs
-res://Enemy.gd
+res://weapons/modules/HomingModule.gd

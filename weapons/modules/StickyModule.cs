@@ -19,6 +19,7 @@ public partial class StickyModule : WeaponModule
   public override Bullet ModifyBullet(Bullet bullet)
   {
     bullet.SetMeta("is_sticky", false);
+    bullet.Radius = 0.1f;
     return bullet;
   }
 
