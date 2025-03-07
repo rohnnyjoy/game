@@ -9,20 +9,20 @@ public partial class Player : CharacterBody3D
 
   // Constants
   private const float INTERACT_RADIUS = 2.0f;
-  private const float SPEED = 8.0f;
-  private const float JUMP_VELOCITY = 20.0f;
+  private const float SPEED = 10.0f;
+  private const float JUMP_VELOCITY = 14.0f;
   private const float GROUND_ACCEL = 80.0f;
-  private const float GROUND_DECEL = 20.0f;
+  private const float GROUND_DECEL = 150.0f;
   private const float INITIAL_BOOST_FACTOR = 0.8f;
   private const float AIR_ACCEL = 8.0f;
   private const float JUMP_BUFFER_TIME = 0.2f;
   private const int MAX_JUMPS = 2;
   private const float GRAVITY = 60.0f;
-  private const float DASH_SPEED = 10.0f;
+  private const float DASH_SPEED = 20.0f;
 
   // Sliding settings
   private const float SLIDE_COLLISION_SPEED_FACTOR = 0.7f;
-  private const float SLIDE_FRICTION_COEFFICIENT = 10.0f;
+  private const float SLIDE_FRICTION_COEFFICIENT = 15.0f;
 
   private Camera3D camera;
   private AnimationPlayer animPlayer;
@@ -63,12 +63,6 @@ public partial class Player : CharacterBody3D
 
   private void SetupInput()
   {
-    if (!InputMap.HasAction("slide"))
-    {
-      InputMap.AddAction("slide");
-      var ev = new InputEventKey { Keycode = Key.C };
-      InputMap.ActionAddEvent("slide", ev);
-    }
     if (!InputMap.HasAction("dash"))
     {
       InputMap.AddAction("dash");
@@ -112,7 +106,11 @@ public partial class Player : CharacterBody3D
   private void HandleDash(InputEvent @event)
   {
     if (Input.IsActionJustPressed("dash"))
-      Velocity += GetInputDirection() * DASH_SPEED;
+    {
+      var newVelocity = GetInputDirection() * DASH_SPEED;
+      newVelocity.Y = Velocity.Y;
+      Velocity = newVelocity;
+    }
   }
 
   private Vector3 GetInputDirection()
@@ -171,7 +169,7 @@ public partial class Player : CharacterBody3D
       isSliding = false;
       ProcessStandardGroundMovement(inputDirection, delta);
     }
-    else if (Input.IsActionPressed("slide"))
+    else if (Input.IsActionPressed("dash"))
     {
       ProcessSlide(delta);
     }

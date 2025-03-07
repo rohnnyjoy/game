@@ -48,3 +48,4 @@ res://Crosshair.cs
 res://Camera.cs
 res://Player.gd
 res://forest_home_planet.tscn
+res://WeaponHolder.cs
