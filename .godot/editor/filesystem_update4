@@ -32,3 +32,9 @@ res://weapons/modules/StickyModule.gd
 res://Trail.gd
 res://weapons/modules/PenetratingModule.cs
 res://GameUI.cs
+res://effects/CollisionParticle.cs
+res://effects/ActionLineParticle.cs
+res://effects/ImpactLineParticle.cs
+res://effects/RadialLineParticle.cs
+res://effects/CollisionCubeParticle.cs
+res://effects/PhysicalParticle.cs

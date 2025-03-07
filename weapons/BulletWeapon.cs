@@ -52,7 +52,6 @@ public partial class BulletWeapon : Weapon
 
     bullet.Direction = baseDirection;
     bullet.Speed = GetBulletSpeed();
-    bullet.Color = new Color(1, 1, 1);
     bullet.Radius = 0.05f;
     bullet.Damage = GetDamage();
     bullet.GlobalTransform = BulletOrigin.GlobalTransform;

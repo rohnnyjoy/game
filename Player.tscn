@@ -1,8 +1,11 @@
-[gd_scene load_steps=10 format=3 uid="uid://xcjrjq5cbn7y"]
+[gd_scene load_steps=11 format=3 uid="uid://xcjrjq5cbn7y"]
 
 [ext_resource type="Script" uid="uid://dmdc203mn7pyk" path="res://Player.cs" id="1_t0lua"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_xk8km"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xhfnw"]
+albedo_color = Color(0, 1, 1, 1)
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_67y6s"]
 
@@ -112,6 +115,7 @@ script = ExtResource("1_t0lua")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 mesh = SubResource("CapsuleMesh_xk8km")
+surface_material_override/0 = SubResource("StandardMaterial3D_xhfnw")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

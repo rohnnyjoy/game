@@ -16,7 +16,7 @@ public partial class OlReliableModule : WeaponModule
 
   public override float GetModifiedFireRate(float fireRate)
   {
-    return 0.1f;
+    return 0.2f;
   }
 
   public override float GetModifiedBulletSpeed(float bulletSpeed)

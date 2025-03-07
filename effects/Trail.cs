@@ -21,7 +21,7 @@ public partial class Trail : Node3D
   [Export] public Color WireframeColor { get; set; } = new Color(1, 1, 1, 1);
   [Export] public float WireLineWidth { get; set; } = 1.0f;
   [Export] public int TransparencyMode { get; set; } = (int)BaseMaterial3D.TransparencyEnum.Disabled;
-  // NEW: how long the trail should remain visible after stopping emission.
+  // How long the trail should remain visible after stopping emission.
   [Export] public float FadeOutTime { get; set; } = 1.0f;
 
   private List<TrailPoint> _points = new List<TrailPoint>();
@@ -82,25 +82,12 @@ public partial class Trail : Node3D
     AddPoint(parent.GlobalTransform);
 
     // Connect to parent's TreeExiting signal so we can stop emitting.
-    ((Node)parent).TreeExiting += OnParentExiting;
   }
 
   public void Initialize()
   {
     // Set the trail as top-level so its transform is independent.
     TopLevel = true;
-
-    // Connect to the parent's TreeExiting signal if not already done.
-    Node parent = GetParent();
-    if (parent != null)
-    {
-      parent.TreeExiting += OnParentExiting;
-    }
-  }
-
-  private void OnParentExiting()
-  {
-    StopTrail();
   }
 
   public override void _Process(double delta)
@@ -190,6 +177,10 @@ public partial class Trail : Node3D
   // Computes two vertices (left and right) for a trail segment based on the alignment.
   private (Vector3 left, Vector3 right) PrepareGeometry(TrailPoint prevPt, TrailPoint pt, float factor)
   {
+    // Convert global positions to local positions relative to this Trail node.
+    Vector3 prevLocal = ToLocal(prevPt.Transform.Origin);
+    Vector3 localPos = ToLocal(pt.Transform.Origin);
+
     Vector3 normal = Vector3.Zero;
     if (Alignment == "View")
     {
@@ -197,9 +188,10 @@ public partial class Trail : Node3D
       if (cam != null)
       {
         Vector3 camPos = cam.GlobalTransform.Origin;
-        Vector3 pathDir = (pt.Transform.Origin - prevPt.Transform.Origin).Normalized();
-        Vector3 midPoint = (pt.Transform.Origin + prevPt.Transform.Origin) * 0.5f;
-        normal = (camPos - midPoint).Cross(pathDir).Normalized();
+        // Calculate the mid-point in global space.
+        Vector3 midGlobal = (prevPt.Transform.Origin + pt.Transform.Origin) * 0.5f;
+        Vector3 pathDir = (localPos - prevLocal).Normalized();
+        normal = (camPos - midGlobal).Cross(pathDir).Normalized();
       }
       else
       {
@@ -238,9 +230,9 @@ public partial class Trail : Node3D
     if (WidthProfile != null)
       currentWidth *= WidthProfile.Sample(factor);
 
-    Vector3 p1 = pt.Transform.Origin - normal * currentWidth;
-    Vector3 p2 = pt.Transform.Origin + normal * currentWidth;
-    return (p1, p2);
+    Vector3 leftVertex = localPos - normal * currentWidth;
+    Vector3 rightVertex = localPos + normal * currentWidth;
+    return (leftVertex, rightVertex);
   }
 
   // Rebuilds the mesh for the trail using a triangle strip.
@@ -283,7 +275,6 @@ public partial class Trail : Node3D
         }
       }
 
-      // Set UVs via Call since direct SetUv is unavailable.
       st.Call("set_uv", new Vector2(factor, 0));
       st.AddVertex(leftVertex);
       st.Call("set_uv", new Vector2(factor, 1));
@@ -300,7 +291,8 @@ public partial class Trail : Node3D
       stWire.SetColor(WireframeColor);
       foreach (var pt in pts)
       {
-        stWire.AddVertex(pt.Transform.Origin);
+        // Convert each global point to local space.
+        stWire.AddVertex(ToLocal(pt.Transform.Origin));
       }
       Mesh wireMesh = stWire.Commit();
       if (wireMesh != null)
@@ -310,6 +302,7 @@ public partial class Trail : Node3D
 
   public void StopTrail()
   {
+    GD.Print("Stopping trail emission.");
     Emit = false;
     // Record when we stopped emitting.
     _stopTime = Time.GetTicksMsec() / 1000.0f;

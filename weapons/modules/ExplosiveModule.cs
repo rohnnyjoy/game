@@ -41,13 +41,15 @@ public partial class ExplosiveModule : WeaponModule
 
   public void SpawnExplosion(Vector3 position, SceneTree tree)
   {
-    // Create a new Area3D node to represent the explosion effect.
+    // Create a new Area3D node to represent the entire explosion effect.
     Area3D explosionArea = new Area3D();
     explosionArea.Name = "ExplosionEffect";
     explosionArea.CollisionLayer = 0;
     explosionArea.CollisionMask = 0;
 
-    // Create a MeshInstance3D for the visual explosion.
+    // ----------------------
+    // Main Explosion Visual
+    // ----------------------
     MeshInstance3D explosionInstance = new MeshInstance3D();
     SphereMesh sphereMesh = new SphereMesh();
 
@@ -55,24 +57,22 @@ public partial class ExplosiveModule : WeaponModule
     sphereMesh.RadialSegments = (int)(4 + (8 - 4) * (float)GD.Randf());
     sphereMesh.Rings = (int)(2 + (4 - 2) * (float)GD.Randf());
 
-    // Instead of GD.RandfRange, calculate inline for visual radius.
+    // Calculate a randomized visual radius.
     float visualRadius = ExplosionRadius * (0.8f + (1.0f - 0.8f) * (float)GD.Randf());
     sphereMesh.Radius = visualRadius;
     sphereMesh.Height = visualRadius * 2;
     explosionInstance.Mesh = sphereMesh;
 
-    // Create and set up the material.
+    // Create and set up the explosion material (with reduced opacity).
     StandardMaterial3D material = new StandardMaterial3D();
     float randomGreen = Mathf.Lerp(0.5f, 1.0f, (float)GD.Randf());
-    Color explosionColor = new Color(1, randomGreen, 0, 0.5f);
+    Color explosionColor = new Color(1, randomGreen, 0, 0.3f);
     material.AlbedoColor = explosionColor;
-    // Updated for Godot 4.3: use StandardMaterial3D.TransparencyMode enum.
     material.Transparency = TransparencyEnum.Alpha;
     material.ShadingMode = ShadingModeEnum.Unshaded;
-    // material.FlagsTransparent = true;
     explosionInstance.MaterialOverride = material;
 
-    // Add the explosion visual to the explosion area.
+    // Add explosion visual to the explosion area.
     explosionArea.AddChild(explosionInstance);
     explosionArea.Position = position;
     tree.CurrentScene.AddChild(explosionArea);
@@ -84,21 +84,71 @@ public partial class ExplosiveModule : WeaponModule
         (float)GD.Randf() * 360f
     );
 
-    // Set initial scale using inline randomization.
+    // Set initial scale.
     float initialScaleFactor = 0.1f * (0.8f + (1.2f - 0.8f) * (float)GD.Randf());
     explosionInstance.Scale = new Vector3(initialScaleFactor, initialScaleFactor, initialScaleFactor);
 
-    // Animate the explosion using a Tween.
-    Tween tween = explosionInstance.CreateTween();
-    float finalScaleFactor = 3f * (0.8f + (1.2f - 0.8f) * (float)GD.Randf());
-    tween.TweenProperty(explosionInstance, "scale", new Vector3(finalScaleFactor, finalScaleFactor, finalScaleFactor), 0.02f)
-         .SetTrans(Tween.TransitionType.Linear)
-         .SetEase(Tween.EaseType.Out);
-    tween.TweenProperty(material, "albedo_color", new Color(1, randomGreen, 0, 0), 0.2f)
-         .SetTrans(Tween.TransitionType.Linear)
-         .SetEase(Tween.EaseType.Out);
+    // Animate the explosion:
+    // Expand its scale quickly in 0.1 seconds, then fade out (alpha to 0) in 0.2 seconds.
+    Tween explosionTween = explosionInstance.CreateTween();
+    float explosionFinalScaleFactor = 3f * (0.8f + (1.2f - 0.8f) * (float)GD.Randf());
+    explosionTween.TweenProperty(explosionInstance, "scale",
+        new Vector3(explosionFinalScaleFactor, explosionFinalScaleFactor, explosionFinalScaleFactor), 0.1f)
+     .SetTrans(Tween.TransitionType.Linear)
+     .SetEase(Tween.EaseType.Out);
+    explosionTween.TweenProperty(material, "albedo_color",
+        new Color(1, randomGreen, 0, 0), 0.2f)
+     .SetTrans(Tween.TransitionType.Linear)
+     .SetEase(Tween.EaseType.Out);
 
-    // Remove the explosion effect when the tween finishes.
-    tween.Finished += () => explosionArea.QueueFree();
+    // ----------------------
+    // Smoke Cloud Visual
+    // ----------------------
+    MeshInstance3D smokeCloud = new MeshInstance3D();
+    SphereMesh smokeMesh = new SphereMesh();
+    smokeMesh.RadialSegments = (int)(4 + (8 - 4) * (float)GD.Randf());
+    smokeMesh.Rings = (int)(2 + (4 - 2) * (float)GD.Randf());
+
+    // For the smoke, set its base radius larger than the explosion.
+    float smokeVisualRadius = visualRadius * 1.5f;
+    smokeMesh.Radius = smokeVisualRadius;
+    smokeMesh.Height = smokeVisualRadius * 2;
+    smokeCloud.Mesh = smokeMesh;
+
+    // Create and set up a white, translucent material for the smoke.
+    StandardMaterial3D smokeMaterial = new StandardMaterial3D();
+    // Lower initial opacity.
+    Color smokeColor = new Color(1, 1, 1, 0.02f);
+    smokeMaterial.AlbedoColor = smokeColor;
+    smokeMaterial.Transparency = TransparencyEnum.Alpha;
+    smokeMaterial.ShadingMode = ShadingModeEnum.Unshaded;
+    smokeCloud.MaterialOverride = smokeMaterial;
+
+    // Set initial scale for the smoke (matching the explosion’s initial scale).
+    float smokeInitialScaleFactor = initialScaleFactor;
+    smokeCloud.Scale = new Vector3(smokeInitialScaleFactor, smokeInitialScaleFactor, smokeInitialScaleFactor);
+
+    // Add the smoke cloud to the explosion area.
+    explosionArea.AddChild(smokeCloud);
+
+    // Random variation for final smoke size (ranging from 0.8 to 1.0).
+    float randomVariation = 0.8f + (float)GD.Randf() * 0.2f;
+
+    // Animate the smoke cloud:
+    // The scale tween lasts 0.3 seconds using an exponential transition.
+    // The fade tween now fades out over 0.1 seconds with no delay.
+    Tween smokeTween = smokeCloud.CreateTween();
+    float smokeFinalScaleFactor = explosionFinalScaleFactor * 2.0f * randomVariation;
+    smokeTween.TweenProperty(smokeCloud, "scale",
+        new Vector3(smokeFinalScaleFactor, smokeFinalScaleFactor, smokeFinalScaleFactor), 0.3f)
+     .SetTrans(Tween.TransitionType.Expo)
+     .SetEase(Tween.EaseType.Out);
+    smokeTween.TweenProperty(smokeMaterial, "albedo_color",
+        new Color(1, 1, 1, 0), 0.1f)
+     .SetTrans(Tween.TransitionType.Linear)
+     .SetEase(Tween.EaseType.Out);
+
+    // Remove the entire explosion effect once the smoke animation finishes.
+    smokeTween.Finished += () => explosionArea.QueueFree();
   }
 }

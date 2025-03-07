@@ -108,6 +108,8 @@ public partial class StickyModule : WeaponModule
     // 4. Save the original parent for later reparenting.
     Node originalParent = bullet.GetParent();
 
+    // TODO: Can we reparent the trails too?
+
     // If there is a collider, reparent the bullet to that collider.
     if (collision.Collider != null)
     {
