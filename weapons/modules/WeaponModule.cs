@@ -76,7 +76,17 @@ public partial class WeaponModule : Node
     await Task.CompletedTask;
   }
 
-  public virtual async Task OnPhysicsProcess(float delta, Bullet bullet)
+  public virtual async Task OnBulletPhysicsProcess(float delta, Bullet bullet)
+  {
+    await Task.CompletedTask;
+  }
+
+  public virtual async Task OnWeaponProcess(double delta)
+  {
+    await Task.CompletedTask;
+  }
+
+  public virtual async Task OnReload()
   {
     await Task.CompletedTask;
   }

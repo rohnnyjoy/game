@@ -1,0 +1,177 @@
+Rock06_v
+========
+  Textures:
+    - Rock06
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 84, 84, 84, -50
+    - 0, 0, 0, 255
+
+
+
+Tree01_v
+========
+  Textures:
+    - Tree01
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 105, 105, 105, -69
+    - 0, 0, 0, 255
+
+
+
+gras_v
+======
+  Textures:
+    - gras_mip3
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 89, 89, 89, -50
+    - 0, 0, 0, 255
+
+
+
+mokume_v
+========
+  Textures:
+    - checkpattern00_mip4
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 75, 75, 75, -48
+    - 0, 0, 0, 255
+
+
+
+nennrin_v
+=========
+  Textures:
+    - kirikabu
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 93, 93, 93, -81
+    - 0, 0, 0, 255
+
+
+
+wood06_v
+========
+  Textures:
+    - wood06
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 105, 105, 105, -69
+    - 0, 0, 0, 255
+
+
+
+wood09_v
+========
+  Textures:
+    - wood15
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 109, 109, 109, -50
+    - 10, 10, 10, 255
+
+
+
+woodA_v
+=======
+  Textures:
+    - Wood_A_128
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 85, 85, 85, -70
+    - 0, 0, 0, 255
+
+
+
+woodB_v
+=======
+  Textures:
+    - Wood_B_128
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 111, 111, 111, -80
+    - 0, 0, 0, 255
+
+
+
+woodplate_v
+===========
+  Textures:
+    - woodplate00
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 64, 64, 64, -50
+    - 12, 10, 10, 255

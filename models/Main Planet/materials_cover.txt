@@ -1,0 +1,15 @@
+wood02_v
+========
+  Textures:
+    - wood14
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 119, 119, 119, -50
+    - 10, 10, 10, 255

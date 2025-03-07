@@ -1,0 +1,51 @@
+gras_v
+======
+  Textures:
+    - gras
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 70, 70, 70, -50
+    - 0, 0, 0, 255
+
+
+
+wood02_v
+========
+  Textures:
+    - HipDropSwitch00
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 75, 75, 75, -60
+    - 0, 0, 0, 255
+
+
+
+woodOBJ_v
+=========
+  Textures:
+    - kigumi03
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 70, 70, 70, -50
+    - 0, 0, 0, 255

@@ -89,15 +89,15 @@ public partial class ExplosiveModule : WeaponModule
     explosionInstance.Scale = new Vector3(initialScaleFactor, initialScaleFactor, initialScaleFactor);
 
     // Animate the explosion:
-    // Expand its scale quickly in 0.1 seconds, then fade out (alpha to 0) in 0.2 seconds.
+    // Expand its scale quickly in 0.05 seconds, then fade out (alpha to 0) in 0.1 seconds.
     Tween explosionTween = explosionInstance.CreateTween();
-    float explosionFinalScaleFactor = 3f * (0.8f + (1.2f - 0.8f) * (float)GD.Randf());
+    float explosionFinalScaleFactor = 2.0f * (0.8f + (1.2f - 0.8f) * (float)GD.Randf());
     explosionTween.TweenProperty(explosionInstance, "scale",
-        new Vector3(explosionFinalScaleFactor, explosionFinalScaleFactor, explosionFinalScaleFactor), 0.1f)
+        new Vector3(explosionFinalScaleFactor, explosionFinalScaleFactor, explosionFinalScaleFactor), 0.05f)
      .SetTrans(Tween.TransitionType.Linear)
      .SetEase(Tween.EaseType.Out);
     explosionTween.TweenProperty(material, "albedo_color",
-        new Color(1, randomGreen, 0, 0), 0.2f)
+        new Color(1, randomGreen, 0, 0), 0.1f)
      .SetTrans(Tween.TransitionType.Linear)
      .SetEase(Tween.EaseType.Out);
 
@@ -135,16 +135,16 @@ public partial class ExplosiveModule : WeaponModule
     float randomVariation = 0.8f + (float)GD.Randf() * 0.2f;
 
     // Animate the smoke cloud:
-    // The scale tween lasts 0.3 seconds using an exponential transition.
-    // The fade tween now fades out over 0.1 seconds with no delay.
+    // The scale tween lasts 0.15 seconds using an exponential transition.
+    // The fade tween now fades out over 0.05 seconds.
     Tween smokeTween = smokeCloud.CreateTween();
-    float smokeFinalScaleFactor = explosionFinalScaleFactor * 2.0f * randomVariation;
+    float smokeFinalScaleFactor = explosionFinalScaleFactor * 1.5f * randomVariation;
     smokeTween.TweenProperty(smokeCloud, "scale",
-        new Vector3(smokeFinalScaleFactor, smokeFinalScaleFactor, smokeFinalScaleFactor), 0.3f)
+        new Vector3(smokeFinalScaleFactor, smokeFinalScaleFactor, smokeFinalScaleFactor), 0.15f)
      .SetTrans(Tween.TransitionType.Expo)
      .SetEase(Tween.EaseType.Out);
     smokeTween.TweenProperty(smokeMaterial, "albedo_color",
-        new Color(1, 1, 1, 0), 0.1f)
+        new Color(1, 1, 1, 0), 0.05f)
      .SetTrans(Tween.TransitionType.Linear)
      .SetEase(Tween.EaseType.Out);
 

@@ -78,6 +78,10 @@ interact={
 [physics]
 
 common/max_physics_steps_per_frame=32
+3d/physics_engine="Jolt Physics"
+jolt_physics_3d/simulation/velocity_steps=20
+jolt_physics_3d/simulation/position_steps=4
+jolt_physics_3d/simulation/penetration_slop=0.00105
 3d/solver/solver_iterations=32
 
 [rendering]

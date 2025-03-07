@@ -5,13 +5,13 @@ public partial class OlReliableModule : WeaponModule
   public override Bullet ModifyBullet(Bullet bullet)
   {
     bullet.Gravity = 0;
-    bullet.Radius = 5;
+    bullet.Radius = 0.1f;
     return bullet;
   }
 
   public override float GetModifiedDamage(float damage)
   {
-    return 2;
+    return 40;
   }
 
   public override float GetModifiedFireRate(float fireRate)
@@ -21,7 +21,7 @@ public partial class OlReliableModule : WeaponModule
 
   public override float GetModifiedBulletSpeed(float bulletSpeed)
   {
-    return 200;
+    return 800;
   }
 
   public override float GetModifiedAccuracy(float accuracy)

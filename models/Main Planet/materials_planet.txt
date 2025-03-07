@@ -1,0 +1,494 @@
+FallMat_v_x
+===========
+  Textures:
+    - Fall
+        Offset: 0, -4.872000217437744
+        Scale: 1, 0.30000001192092896
+    - WaterIndirect
+        Scale: 3.583984375, 0.20000000298023224
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Constant Colors:
+    - 0, 21, 45, 255
+    - 0, 0, 0, 255
+
+  Material Colors:
+    - 252, 252, 252, 206
+    - 252, 252, 252, 206
+
+  Color Registers:
+    - 0, 0, 0, 260
+    - 4, -308, -862, 255
+
+
+
+Rock00_v
+========
+  Textures:
+    - Stone_00
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 117, 117, 117, -50
+    - 8, 8, 8, 255
+
+
+
+Soil02_v
+========
+  Textures:
+    - Soil02_mip
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 134, 134, 134, -89
+    - 0, 0, 0, 255
+
+
+
+Soil03_v
+========
+  Textures:
+    - Soil03
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 88, 108, 98, -81
+    - 0, 0, 0, 255
+
+
+
+Soil04_v
+========
+  Textures:
+    - Soillayer03
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 160, 180, 180, -50
+    - 16, 16, 16, 255
+
+
+
+SpringMat_v_x
+=============
+  Textures:
+    - WaterRipple
+        Offset: 0, -6.960000038146973
+        Scale: 1, 1.399999976158142
+    - IndWarpTopWater
+        Offset: 0, -4.872000217437744
+        Scale: 0.25, 0.30000001192092896
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Constant Colors:
+    - 168, 219, 255, 255
+
+  Material Colors:
+    - 196, 196, 196, 255
+    - 196, 196, 196, 255
+
+
+
+Tree01_v
+========
+  Textures:
+    - Tree01
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 105, 105, 105, -69
+    - 0, 0, 0, 255
+
+
+
+WaterMat_v_x
+============
+  Textures:
+    - WaterWave
+        Offset: 0.6959999799728394, 0.6959999799728394
+        Rotation: 0.499984740745262
+    - WaterWave
+        Offset: 0, 0.6959999799728394
+        Scale: 1.100000023841858, 1.100000023841858
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Constant Colors:
+    - 203, 224, 255, 87
+    - 0, 0, 0, 255
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 28, 28, 28, 48
+    - 4, -308, -862, 255
+
+
+
+gras02_v
+========
+  Textures:
+    - gras02_mip
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 110, 110, 110, -50
+    - 0, 0, 0, 255
+
+
+
+gras_v
+======
+  Textures:
+    - gras_mip
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 105, 105, 105, -50
+    - 0, 0, 0, 255
+
+
+
+ground00_v
+==========
+  Textures:
+    - WaterBottom
+    - IndBendZara
+        Offset: 2.0880000591278076, 2.0880000591278076
+        Scale: 0.5, 1
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Constant Colors:
+    - 108, 114, 107, 255
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 58, 90, 100, -50
+    - 30, 30, 30, 255
+
+
+
+ground01_v
+==========
+  Textures:
+    - soil09
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 97, 97, 97, -50
+    - 0, 0, 0, 255
+
+
+
+honey_v
+=======
+  Textures:
+    - honey
+    - HighLightSample
+    - IndBendSmple
+        Scale: 0.25, 0.4000000059604645
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Constant Colors:
+    - 120, 120, 120, 0
+
+  Material Colors:
+    - 203, 203, 203, 255
+    - 203, 203, 203, 255
+
+  Color Registers:
+    - 157, 157, 157, 0
+    - 0, 0, 0, 368
+
+
+
+moss_v
+======
+  Textures:
+    - moss
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 200, 200, 200, -70
+    - 0, 0, 0, 255
+
+
+
+nennrin_v
+=========
+  Textures:
+    - kirikabu
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 110, 110, 110, -70
+    - 0, 0, 0, 255
+
+
+
+renga_v
+=======
+  Textures:
+    - renga06
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 105, 105, 105, -73
+    - 0, 0, 0, 255
+
+
+
+rock01_v
+========
+  Textures:
+    - rock01_32
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 89, 89, 89, -33
+    - 0, 0, 0, 255
+
+
+
+sand_v
+======
+  Textures:
+    - ground03
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 200, 200, 200, -73
+    - 12, 12, 12, 255
+
+
+
+seal00_v_x
+==========
+  Textures:
+    - gras02_mip3
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Constant Colors:
+    - 36, 45, 16, 255
+    - 255, 255, 255, 0
+
+
+
+stoneslat00_v
+=============
+  Textures:
+    - StoneSlat04
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 110, 110, 110, -50
+    - 5, 5, 5, 255
+
+
+
+wood02_v
+========
+  Textures:
+    - wood14
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 119, 119, 119, -50
+    - 10, 10, 10, 255
+
+
+
+wood06_v
+========
+  Textures:
+    - wood06
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 109, 109, 109, -50
+    - 12, 12, 12, 255
+
+
+
+wood09_v
+========
+  Textures:
+    - wood15
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 110, 110, 110, -50
+    - 9, 9, 9, 255
+
+
+
+woodA01_v
+=========
+  Textures:
+    - Wood_A_128
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 76, 72, 72, -70
+    - 16, 16, 16, 255
+
+
+
+woodA_v
+=======
+  Textures:
+    - Wood_A_128
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 76, 72, 72, -70
+    - 16, 16, 16, 255
+
+
+
+woodB_v
+=======
+  Textures:
+    - Wood_B_128
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 121, 121, 121, -80
+    - 0, 0, 0, 255

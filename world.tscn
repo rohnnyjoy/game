@@ -1,13 +1,14 @@
-[gd_scene load_steps=14 format=3 uid="uid://c8oqxmm2w2wvv"]
+[gd_scene load_steps=15 format=3 uid="uid://c8oqxmm2w2wvv"]
 
 [ext_resource type="Script" uid="uid://ddsbsdyq56vkc" path="res://world.gd" id="1_6tkge"]
-[ext_resource type="PackedScene" uid="uid://c1j7an8woikyd" path="res://environment.tscn" id="1_iktak"]
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
 [ext_resource type="PackedScene" uid="uid://bccpo0iaadmj1" path="res://Enemy.tscn" id="4_xr0ro"]
 [ext_resource type="PackedScene" uid="uid://xcjrjq5cbn7y" path="res://Player.tscn" id="5_taioi"]
 [ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://menu/PrimaryWeaponStack.cs" id="5_vq0ba"]
 [ext_resource type="Script" uid="uid://br7vpr5hwlegd" path="res://menu/InventoryStack.cs" id="6_6wwjs"]
 [ext_resource type="Script" uid="uid://c4amfj53xana6" path="res://GameUI.cs" id="7_gbfbk"]
+[ext_resource type="Script" uid="uid://ckhbaxtaa30xu" path="res://Crosshair.cs" id="8_ioo17"]
+[ext_resource type="PackedScene" uid="uid://byd84w7py46y6" path="res://forest_home_planet.tscn" id="9_ioo17"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_u5pdl"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -35,14 +36,11 @@ script = ExtResource("1_6tkge")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.7448, 4.23252, 23.3966)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-0.866025, -0.433013, 0.25, 0.032571, 0.450081, 0.892393, -0.498938, 0.780978, -0.375678, 0, 0, 0)
+transform = Transform3D(-0.866025, -0.433013, 0.25, 0.032571, 0.450081, 0.892394, -0.498938, 0.780978, -0.375678, 59.893, 123.339, 0)
 shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_6knbf")
-
-[node name="Environment" parent="." instance=ExtResource("1_iktak")]
-transform = Transform3D(1, 0, 0, 0, 2.11626, 0, 0, 0, 1, 0, -1.69061, 0)
 
 [node name="MenuCanvas" type="CanvasLayer" parent="."]
 script = ExtResource("3_nmfmg")
@@ -85,6 +83,13 @@ offset_left = 256.72
 offset_top = 200.64
 offset_right = 93.96
 offset_bottom = -124.08
+
+[node name="Crosshair" type="Control" parent="GameUI"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("8_ioo17")
 
 [node name="Enemy" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.4504, 5.41359, 17.1158)
@@ -133,3 +138,6 @@ move = false
 
 [node name="Enemy2" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.07898, 5.62353, 17.1158)
+
+[node name="ForestHomePlanet2" parent="." instance=ExtResource("9_ioo17")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.3644, 13.7321, -3.71425)

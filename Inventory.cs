@@ -9,6 +9,8 @@ public partial class Inventory : Node
   private Array<WeaponModule> _weaponModules = new()
   {
     new PenetratingModule(),
+    new HomingModule(),
+    new ExplosiveModule()
   };
 
   public Weapon PrimaryWeapon

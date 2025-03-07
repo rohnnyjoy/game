@@ -30,25 +30,26 @@ public partial class BouncingModule : WeaponModule
 
   public override async Task OnCollision(Bullet.CollisionData collision, Bullet bullet)
   {
-    // Store the original destroy_on_impact state.
+    // Temporarily disable destruction so the bullet can bounce.
     bool originalDestroyOnImpact = bullet.DestroyOnImpact;
     bullet.DestroyOnImpact = false;
 
     // Retrieve the collision normal.
     Vector3 normal = collision.Normal;
 
-    // Update the bounce count.
+    // Update and cache the bounce count.
     int bounceCount = (int)bullet.GetMeta("bounce_count");
     GD.Print("Bounce count: " + bounceCount);
     bounceCount++;
     bullet.SetMeta("bounce_count", bounceCount);
 
     // Apply damage reduction.
-    bullet.Damage *= 1.0f - DamageReduction;
+    bullet.Damage *= (1.0f - DamageReduction);
 
+    // Reflect the velocity along the collision normal and apply bounciness.
     bullet.Velocity = bullet.Velocity.Bounce(normal) * Bounciness;
 
-    // Reset destroy on impact if maximum bounces are reached.
+    // If the maximum number of bounces is reached, restore the bullet's destroy behavior.
     if (bounceCount >= MaxBounces)
     {
       bullet.DestroyOnImpact = originalDestroyOnImpact;

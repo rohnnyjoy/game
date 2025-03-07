@@ -31,7 +31,7 @@ var is_firing: bool = false # Tracks if the enemy is currently firing
 @onready var anim_player: AnimationPlayer = $AnimationPlayer
 @onready var health_bar: ProgressBar = $HealthBar
 
-var current_weapon: Weapon = null # Changed from BulletWeapon to match Player's type
+# var current_weapon: Weapon = null # Changed from BulletWeapon to match Player's type
 
 #===============================================================================
 # Initialization
@@ -49,7 +49,7 @@ func _ready() -> void:
 	health_bar.value = health
 	
 	# Equip default weapon
-	equip_default_weapon()
+	# equip_default_weapon()
 
 #===============================================================================
 # Frame Process
@@ -70,22 +70,22 @@ func _physics_process(delta: float) -> void:
 		if target:
 			emit_signal("enemy_detected", target)
 
-	if target:
-		_aim_at_target()
-		var distance: float = global_transform.origin.distance_to(target.global_transform.origin)
+	# if target:
+	# 	_aim_at_target()
+	# 	var distance: float = global_transform.origin.distance_to(target.global_transform.origin)
 		
-		if distance <= ATTACK_RADIUS:
-			_attack_target()
-		elif is_firing:
-			_stop_firing()
+		# if distance <= ATTACK_RADIUS:
+		# 	_attack_target()
+		# elif is_firing:
+		# 	_stop_firing()
 			
-		# If within detection but outside attack range, move toward target
-		elif distance <= DETECTION_RADIUS:
-			_move_towards_target(delta)
-		else:
-			_stop_and_reset()
-	else:
-		_patrol(delta)
+	# 	# If within detection but outside attack range, move toward target
+	# 	elif distance <= DETECTION_RADIUS:
+	# 		_move_towards_target(delta)
+	# 	else:
+	# 		_stop_and_reset()
+	# else:
+	# 	_patrol(delta)
 
 	_process_gravity(delta)
 	move_and_slide()
@@ -107,24 +107,24 @@ func _process_gravity(delta):
 #===============================================================================
 @onready var camera = $Camera3D
 
-func equip_default_weapon():
-	if pistol_scene:
-		var pistol = pistol_scene.instantiate()
-		$Camera3D/WeaponHolder.add_child(pistol)
-		current_weapon = pistol
+# func equip_default_weapon():
+# 	if pistol_scene:
+# 		var pistol = pistol_scene.instantiate()
+# 		$Camera3D/WeaponHolder.add_child(pistol)
+# 		current_weapon = pistol
 
-func _attack_target() -> void:
-	# anim_player.play("attack")
-	# Only start firing if we're not already firing and cooldown has elapsed
-	if current_weapon and not is_firing and time_since_last_attack >= attack_cooldown:
-		is_firing = true
-		current_weapon.on_press() # Start firing
-		time_since_last_attack = 0.0
+# func _attack_target() -> void:
+# 	# anim_player.play("attack")
+# 	# Only start firing if we're not already firing and cooldown has elapsed
+# 	if current_weapon and not is_firing and time_since_last_attack >= attack_cooldown:
+# 		is_firing = true
+# 		current_weapon.on_press() # Start firing
+# 		time_since_last_attack = 0.0
 
-func _stop_firing() -> void:
-	if current_weapon and is_firing:
-		is_firing = false
-		current_weapon.on_release() # Stop firing
+# func _stop_firing() -> void:
+# 	if current_weapon and is_firing:
+# 		is_firing = false
+# 		current_weapon.on_release() # Stop firing
 		
 # Rotates the enemy to face the target
 func _aim_at_target() -> void:
@@ -135,11 +135,11 @@ func _aim_at_target() -> void:
 	var look_rotation = Vector3(direction.x, 0, direction.z) # Ignore Y-axis for aiming
 	look_at(global_transform.origin + look_rotation, Vector3.UP)
 	
-	# Also aim the weapon holder if it exists
-	if has_node("Camera3D/WeaponHolder"):
-		var weapon_holder = $Camera3D/WeaponHolder
-		var vertical_angle = atan2(direction.y, sqrt(direction.x * direction.x + direction.z * direction.z))
-		weapon_holder.rotation.x = vertical_angle
+	# # Also aim the weapon holder if it exists
+	# if has_node("Camera3D/WeaponHolder"):
+	# 	var weapon_holder = $Camera3D/WeaponHolder
+	# 	var vertical_angle = atan2(direction.y, sqrt(direction.x * direction.x + direction.z * direction.z))
+	# 	weapon_holder.rotation.x = vertical_angle
 
 #===============================================================================
 # Patrol Movement
@@ -166,8 +166,8 @@ func _stop_and_reset() -> void:
 	# anim_player.play("idle")
 	
 	# Stop shooting when no target
-	if is_firing:
-		_stop_firing()
+	# if is_firing:
+	# 	_stop_firing()
 
 #===============================================================================
 # Targeting Methods
@@ -220,7 +220,7 @@ func take_damage(amount: int) -> void:
 
 func _die() -> void:
 		# Stop any ongoing actions
-		_stop_firing()
+		# _stop_firing()
 		velocity = Vector3.ZERO
 		set_physics_process(false)
 		
@@ -228,13 +228,13 @@ func _die() -> void:
 		emit_signal("enemy_died")
 		
 		# Release any bullets parented to this enemy
-		for child in get_children():
-				if child is Bullet:
-						remove_child(child)
-						get_tree().current_scene.add_child(child)
-						# Optionally, adjust the bullet’s transform if needed
-						# so that it maintains its global position
-						child.global_transform = child.global_transform
+		# for child in get_children():
+		# 		if child is Bullet:
+		# 				remove_child(child)
+		# 				get_tree().current_scene.add_child(child)
+		# 				# Optionally, adjust the bullet’s transform if needed
+		# 				# so that it maintains its global position
+		# 				child.global_transform = child.global_transform
 		
 		# Finally, free the enemy
 		queue_free()

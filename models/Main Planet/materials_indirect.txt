@@ -1,0 +1,14 @@
+FallBackFaceMat_v
+=================
+  Textures:
+    - IndDummy
+    - WaterIndirect
+        Offset: 0, -2.879999876022339
+        Scale: 3, 0.20000000298023224
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 187, 255
+    - 204, 204, 187, 255

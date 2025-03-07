@@ -38,3 +38,13 @@ res://effects/ImpactLineParticle.cs
 res://effects/RadialLineParticle.cs
 res://effects/CollisionCubeParticle.cs
 res://effects/PhysicalParticle.cs
+res://weapons/unique/OlReliable.gd
+res://weapons/unique/Microgun.tscn
+res://weapons/modules/unique/MicrogunModule.cs
+res://weapons/unique/Microgun.cs
+res://weapons/BulletWeapon.gd
+res://Control.cs
+res://Crosshair.cs
+res://Camera.cs
+res://Player.gd
+res://forest_home_planet.tscn

@@ -1,0 +1,33 @@
+Rock05_v
+========
+  Textures:
+    - Rock05
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 89, 89, 89, -65
+    - 0, 0, 0, 255
+
+
+
+Rock06_v
+========
+  Textures:
+    - Rock06
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 89, 89, 89, -45
+    - 0, 0, 0, 255

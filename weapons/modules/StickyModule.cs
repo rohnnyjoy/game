@@ -19,148 +19,165 @@ public partial class StickyModule : WeaponModule
   public override Bullet ModifyBullet(Bullet bullet)
   {
     bullet.SetMeta("is_sticky", false);
-    bullet.Radius = 0.1f;
+
+    // Create a goopy green translucent blob overlay.
+    MeshInstance3D blob = new MeshInstance3D();
+
+    // Create a low-poly sphere mesh for the blob.
+    SphereMesh sphere = new SphereMesh
+    {
+      RadialSegments = 4,
+      Rings = 4
+    };
+
+    // Use a single RandomNumberGenerator instance per bullet.
+    RandomNumberGenerator rng = new RandomNumberGenerator();
+    rng.Randomize();
+    float slimeThickness = bullet.Radius / 2;
+    float randomOffset = rng.RandfRange(0f, slimeThickness / 2);
+    sphere.Radius = bullet.Radius + slimeThickness + randomOffset;
+    sphere.Height = sphere.Radius * 2; // Ensure height matches the diameter.
+    blob.Mesh = sphere;
+
+    // Create a material with green color and transparency.
+    StandardMaterial3D material = new StandardMaterial3D
+    {
+      AlbedoColor = new Color(0, 1, 0, 0.3f),
+      Transparency = BaseMaterial3D.TransparencyEnum.Alpha
+    };
+    blob.MaterialOverride = material;
+
+    // Center the blob over the bullet.
+    blob.Position = Vector3.Zero;
+    bullet.AddChild(blob);
+
     return bullet;
   }
 
   public override async Task OnCollision(Bullet.CollisionData collision, Bullet bullet)
   {
-    var initialOverlapEnabled = bullet.EnableOverlapCollision;
+    collision.TotalDamageDealt += CollisionDamage;
+    bool initialOverlapEnabled = bullet.EnableOverlapCollision;
     bullet.EnableOverlapCollision = false;
+    float originalGravity = bullet.Gravity;
+    bullet.Gravity = 0;
 
-    // 1. If the collider is in the "enemies" group, call its "take_damage" method.
-    if (collision.Collider != null && collision.Collider.IsInGroup("enemies"))
+    try
     {
-      if (IsInstanceValid(collision.Collider))
-        collision.Collider.Call("take_damage", CollisionDamage);
-    }
-
-    // Save the bullet's original velocity.
-    Vector3 initialVelocity = bullet.Velocity;
-
-    // 2. If the collider is another bullet, perform a secondary raycast.
-    if (collision.Collider is Bullet)
-    {
-      PhysicsRayQueryParameters3D secondaryQuery = new PhysicsRayQueryParameters3D
+      // If the collider is an enemy, apply damage.
+      if (collision.Collider != null && collision.Collider.IsInGroup("enemies"))
       {
-        From = bullet.GlobalTransform.Origin,
-        To = bullet.GlobalTransform.Origin + bullet.Velocity.Normalized() * 100.0f,
-        CollisionMask = 1
-      };
+        if (IsInstanceValid(collision.Collider))
+          collision.Collider.Call("take_damage", CollisionDamage);
+      }
 
-      // Exclude the bullet itself by its RID.
-      var excludeArray = new Array<Rid> { bullet.GetRid() };
-      secondaryQuery.Exclude = excludeArray;
+      // Save the bullet's original velocity.
+      Vector3 initialVelocity = bullet.Velocity;
 
-      if (bullet is Node3D bulletNode)
+      // If the collider is another bullet, perform a secondary raycast.
+      if (collision.Collider is Bullet)
       {
-        var spaceState = bulletNode.GetWorld3D().DirectSpaceState;
-        var newCollision = spaceState.IntersectRay(secondaryQuery);
-        if (newCollision != null && newCollision.Count > 0)
+        Transform3D bulletTransform = bullet.GlobalTransform;
+        Vector3 bulletOrigin = bulletTransform.Origin;
+        Vector3 bulletDir = bullet.Velocity.Normalized();
+        PhysicsRayQueryParameters3D secondaryQuery = new PhysicsRayQueryParameters3D
         {
-          if (newCollision.ContainsKey("collider"))
+          From = bulletOrigin,
+          To = bulletOrigin + bulletDir * 100.0f,
+          CollisionMask = 1,
+          Exclude = new Array<Rid> { bullet.GetRid() }
+        };
+
+        if (bullet is Node3D bulletNode)
+        {
+          var spaceState = bulletNode.GetWorld3D().DirectSpaceState;
+          var newCollision = spaceState.IntersectRay(secondaryQuery);
+          if (newCollision != null && newCollision.Count > 0)
           {
-            object colliderObj = newCollision["collider"];
-            if (colliderObj is Node newCollider)
+            if (newCollision.ContainsKey("collider"))
             {
-              collision.Collider = newCollider as Node3D;
+              object colliderObj = newCollision["collider"];
+              if (colliderObj is Node newCollider)
+                collision.Collider = newCollider as Node3D;
             }
+            if (newCollision.ContainsKey("position"))
+              collision.Position = (Vector3)newCollision["position"];
+            if (newCollision.ContainsKey("normal"))
+              collision.Normal = (Vector3)newCollision["normal"];
           }
-          if (newCollision.ContainsKey("position"))
-          {
-            collision.Position = (Vector3)newCollision["position"];
-          }
-          if (newCollision.ContainsKey("normal"))
-          {
-            collision.Normal = (Vector3)newCollision["normal"];
-          }
+          else
+            return;
         }
         else
-        {
-          bullet.EnableOverlapCollision = initialOverlapEnabled;
           return;
+      }
+
+      // Do not proceed if bullet is already sticking.
+      if ((bool)bullet.GetMeta("is_sticky"))
+        return;
+
+      bullet.SetMeta("is_sticky", true);
+      bullet.Velocity = Vector3.Zero;
+
+      // Use collision normal if available; default to Vector3.Up.
+      Vector3 normal = (collision.Normal != Vector3.Zero) ? collision.Normal : Vector3.Up;
+      // Offset slightly along the normal.
+      bullet.GlobalTransform = new Transform3D(bullet.GlobalTransform.Basis, collision.Position + normal * 0.01f);
+
+      // Save the original parent for later reparenting.
+      Node originalParent = bullet.GetParent();
+
+      // Reparent bullet to the collider (if applicable).
+      if (collision.Collider != null)
+      {
+        if (collision.Collider is Node3D colliderNode)
+        {
+          Vector3 localPosition = colliderNode.ToLocal(bullet.GlobalTransform.Origin);
+          bullet.Reparent(colliderNode);
+          bullet.Transform = new Transform3D(bullet.Transform.Basis, localPosition);
         }
+        await PushBulletOutside(bullet, normal);
+      }
+
+      // Wait for the stick duration.
+      SceneTree tree = bullet.GetTree();
+      if (tree != null)
+      {
+        var timer = tree.CreateTimer(StickDuration);
+        await ToSignal(timer, "timeout");
       }
       else
       {
-        bullet.EnableOverlapCollision = initialOverlapEnabled;
-        return;
+        GD.Print("Warning: bullet is not in the scene tree!");
+      }
+
+      // Unstick the bullet if it's still valid.
+      if (IsInstanceValid(bullet))
+      {
+        bullet.SetMeta("is_sticky", false);
+        if (originalParent != null && IsInstanceValid(originalParent))
+        {
+          Transform3D currentGlobal = bullet.GlobalTransform;
+          bullet.GetParent().RemoveChild(bullet);
+          originalParent.AddChild(bullet);
+          bullet.GlobalTransform = currentGlobal;
+          bullet.Velocity = initialVelocity;
+        }
       }
     }
-
-    // 3. Check if the bullet is already sticking.
-    if ((bool)bullet.GetMeta("is_sticky"))
+    finally
     {
+      // Reset gravity and overlap collision.
+      bullet.Gravity = originalGravity;
       bullet.EnableOverlapCollision = initialOverlapEnabled;
-      return;
     }
-
-    // Mark the bullet as sticky.
-    bullet.SetMeta("is_sticky", true);
-
-    // Stop the bullet.
-    bullet.Velocity = Vector3.Zero;
-
-    // Use the collision normal if provided; otherwise, default to Vector3.Up.
-    Vector3 normal = (collision.Normal != Vector3.Zero) ? collision.Normal : Vector3.Up;
-    bullet.GlobalTransform = new Transform3D(bullet.GlobalTransform.Basis, collision.Position + normal * 0.01f);
-
-    // 4. Save the original parent for later reparenting.
-    Node originalParent = bullet.GetParent();
-
-    // TODO: Can we reparent the trails too?
-
-    // If there is a collider, reparent the bullet to that collider.
-    if (collision.Collider != null)
-    {
-      if (collision.Collider is Node3D colliderNode)
-      {
-        Vector3 localPosition = colliderNode.ToLocal(bullet.GlobalTransform.Origin);
-        bullet.Reparent(colliderNode);
-        // Preserve relative position by updating the bullet's transform.
-        bullet.Transform = new Transform3D(bullet.Transform.Basis, localPosition);
-      }
-      await PushBulletOutside(bullet, normal);
-    }
-
-    // 5. Wait for the stick duration.
-    SceneTree tree = bullet.GetTree();
-    if (tree != null)
-    {
-      var timer = tree.CreateTimer(StickDuration);
-      await ToSignal(timer, "timeout");
-    }
-    else
-    {
-      GD.Print("Warning: bullet is not in the scene tree!");
-    }
-
-    // 6. After the timer, if the bullet is still valid, "unstick" it.
-    if (IsInstanceValid(bullet))
-    {
-      bullet.SetMeta("is_sticky", false);
-      if (originalParent != null && IsInstanceValid(originalParent))
-      {
-        Transform3D currentGlobal = bullet.GlobalTransform;
-        bullet.GetParent().RemoveChild(bullet);
-        originalParent.AddChild(bullet);
-        bullet.GlobalTransform = currentGlobal;
-        bullet.Velocity = initialVelocity;
-      }
-    }
-    bullet.EnableOverlapCollision = initialOverlapEnabled;
   }
 
   private async Task PushBulletOutside(Bullet bullet, Vector3 normal)
   {
-    // Get the space state for collision queries.
     var spaceState = bullet.GetWorld3D().DirectSpaceState;
+    SphereShape3D sphere = new SphereShape3D { Radius = bullet.Radius };
 
-    // Create a temporary sphere shape matching the bullet's collision bounds.
-    SphereShape3D sphere = new SphereShape3D();
-    sphere.Radius = bullet.Radius;
-
-    // Build the shape query parameters.
     var query = new PhysicsShapeQueryParameters3D
     {
       Shape = sphere,
@@ -172,23 +189,19 @@ public partial class StickyModule : WeaponModule
     const float pushStep = 0.05f;
     int iterations = 0;
 
-    // Loop until there are no collisions or we hit the iteration cap.
     while (iterations < maxIterations)
     {
       var collisions = spaceState.IntersectShape(query);
       if (collisions.Count == 0)
         break;
 
-      // Push the bullet a small step further along the collision normal.
       Transform3D currentTransform = bullet.GlobalTransform;
       currentTransform.Origin += normal * pushStep;
       bullet.GlobalTransform = currentTransform;
-
-      // Update the query with the new transform.
-      query.Transform = bullet.GlobalTransform;
+      query.Transform = currentTransform;
       iterations++;
 
-      // Yield so the physics engine can update if needed.
+      // Yield to allow physics to update.
       await Task.Yield();
     }
   }

@@ -1,0 +1,33 @@
+Tree01_v
+========
+  Textures:
+    - Tree01
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 105, 105, 105, -69
+    - 0, 0, 0, 255
+
+
+
+wood06_v
+========
+  Textures:
+    - wood06
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 105, 105, 105, -69
+    - 0, 0, 0, 255

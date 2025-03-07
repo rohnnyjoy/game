@@ -20,7 +20,7 @@ public partial class Weapon : Node3D
   {
     CurrentAmmo = GetAmmo();
 
-    foreach (var module in Modules)
+    foreach (var module in [UniqueModule] + Modules)
     {
       AddChild(module);
     }
@@ -48,7 +48,7 @@ public partial class Weapon : Node3D
   public int GetAmmo() => new List<WeaponModule> { UniqueModule }.Concat(Modules)
       .Aggregate(Ammo, (ammo, module) => module.GetModifiedAmmo(ammo));
 
-  public void GetAccuracy() => new List<WeaponModule> { UniqueModule }.Concat(Modules)
+  public float GetAccuracy() => new List<WeaponModule> { UniqueModule }.Concat(Modules)
       .Aggregate(Accuracy, (accuracy, module) => module.GetModifiedAccuracy(accuracy));
 
   public float GetBulletSpeed() => new List<WeaponModule> { UniqueModule }.Concat(Modules)

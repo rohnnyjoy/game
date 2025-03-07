@@ -1,0 +1,33 @@
+mokume_v
+========
+  Textures:
+    - WoodYellow02
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 89, 89, 89, -50
+    - 15, 15, 15, 255
+
+
+
+wood02_v
+========
+  Textures:
+    - Wood_B
+
+  Ambient Colors:
+    - 100, 100, 100, 195
+
+  Material Colors:
+    - 204, 204, 204, 255
+    - 204, 204, 204, 255
+
+  Color Registers:
+    - 89, 89, 89, -50
+    - 15, 15, 15, 255

@@ -95,7 +95,6 @@ var pre_slide_horizontal_velocity: Vector3 = Vector3.ZERO
 func equip_default_weapon():
 	# Directly access the autoload singleton Inventory.
 	if InventorySingleton.primary_weapon:
-		print("OKO")
 		var weapon_instance = InventorySingleton.primary_weapon
 		$Camera3D/WeaponHolder.add_child(weapon_instance)
 		current_weapon = weapon_instance

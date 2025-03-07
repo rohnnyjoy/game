@@ -15,7 +15,7 @@ public partial class HomingModule : WeaponModule
     ModuleDescription = "Attacks home in on the nearest enemy within 10m.";
   }
 
-  public override async Task OnPhysicsProcess(float delta, Bullet bullet)
+  public override async Task OnBulletPhysicsProcess(float delta, Bullet bullet)
   {
     if (bullet == null || !bullet.IsInsideTree() || !IsInstanceValid(bullet))
     {
