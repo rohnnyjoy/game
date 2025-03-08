@@ -7,7 +7,7 @@ public partial class PrimaryWeaponStack : CardStack
   {
     base._Ready();
 
-    Inventory inventory = GetTree().Root.GetNode<Inventory>("InventorySingleton");
+    Inventory inventory = Player.Instance.Inventory;
     // inventory.InventoryChanged += OnInventoryChanged;
 
     PopulateCards();
@@ -21,7 +21,7 @@ public partial class PrimaryWeaponStack : CardStack
       card.QueueFree();
     }
 
-    Inventory inventory = GetTree().Root.GetNode<Inventory>("InventorySingleton");
+    Inventory inventory = Player.Instance.Inventory;
 
     // Create cards based on the primary weapon's modules.
     if (inventory.PrimaryWeapon != null)
@@ -46,7 +46,7 @@ public partial class PrimaryWeaponStack : CardStack
   public override void OnCardsReordered()
   {
     GD.Print("PrimaryWeaponStack.OnCardsReordered");
-    Inventory inventory = GetTree().Root.GetNode<Inventory>("InventorySingleton");
+    Inventory inventory = Player.Instance.Inventory;
     if (inventory.PrimaryWeapon == null)
       return;
 

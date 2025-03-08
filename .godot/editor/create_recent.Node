@@ -1,8 +1,11 @@
+RichTextLabel
+MeshInstance3D
+Node3D
+SpringArm3D
 CollisionShape3D
 StaticBody3D
 RigidBody3D
 Control
-RichTextLabel
 CanvasLayer
 Decal
 Panel

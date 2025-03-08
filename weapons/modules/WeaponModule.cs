@@ -14,6 +14,7 @@ public partial class WeaponModule : Node
   [Export] public int Ammo { get; set; } = 10;
   [Export] public float Damage { get; set; } = 10;
   [Export] public float Accuracy { get; set; } = 1.0f;
+  [Export] public Rarity Rarity = Rarity.Common;
 
   public Action OnReloadStart { get; private set; } = () => { };
   public Action OnReloadEnd { get; private set; } = () => { };

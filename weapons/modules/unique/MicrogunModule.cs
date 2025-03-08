@@ -12,7 +12,7 @@ public partial class MicrogunModule : WeaponModule
 
   // Increase accuracy very slowly per shot.
   [Export]
-  public float AccuracyIncreasePerShot { get; set; } = 0.003f;
+  public float AccuracyIncreasePerShot { get; set; } = 0.006f;
 
   // Decay accuracy rapidly (per tick).
   [Export]
@@ -23,7 +23,6 @@ public partial class MicrogunModule : WeaponModule
 
   public override void _Ready()
   {
-    GD.Print("MicrogunModule ready.");
     // Initialize current accuracy to the baseline.
     _currentAccuracy = BaselineAccuracy;
   }
@@ -54,7 +53,7 @@ public partial class MicrogunModule : WeaponModule
     OnShotFired();
 
     bullet.Gravity = 1;
-    bullet.Radius = 0.02f;
+    bullet.Radius = 0.05f;
     return bullet;
   }
 
@@ -77,7 +76,7 @@ public partial class MicrogunModule : WeaponModule
 
   public override float GetModifiedFireRate(float fireRate)
   {
-    return 0.005f;
+    return 0.0015f;
   }
 
   public override float GetModifiedBulletSpeed(float bulletSpeed)

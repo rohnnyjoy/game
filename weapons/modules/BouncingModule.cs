@@ -16,6 +16,7 @@ public partial class BouncingModule : WeaponModule
     // Set the card texture and module description.
     CardTexture = GD.Load<Texture2D>("res://icons/bouncing.png");
     ModuleDescription = "Bullets bounce off surfaces, reducing damage with each bounce.";
+    Rarity = Rarity.Rare;
   }
 
   public override Bullet ModifyBullet(Bullet bullet)
@@ -39,7 +40,6 @@ public partial class BouncingModule : WeaponModule
 
     // Update and cache the bounce count.
     int bounceCount = (int)bullet.GetMeta("bounce_count");
-    GD.Print("Bounce count: " + bounceCount);
     bounceCount++;
     bullet.SetMeta("bounce_count", bounceCount);
 

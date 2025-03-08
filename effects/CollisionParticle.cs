@@ -21,9 +21,6 @@ public partial class CollisionParticle : Node3D
 
   public override void _Ready()
   {
-    // Process early.
-    SetProcessPriority(-1);
-
     // Apply a random rotation for visual variation.
     Rotation = new Vector3(
         (float)GD.Randf() * Mathf.Tau,
@@ -38,8 +35,8 @@ public partial class CollisionParticle : Node3D
     {
       Radius = 0.1f,
       Height = 0.2f,
-      RadialSegments = 6,
-      Rings = 3,
+      RadialSegments = 4,
+      Rings = 2,
     };
     _particleMeshInstance.Mesh = sphereMesh;
 

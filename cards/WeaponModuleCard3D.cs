@@ -12,6 +12,8 @@ public partial class WeaponModuleCard3D : Card3D
   public void Initialize(WeaponModule module = null)
   {
     Module = module;
+    OutlineColor = RarityExtensions.GetColor(module.Rarity);
+    OutlineWidth = 0.05f;
     // Ensure CardCore is valid.
     if (CardCore == null)
     {
@@ -29,12 +31,12 @@ public partial class WeaponModuleCard3D : Card3D
   public override void OnInteract()
   {
     // Add to inventory
-    Inventory inventory = GetTree().Root.GetNode<Inventory>("InventorySingleton");
-    var newModules = new Godot.Collections.Array<WeaponModule>(inventory.WeaponModules)
+    var newModules = new Godot.Collections.Array<WeaponModule>(Player.Instance.Inventory.WeaponModules)
     {
         Module
     };
-    inventory.WeaponModules = newModules;
+    GD.Print(Player.Instance.Inventory);
+    Player.Instance.Inventory.WeaponModules = newModules;
     // Remove from scene
     QueueFree();
   }

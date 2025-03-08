@@ -117,13 +117,9 @@ public partial class Bullet : Area3D
 
     // Create a detection area for overlap collisions.
     var detectionArea = new Area3D();
-    var areaCollisionShape = new CollisionShape3D
-    {
-      Shape = new SphereShape3D { Radius = Radius + 0.5f }
-    };
     detectionArea.CollisionLayer = 0;
     detectionArea.CollisionMask = 1;
-    detectionArea.AddChild(areaCollisionShape);
+    detectionArea.AddChild(collisionShape);
     AddChild(detectionArea);
 
     Velocity = Direction.Normalized() * Speed;
@@ -309,10 +305,10 @@ public partial class Bullet : Area3D
       Node3D hit = collision.Collider;
       if (!IsInstanceValid(hit))
         return;
-      if (hit != null && hit.IsInGroup("enemies") && IsInstanceValid(hit))
+      if (hit != null && hit is Enemy && IsInstanceValid(hit))
       {
-        if (hit.HasMethod("take_damage"))
-          hit.CallDeferred("take_damage", Damage);
+        Enemy enemy = hit as Enemy;
+        enemy.TakeDamage(collision.TotalDamageDealt);
 
         // Compute shake parameters based on total damage.
         // These values can be adjusted to get the desired "snappy" feel.

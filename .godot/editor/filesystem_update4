@@ -49,3 +49,12 @@ res://Camera.cs
 res://Player.gd
 res://forest_home_planet.tscn
 res://WeaponHolder.cs
+res://player/Player.cs
+res://GlobalEvents.cs
+res://Enemy.cs
+res://shop/ShopItem.cs
+res://ItemPool.cs
+res://shaders/outline_shader.gdshader
+res://player/Inventory.cs
+res://GameUi.cs
+res://player/InteractionManager.cs

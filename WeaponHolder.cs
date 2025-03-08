@@ -7,7 +7,7 @@ public partial class WeaponHolder : Node3D
   [Export] public float MouseSwaySpeed = 8.0f;
 
   [ExportGroup("Movement Sway")]
-  [Export] public float MovementSwayAmount = 0.2f;
+  [Export] public float MovementSwayAmount = 0.05f;
   [Export] public float MovementSwaySpeed = 6.0f;
 
   // These offsets are applied on top of the weapon's default rotation.

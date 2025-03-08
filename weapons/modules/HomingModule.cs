@@ -13,6 +13,7 @@ public partial class HomingModule : WeaponModule
   {
     CardTexture = GD.Load<Texture2D>("res://icons/homing.png");
     ModuleDescription = "Attacks home in on the nearest enemy within 10m.";
+    Rarity = Rarity.Epic;
   }
 
   public override async Task OnBulletPhysicsProcess(float delta, Bullet bullet)

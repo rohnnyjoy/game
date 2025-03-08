@@ -1,4 +1,3 @@
-// Card3D.cs
 using Godot;
 using System;
 
@@ -6,6 +5,7 @@ public partial class Card3D : RigidBody3D, IInteractable
 {
   [Export]
   public CardCore CardCore { get; set; }
+
   [Export]
   public float ScaleFactor { get; set; } = 0.01f;
 
@@ -37,6 +37,15 @@ public partial class Card3D : RigidBody3D, IInteractable
   [Export]
   public float BillboardSpeed { get; set; } = 10.0f;
 
+  // Outline properties.
+  [Export]
+  public Color OutlineColor { get; set; } = Colors.White;
+  [Export]
+  public float OutlineWidth { get; set; } = 2f;  // How much the outline expands.
+
+  // Preload the outline shader from an external file.
+  private Shader outlineShader = GD.Load<Shader>("res://shaders/outline_shader.gdshader");
+
   private RayCast3D _raycast;
 
   public override void _Ready()
@@ -64,9 +73,8 @@ public partial class Card3D : RigidBody3D, IInteractable
     CustomIntegrator = true;
 
     // Disable collisions.
-    CollisionLayer = 1 << 3;  // Example: Assign to layer 3
-    CollisionMask = 1 << 3;   // Allow detection on layer 3
-
+    CollisionLayer = 1 << 3;  // Example: Assign to layer 3.
+    CollisionMask = 1 << 3;   // Allow detection on layer 3.
 
     // Create RayCast3D for ground detection.
     _raycast = new RayCast3D();
@@ -85,23 +93,43 @@ public partial class Card3D : RigidBody3D, IInteractable
   {
     var transform = state.Transform;
 
-    // Smooth billboarding.
+    // Allow up to 15° tilt (in radians).
+    float maxTilt = Mathf.DegToRad(15);
+
+    // Get the camera.
     Camera3D camera = GetViewport().GetCamera3D();
     if (camera != null)
     {
+      // Compute vector from card to camera.
       Vector3 toCamera = camera.GlobalTransform.Origin - transform.Origin;
-      if (toCamera.Length() > 0.001f)
-      {
-        Vector3 upDir = Vector3.Up;
-        if (Math.Abs(toCamera.Normalized().Dot(upDir)) > 0.99f)
-        {
-          upDir = Vector3.Forward;
-        }
-        Basis targetBasis = Basis.LookingAt(-toCamera, upDir);
-        transform.Basis = transform.Basis.Slerp(targetBasis, BillboardSpeed * state.Step);
-      }
+
+      // Use -toCamera so the card's front faces the camera (adjust if needed).
+      Basis targetBasis = Basis.LookingAt(-toCamera, Vector3.Up);
+
+      // Convert the target rotation to Euler angles.
+      Vector3 targetEuler = targetBasis.GetEuler();
+
+      // Clamp the pitch (rotation around the X axis) so that the tilt doesn't exceed maxTilt.
+      targetEuler.X = Mathf.Clamp(targetEuler.X, -maxTilt, maxTilt);
+
+      // Reset roll (Z axis) to zero so that the card remains level.
+      targetEuler.Z = 0;
+
+      // Convert Euler angles to a quaternion.
+      Quaternion targetQuat = Quaternion.FromEuler(targetEuler);
+
+      // Build the target basis from the quaternion.
+      targetBasis = new Basis(targetQuat);
+
+      // Smoothly interpolate the current rotation toward the target.
+      transform.Basis = transform.Basis.Slerp(targetBasis, BillboardSpeed * state.Step);
+
+      // Zero out angular velocity.
       state.AngularVelocity = Vector3.Zero;
     }
+
+
+
 
     // Apply gravity manually.
     float gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
@@ -141,7 +169,7 @@ public partial class Card3D : RigidBody3D, IInteractable
       }
     }
 
-    // Create a MeshInstance3D for visuals.
+    // Create a MeshInstance3D for the main card visuals.
     MeshInstance3D meshInstance = new MeshInstance3D();
     Vector2 meshSize = CardCore.CardSize * ScaleFactor;
 
@@ -150,7 +178,7 @@ public partial class Card3D : RigidBody3D, IInteractable
     quadMesh.Size = meshSize;
     meshInstance.Mesh = quadMesh;
 
-    // Set up a material.
+    // Set up the material for the main card.
     StandardMaterial3D material = new StandardMaterial3D();
     material.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
     material.TextureFilter = BaseMaterial3D.TextureFilterEnum.Nearest;
@@ -166,6 +194,22 @@ public partial class Card3D : RigidBody3D, IInteractable
     meshInstance.MaterialOverride = material;
     meshInstance.Transform = new Transform3D(meshInstance.Transform.Basis, Vector3.Zero);
     AddChild(meshInstance);
+
+    // --- Create an outline mesh instance using the external shader ---
+    MeshInstance3D outlineMeshInstance = new MeshInstance3D();
+    // Duplicate the main mesh to maintain consistent geometry.
+    outlineMeshInstance.Mesh = quadMesh.Duplicate() as QuadMesh;
+
+    // Create and assign a ShaderMaterial using the preloaded outline shader.
+    ShaderMaterial outlineShaderMaterial = new ShaderMaterial();
+    outlineShaderMaterial.Shader = outlineShader;
+    outlineShaderMaterial.SetShaderParameter("outline_width", OutlineWidth);
+    outlineShaderMaterial.SetShaderParameter("outline_color", OutlineColor);
+    outlineMeshInstance.MaterialOverride = outlineShaderMaterial;
+
+    // Slight Z offset to avoid z-fighting.
+    outlineMeshInstance.Transform = new Transform3D(outlineMeshInstance.Transform.Basis, new Vector3(0, 0, -0.001f));
+    AddChild(outlineMeshInstance);
 
     // Create a CollisionShape3D.
     CollisionShape3D collision = new CollisionShape3D();

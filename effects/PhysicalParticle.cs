@@ -95,7 +95,6 @@ public partial class PhysicalParticle : RigidBody3D
       collisionShape.Shape = new SphereShape3D { Radius = sphereMesh.Radius };
     }
     AddChild(collisionShape);
-    GD.Print("Collision shape created.", ParticleMaterial);
 
     // Set up the visual material. Use ParticleMaterial if provided, else create a new one.
     StandardMaterial3D material;

@@ -7,7 +7,7 @@ public partial class InventoryStack : CardStack
   {
     base._Ready();
 
-    Inventory inventory = GetTree().Root.GetNode<Inventory>("InventorySingleton");
+    Inventory inventory = Player.Instance.Inventory;
     inventory.InventoryChanged += OnInventoryChanged;
 
     PopulateCards();
@@ -22,7 +22,7 @@ public partial class InventoryStack : CardStack
     }
 
     // Create a card for each module in weapon_modules.
-    Inventory inventory = GetTree().Root.GetNode<Inventory>("InventorySingleton");
+    Inventory inventory = Player.Instance.Inventory;
     foreach (WeaponModule module in inventory.WeaponModules)
     {
       WeaponModuleCard2D card = new WeaponModuleCard2D();
@@ -35,6 +35,7 @@ public partial class InventoryStack : CardStack
 
   private void OnInventoryChanged()
   {
+    GD.Print("INVENTORY CHANGED");
     PopulateCards();
   }
 
@@ -51,7 +52,7 @@ public partial class InventoryStack : CardStack
       }
     }
 
-    Inventory inventory = GetTree().Root.GetNode<Inventory>("InventorySingleton");
+    Inventory inventory = Player.Instance.Inventory;
     inventory.WeaponModules.Clear();
     inventory.WeaponModules.AddRange(newModules);
   }

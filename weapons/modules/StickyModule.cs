@@ -10,14 +10,32 @@ public partial class StickyModule : WeaponModule
   [Export]
   public float CollisionDamage { get; set; } = 1.0f;
 
+  // Cache a shared RandomNumberGenerator.
+  private static RandomNumberGenerator _rng = new RandomNumberGenerator();
+
+  // Cache a shared blob material.
+  private static StandardMaterial3D _blobMaterial;
+
+  static StickyModule()
+  {
+    _rng.Randomize();
+    _blobMaterial = new StandardMaterial3D
+    {
+      AlbedoColor = new Color(0, 1, 0, 0.3f),
+      Transparency = BaseMaterial3D.TransparencyEnum.Alpha
+    };
+  }
+
   public StickyModule()
   {
     CardTexture = GD.Load<Texture2D>("res://icons/sticky.png");
     ModuleDescription = "Bullets stick to surfaces and enemies, detonating after a short delay.";
+    Rarity = Rarity.Common;
   }
 
   public override Bullet ModifyBullet(Bullet bullet)
   {
+    // Use a dedicated property instead of meta if possible.
     bullet.SetMeta("is_sticky", false);
 
     // Create a goopy green translucent blob overlay.
@@ -30,22 +48,15 @@ public partial class StickyModule : WeaponModule
       Rings = 4
     };
 
-    // Use a single RandomNumberGenerator instance per bullet.
-    RandomNumberGenerator rng = new RandomNumberGenerator();
-    rng.Randomize();
-    float slimeThickness = bullet.Radius / 2;
-    float randomOffset = rng.RandfRange(0f, slimeThickness / 2);
+    // Reuse the shared RandomNumberGenerator instance.
+    float slimeThickness = bullet.Radius / 1.5f;
+    float randomOffset = _rng.RandfRange(0f, slimeThickness / 2);
     sphere.Radius = bullet.Radius + slimeThickness + randomOffset;
     sphere.Height = sphere.Radius * 2; // Ensure height matches the diameter.
     blob.Mesh = sphere;
 
-    // Create a material with green color and transparency.
-    StandardMaterial3D material = new StandardMaterial3D
-    {
-      AlbedoColor = new Color(0, 1, 0, 0.3f),
-      Transparency = BaseMaterial3D.TransparencyEnum.Alpha
-    };
-    blob.MaterialOverride = material;
+    // Use the cached blob material.
+    blob.MaterialOverride = _blobMaterial;
 
     // Center the blob over the bullet.
     blob.Position = Vector3.Zero;
@@ -176,6 +187,7 @@ public partial class StickyModule : WeaponModule
   private async Task PushBulletOutside(Bullet bullet, Vector3 normal)
   {
     var spaceState = bullet.GetWorld3D().DirectSpaceState;
+    // Create a sphere shape and update its radius based on bullet properties.
     SphereShape3D sphere = new SphereShape3D { Radius = bullet.Radius };
 
     var query = new PhysicsShapeQueryParameters3D
