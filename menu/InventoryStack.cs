@@ -1,4 +1,5 @@
 using Godot;
+using Godot.Collections;
 using System.Collections.Generic;
 
 public partial class InventoryStack : CardStack
@@ -15,45 +16,51 @@ public partial class InventoryStack : CardStack
 
   private void PopulateCards()
   {
-    // Remove existing cards.
-    foreach (Node card in GetCards())
+    var newCards = new Array<Card2D>();
+    foreach (WeaponModule module in Player.Instance.Inventory.WeaponModules)
     {
-      card.QueueFree();
+      var existingCard = findCard(module);
+      if (existingCard == null)
+      {
+        WeaponModuleCard2D card = new WeaponModuleCard2D();
+        card.Module = module;
+        newCards.Add(card);
+      }
+      else
+      {
+        newCards.Add(existingCard);
+      }
     }
 
-    // Create a card for each module in weapon_modules.
-    Inventory inventory = Player.Instance.Inventory;
-    foreach (WeaponModule module in inventory.WeaponModules)
-    {
-      WeaponModuleCard2D card = new WeaponModuleCard2D();
-      card.Module = module;
-      AddChild(card);
-    }
+    GD.Print("LOOKLOOK, InventoryStack.PopulateCards", newCards);
+    UpdateCards(newCards);
+  }
 
-    UpdateCards(false);
+  private WeaponModuleCard2D findCard(WeaponModule module)
+  {
+    foreach (Card2D card in GetCards())
+    {
+      if (card is WeaponModuleCard2D moduleCard && moduleCard.Module == module)
+        return moduleCard;
+    }
+    return null;
   }
 
   private void OnInventoryChanged()
   {
-    GD.Print("INVENTORY CHANGED");
     PopulateCards();
   }
 
-  // Override to update Inventory weapon_modules.
-  public override void OnCardsReordered()
+  public override void OnCardsChanged(Array<Card2D> newCards)
   {
-    List<WeaponModule> newModules = new();
-
-    foreach (Node card in GetCards())
+    GD.Print("LOOKLOOK, InventoryStack.OnCardsChanged", newCards);
+    // Update the underlying data structure based on the new card order.
+    var newModules = new Array<WeaponModule>();
+    foreach (Card2D card in newCards)
     {
       if (card is WeaponModuleCard2D moduleCard)
-      {
         newModules.Add(moduleCard.Module);
-      }
     }
-
-    Inventory inventory = Player.Instance.Inventory;
-    inventory.WeaponModules.Clear();
-    inventory.WeaponModules.AddRange(newModules);
+    Player.Instance.Inventory.WeaponModules = newModules;
   }
 }

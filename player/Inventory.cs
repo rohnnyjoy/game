@@ -11,7 +11,10 @@ public partial class Inventory : Node
     {
         new PenetratingModule(),
         new HomingModule(),
-        new ExplosiveModule()
+        new ExplosiveModule(),
+        new SlowModule(),
+        new TrackingModule(),
+        new AimbotModule(),
     };
 
   public Weapon PrimaryWeapon
@@ -38,8 +41,8 @@ public partial class Inventory : Node
 
   public override void _Ready()
   {
-    // Remove the Inventory singleton setup.
     GlobalEvents.Instance.Connect(nameof(GlobalEvents.EnemyDied), new Callable(this, nameof(OnEnemyDied)));
+    EmitSignal(nameof(InventoryChanged));
   }
 
   public void OnEnemyDied()

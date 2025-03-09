@@ -22,12 +22,6 @@ public class PlayerMovement
     else
       ProcessAirMovement(inputDirection, delta);
 
-    // Apply extra upward boost in air.
-    if (!player.IsOnFloor() && Input.IsActionPressed("upward_boost"))
-    {
-      player.Velocity += new Vector3(0, Player.EXTRA_UPWARD_BOOST * delta, 0);
-    }
-
     player.PreSlideHorizontalVelocity = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
     player.MoveAndSlide();
 

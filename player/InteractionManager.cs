@@ -98,11 +98,7 @@ public partial class InteractionManager : Node3D
       GameUi.Instance.InteractionLabel.Text = interactable.GetInteractionText();
       GameUi.Instance.InteractionLabel.Visible = true;
       GameUi.Instance.InteractionLabel.QueueRedraw();
-
-      if (Input.IsActionJustPressed("interact"))
-      {
-        interactable.OnInteract();
-      }
+      interactable.OnInteract();
     }
     else
     {

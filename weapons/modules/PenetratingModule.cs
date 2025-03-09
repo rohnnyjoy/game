@@ -16,6 +16,8 @@ public partial class PenetratingModule : WeaponModule
 
   public PenetratingModule()
   {
+    CardTexture = GD.Load<Texture2D>("res://icons/penetrating.png");
+    Rarity = Rarity.Uncommon;
     ModuleDescription = "Bullets can penetrate multiple enemies, reducing damage with each hit.";
   }
 

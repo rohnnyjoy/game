@@ -92,9 +92,7 @@ public partial class Card3D : RigidBody3D, IInteractable
   public override void _IntegrateForces(PhysicsDirectBodyState3D state)
   {
     var transform = state.Transform;
-
-    // Allow up to 15° tilt (in radians).
-    float maxTilt = Mathf.DegToRad(15);
+    float maxTilt = Mathf.DegToRad(45);
 
     // Get the camera.
     Camera3D camera = GetViewport().GetCamera3D();
@@ -127,9 +125,6 @@ public partial class Card3D : RigidBody3D, IInteractable
       // Zero out angular velocity.
       state.AngularVelocity = Vector3.Zero;
     }
-
-
-
 
     // Apply gravity manually.
     float gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");

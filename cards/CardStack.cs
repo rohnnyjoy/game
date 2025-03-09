@@ -1,16 +1,17 @@
 using Godot;
 using System;
 using Godot.Collections;
+using System.Collections.Generic;
 
 public partial class CardStack : Panel
 {
-  // Signals.
+  // Signals for card movement and change.
   [Signal]
   public delegate void CardMovedEventHandler(Control card, Node from_stack, Node to_stack);
   [Signal]
-  public delegate void CardsChangedEventHandler(Godot.Collections.Array<Card2D> cards);
+  public delegate void CardsChangedEventHandler(Array<Card2D> cards);
 
-  // Exported properties.
+  // Exported properties for animation and layout.
   [Export]
   public float Offset { get; set; } = 120.0f;
   [Export]
@@ -18,112 +19,253 @@ public partial class CardStack : Panel
   [Export]
   public float AnimDurationOffset { get; set; } = 0.05f;
   [Export]
-  public float SuctionDuration { get; set; } = 0.15f; // Shorter duration for drop animation.
+  public float SuctionDuration { get; set; } = 0.15f; // Duration for drop animation.
   [Export]
-  public string StackType { get; set; } = "inventory"; // e.g., "inventory" or "weapon".
+  public float RepositionSpeed { get; set; } = 10.0f;
 
   private Tween tween;
-  private Godot.Collections.Array<Card2D> cards = new Godot.Collections.Array<Card2D>();
+  private Array<Card2D> cards = new Array<Card2D>();
 
   public override void _Ready()
   {
     AddToGroup("CardStacks");
-    UpdateCards(false);
+    // Initially update the children without animation.
+    UpdateCards(GetCards(), false);
   }
 
-  public void UpdateCards(bool animated = true, bool useSuction = false)
+  public override void _Process(double delta)
   {
-    Godot.Collections.Array<Card2D> newCards = GetCards();
-    if (!ArraysEqual(newCards, cards))
+    Card2D dragged = Card2D.CurrentlyDragged;
+    if (dragged == null)
+      return;
+
+    bool mouseInside = GetGlobalRect().HasPoint(dragged.GetGlobalMousePosition());
+    float centerY = Size.Y * 0.5f;
+
+    // If dragging and the mouse is inside, create a gap for the incoming card.
+    bool createGap = mouseInside && dragged.IsDragged;
+
+    if (createGap)
     {
-      cards = newCards;
-      EmitSignal(nameof(CardsChangedEventHandler), cards);
+      Vector2 localMouse = GetLocalMousePosition();
+      int nonDraggedCount = 0;
+      foreach (Card2D card in GetCards())
+      {
+        if (!card.IsDragged)
+          nonDraggedCount++;
+      }
+      int gapIndex = (int)Mathf.Round((localMouse.X - 20) / Offset);
+      gapIndex = Mathf.Clamp(gapIndex, 0, nonDraggedCount);
+
+      int nonDraggedIndex = 0;
+      foreach (Card2D card in GetCards())
+      {
+        if (card.IsDragged)
+          continue;
+
+        // Ensure scale is reset in case a removal tween had set it to zero.
+        card.Scale = Vector2.One;
+
+        int slotIndex = (nonDraggedIndex >= gapIndex) ? nonDraggedIndex + 1 : nonDraggedIndex;
+        Vector2 targetPos = new Vector2(20 + slotIndex * Offset, centerY - card.CardCore.CardSize.Y * 0.5f);
+        card.Position = card.Position.Lerp(targetPos, (float)(RepositionSpeed * delta));
+        nonDraggedIndex++;
+      }
     }
+    else
+    {
+      int index = 0;
+      foreach (Card2D card in GetCards())
+      {
+        if (card.IsDragged)
+          continue;
+
+        // Reset scale for safety.
+        card.Scale = Vector2.One;
+
+        Vector2 targetPos = new Vector2(20 + index * Offset, centerY - card.CardCore.CardSize.Y * 0.5f);
+        card.Position = card.Position.Lerp(targetPos, (float)(RepositionSpeed * delta));
+        index++;
+      }
+    }
+  }
+
+  public void UpdateCards(Array<Card2D> newCards, bool animated = true)
+  {
+    // Record current positions for cards already in this stack.
+    System.Collections.Generic.Dictionary<Card2D, Vector2> originalPositions =
+        new System.Collections.Generic.Dictionary<Card2D, Vector2>();
+    foreach (Card2D card in newCards)
+    {
+      if (card.GetParent() == this)
+        originalPositions[card] = card.Position;
+    }
+
+    // Animate removal for children that are no longer in newCards.
+    foreach (Node child in GetChildren())
+    {
+      if (child is Card2D card && !newCards.Contains(card))
+      {
+        if (animated)
+        {
+          // Capture card in a local variable to avoid closure issues.
+          Card2D cardToRemove = card;
+          Tween removalTween = cardToRemove.CreateTween();
+          removalTween.TweenProperty(cardToRemove, "scale", Vector2.Zero, SuctionDuration)
+              .SetTrans(Tween.TransitionType.Linear)
+              .SetEase(Tween.EaseType.In);
+          removalTween.Finished += () => _OnRemovalTweenFinished(cardToRemove);
+        }
+        else
+        {
+          RemoveChild(card);
+        }
+      }
+    }
+
+    // Set our internal reference.
+    cards = newCards;
+
+    // Ensure every card in newCards is a child of this node.
+    foreach (Card2D card in newCards)
+    {
+      if (card.GetParent() != this)
+      {
+        // Use the persistent ID to find the existing instance.
+        Vector2 previousPos = card.Position;
+        if (originalPositions.ContainsKey(card))
+          previousPos = originalPositions[card];
+
+        Node currentParent = card.GetParent();
+        if (currentParent != null)
+          currentParent.RemoveChild(card);
+        AddChild(card);
+        // Instead of resetting the card position completely, use the stored position.
+        card.Position = previousPos;
+      }
+    }
+
+    GD.Print("CardStack.UpdateCards: newCards.Count =", newCards.Count, "Children.Count =", GetChildCount());
+
     if (cards.Count == 0)
       return;
 
     float centerY = Size.Y * 0.5f;
-    if (tween != null && tween.IsRunning())
-      tween.Kill();
-    tween = CreateTween();
-    tween.SetParallel(true);
-
-    for (int i = 0; i < cards.Count; i++)
+    Card2D draggedCard = null;
+    foreach (Card2D card in cards)
     {
-      Card2D card = cards[i];
-      // Calculate target position based on the card’s index.
-      Vector2 targetPos = new Vector2(20 + i * Offset, centerY - card.CardCore.CardSize.Y * 0.5f);
+      if (card.IsDragged)
+      {
+        draggedCard = card;
+        break;
+      }
+    }
 
+    int gapIndex = -1;
+    if (draggedCard != null)
+    {
+      Vector2 localMouse = GetLocalMousePosition();
+      gapIndex = (int)Mathf.Round((localMouse.X - 20) / Offset);
+      int nonDraggedCount = cards.Count - 1;
+      gapIndex = Mathf.Clamp(gapIndex, 0, nonDraggedCount);
+    }
+
+    int nonDraggedIndex = 0;
+    foreach (Card2D card in cards)
+    {
+      if (card.IsDragged)
+        continue;
+
+      // Ensure scale is reset.
+      card.Scale = Vector2.One;
+
+      int slotIndex = nonDraggedIndex;
+      if (gapIndex != -1 && nonDraggedIndex >= gapIndex)
+        slotIndex = nonDraggedIndex + 1;
+
+      Vector2 targetPos = new Vector2(20 + slotIndex * Offset, centerY - card.CardCore.CardSize.Y * 0.5f);
       if (animated)
       {
-        float duration = useSuction ? SuctionDuration : (AnimDuration + i * AnimDurationOffset);
-        tween.TweenProperty(card, "position", targetPos, duration)  // Corrected property name
-             .SetTrans(Tween.TransitionType.Linear)
-             .SetEase(Tween.EaseType.Out);
-
-        if (card.GetGlobalRect().HasPoint(GetGlobalMousePosition()))
-        {
-          tween.TweenProperty(card, "scale", new Vector2(1.2f, 1.2f), duration)  // Corrected property name
-               .SetTrans(Tween.TransitionType.Linear)
-               .SetEase(Tween.EaseType.Out);
-        }
-        else
-        {
-          tween.TweenProperty(card, "scale", Vector2.One, duration)  // Corrected property name
-               .SetTrans(Tween.TransitionType.Linear)
-               .SetEase(Tween.EaseType.Out);
-        }
+        Tween cardTween = card.CreateTween();
+        float delay = nonDraggedIndex * AnimDurationOffset;
+        cardTween.TweenProperty(card, "position", targetPos, SuctionDuration)
+            .SetDelay(delay)
+            .SetTrans(Tween.TransitionType.Quad)
+            .SetEase(Tween.EaseType.Out);
+        cardTween.TweenProperty(card, "scale", Vector2.One, SuctionDuration)
+            .SetDelay(delay)
+            .SetTrans(Tween.TransitionType.Quad)
+            .SetEase(Tween.EaseType.Out);
       }
       else
       {
         card.Position = targetPos;
-        card.Scale = card.GetGlobalRect().HasPoint(GetGlobalMousePosition()) ? new Vector2(1.2f, 1.2f) : Vector2.One;
+        card.Scale = Vector2.One;
       }
+      nonDraggedIndex++;
     }
   }
 
-  /// <summary>
-  /// Returns an array of Card2D nodes which are direct children of this stack.
-  /// </summary>
-  public Godot.Collections.Array<Card2D> GetCards()
+  private void _OnRemovalTweenFinished(Card2D card)
   {
-    Godot.Collections.Array<Card2D> cardList = new Godot.Collections.Array<Card2D>();
+    if (card.GetParent() == this)
+      RemoveChild(card);
+  }
+
+  public Array<Card2D> GetCards()
+  {
+    Array<Card2D> cardList = new Array<Card2D>();
     foreach (Node child in GetChildren())
     {
       if (child is Card2D card)
-      {
         cardList.Add(card);
-      }
     }
     return cardList;
   }
 
-  /// <summary>
-  /// Called when a card is dropped onto this stack.
-  /// </summary>
-  public void OnCardDrop(Control card)
+  public void OnCardDrop(Control card, Vector2 dropLocalPos)
   {
-    float localX = card.GlobalPosition.X - GlobalPosition.X;
-    int newIndex = (int)Mathf.Clamp(Mathf.Round(localX / Offset), 0, GetCardCount() - 1);
-    Node oldParent = card.GetParent();
+    if (!(card is Card2D card2d))
+    {
+      GD.PrintErr("Dropped card is not a Card2D!");
+      return;
+    }
+
+    int newIndex = (int)Mathf.Clamp(Mathf.Round(dropLocalPos.X / Offset), 0, GetCardCount());
+    Node oldParent = card2d.GetParent();
     if (oldParent != this)
     {
-      GD.Print("Different stack.");
-      // Remove the card from its old stack and add it to this one.
-      oldParent.RemoveChild(card);
-      AddChild(card);
-      EmitSignal(nameof(CardMovedEventHandler), card, oldParent, this);
+      if (oldParent != null && oldParent is CardStack oldParentStack)
+      {
+        oldParentStack.RemoveChild(card2d);
+        oldParentStack.OnCardsChanged(oldParentStack.GetCards());
+      }
+      AddChild(card2d);
+      EmitSignal(nameof(CardMovedEventHandler), card2d, oldParent, this);
     }
-    else
-    {
-      GD.Print("Same stack.");
-      // If it’s the same stack, simply reposition it.
-      MoveChild(card, newIndex);
-    }
-    GD.Print("Card dropped.");
-    // Update the positions of the cards (with animation).
-    UpdateCards(true, true);
-    OnCardsReordered();
+
+    // Reset scale.
+    card2d.Scale = Vector2.One;
+
+    // Snap the card to a new position.
+    Vector2 targetGlobalPos = card2d.GetGlobalMousePosition() + card2d.DragOffset;
+    Vector2 newLocalPos = targetGlobalPos - GetGlobalRect().Position;
+    card2d.Position = newLocalPos;
+
+    MoveChild(card2d, newIndex);
+
+    // Notify the client that cards have changed.
+    Array<Card2D> currentCards = GetCards();
+    OnCardsChanged(currentCards);
+  }
+
+  /// <summary>
+  /// Called when the card order has changed (for example, via a drop).
+  /// Clients should override this to update their underlying data structure and then (if needed) call UpdateCards().
+  /// </summary>
+  public virtual void OnCardsChanged(Array<Card2D> newCards)
+  {
+    // Base implementation does nothing.
   }
 
   public int GetCardCount()
@@ -131,18 +273,7 @@ public partial class CardStack : Panel
     return cards.Count;
   }
 
-  /// <summary>
-  /// Base implementation; subclasses (like an InventoryStack) can override to update underlying data.
-  /// </summary>
-  public virtual void OnCardsReordered()
-  {
-    // Base implementation does nothing.
-  }
-
-  /// <summary>
-  /// Helper method to compare two Godot.Collections.Array<Card2D> for equality.
-  /// </summary>
-  private bool ArraysEqual(Godot.Collections.Array<Card2D> a, Godot.Collections.Array<Card2D> b)
+  private bool ArraysEqual(Array<Card2D> a, Array<Card2D> b)
   {
     if (a.Count != b.Count)
       return false;

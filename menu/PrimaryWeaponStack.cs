@@ -1,4 +1,5 @@
 using Godot;
+using Godot.Collections;
 using System.Collections.Generic;
 
 public partial class PrimaryWeaponStack : CardStack
@@ -8,33 +9,41 @@ public partial class PrimaryWeaponStack : CardStack
     base._Ready();
 
     Inventory inventory = Player.Instance.Inventory;
-    // inventory.InventoryChanged += OnInventoryChanged;
+    inventory.InventoryChanged += OnInventoryChanged;
 
     PopulateCards();
   }
 
   private void PopulateCards()
   {
-    // Remove existing cards.
-    foreach (Node card in GetCards())
+    var newCards = new Array<Card2D>();
+    foreach (WeaponModule module in Player.Instance.Inventory.PrimaryWeapon.Modules)
     {
-      card.QueueFree();
-    }
-
-    Inventory inventory = Player.Instance.Inventory;
-
-    // Create cards based on the primary weapon's modules.
-    if (inventory.PrimaryWeapon != null)
-    {
-      foreach (WeaponModule module in inventory.PrimaryWeapon.Modules)
+      var existingCard = findCard(module);
+      if (existingCard == null)
       {
         WeaponModuleCard2D card = new WeaponModuleCard2D();
         card.Module = module;
-        AddChild(card);
+        newCards.Add(card);
+      }
+      else
+      {
+        newCards.Add(existingCard);
       }
     }
 
-    UpdateCards(false);
+    UpdateCards(newCards);
+  }
+
+
+  private WeaponModuleCard2D findCard(WeaponModule module)
+  {
+    foreach (Card2D card in GetCards())
+    {
+      if (card is WeaponModuleCard2D moduleCard && moduleCard.Module == module)
+        return moduleCard;
+    }
+    return null;
   }
 
   private void OnInventoryChanged()
@@ -42,26 +51,17 @@ public partial class PrimaryWeaponStack : CardStack
     PopulateCards();
   }
 
-  // Override to update primary_weapon.modules from the new card order.
-  public override void OnCardsReordered()
+  public override void OnCardsChanged(Array<Card2D> newCards)
   {
-    GD.Print("PrimaryWeaponStack.OnCardsReordered");
-    Inventory inventory = Player.Instance.Inventory;
-    if (inventory.PrimaryWeapon == null)
-      return;
-
-    List<WeaponModule> newModules = new();
-
-    foreach (Node card in GetCards())
+    base.OnCardsChanged(newCards);
+    var newModules = new Array<WeaponModule>();
+    foreach (Card2D card in GetCards())
     {
       if (card is WeaponModuleCard2D moduleCard)
-      {
         newModules.Add(moduleCard.Module);
-      }
     }
-
-    // Instead of assigning a new list, update the existing one.
-    inventory.PrimaryWeapon.Modules.Clear();
-    inventory.PrimaryWeapon.Modules.AddRange(newModules);
+    var newPrimaryWeapon = Player.Instance.Inventory.PrimaryWeapon;
+    newPrimaryWeapon.Modules = newModules;
+    Player.Instance.Inventory.PrimaryWeapon = newPrimaryWeapon;
   }
 }

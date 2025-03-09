@@ -14,9 +14,9 @@ public partial class OlReliable : BulletWeapon
     UniqueModule = new OlReliableModule();
     Modules = new Array<WeaponModule> {
       // new ExplosiveModule(),
-      new BouncingModule(),
+      new PenetratingModule(),
       // new HomingModule(),
-      new StickyModule()
+      new AimbotModule()
     };
     // Uncomment one of the following module sets if needed:
     // Modules = new Array<WeaponModule> { new PenetratingModule(), new ExplosiveModule() };

@@ -21,7 +21,7 @@ public partial class OlReliableModule : WeaponModule
 
   public override float GetModifiedBulletSpeed(float bulletSpeed)
   {
-    return 800;
+    return 20;
   }
 
   public override float GetModifiedAccuracy(float accuracy)

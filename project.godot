@@ -17,10 +17,9 @@ config/icon="res://icon.svg"
 
 [autoload]
 
-GameUi="*res://GameUi.cs"
 GlobalEvents="*res://GlobalEvents.cs"
-Player="*res://player/Player.cs"
 ItemPool="*res://ItemPool.cs"
+GameUi="*res://GameUi.cs"
 
 [display]
 

@@ -1,12 +1,12 @@
 [gd_scene load_steps=17 format=3 uid="uid://c8oqxmm2w2wvv"]
 
 [ext_resource type="Script" uid="uid://ddsbsdyq56vkc" path="res://world.gd" id="1_6tkge"]
-[ext_resource type="Script" uid="uid://cdlg2dks84qds" path="res://GameUi.cs" id="2_gbfbk"]
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
 [ext_resource type="PackedScene" uid="uid://bccpo0iaadmj1" path="res://Enemy.tscn" id="4_xr0ro"]
 [ext_resource type="PackedScene" uid="uid://kadcr801fqcm" path="res://Player.tscn" id="5_taioi"]
 [ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://menu/PrimaryWeaponStack.cs" id="5_vq0ba"]
 [ext_resource type="Script" uid="uid://br7vpr5hwlegd" path="res://menu/InventoryStack.cs" id="6_6wwjs"]
+[ext_resource type="Script" uid="uid://cdlg2dks84qds" path="res://GameUi.cs" id="7_gbfbk"]
 [ext_resource type="FontFile" uid="uid://ymmh1stkgoon" path="res://fonts/Pixel.ttf" id="8_ic0uy"]
 [ext_resource type="Script" uid="uid://ckhbaxtaa30xu" path="res://Crosshair.cs" id="8_ioo17"]
 [ext_resource type="PackedScene" uid="uid://byd84w7py46y6" path="res://forest_home_planet.tscn" id="9_ioo17"]
@@ -65,10 +65,10 @@ script = ExtResource("5_vq0ba")
 
 [node name="InventoryStack" type="Panel" parent="MenuCanvas/Panel"]
 layout_mode = 0
-offset_left = 180.0
-offset_top = 367.0
-offset_right = 875.0
-offset_bottom = 603.0
+offset_left = 180.434
+offset_top = 315.263
+offset_right = 875.434
+offset_bottom = 551.263
 theme_override_styles/panel = SubResource("StyleBoxFlat_w1h00")
 script = ExtResource("6_6wwjs")
 
@@ -243,10 +243,10 @@ Move = true
 [node name="ForestHomePlanet2" parent="." instance=ExtResource("9_ioo17")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.3644, 13.7321, -3.71425)
 
-[node name="GameUi" type="CanvasLayer" parent="."]
-script = ExtResource("2_gbfbk")
+[node name="GameUI" type="CanvasLayer" parent="."]
+script = ExtResource("7_gbfbk")
 
-[node name="InteractionLabel" type="RichTextLabel" parent="GameUi"]
+[node name="InteractionLabel" type="RichTextLabel" parent="GameUI"]
 anchors_preset = -1
 anchor_left = 0.284
 anchor_top = 0.392
@@ -258,14 +258,14 @@ offset_right = 93.96
 offset_bottom = -124.08
 theme_override_fonts/normal_font = ExtResource("8_ic0uy")
 
-[node name="Crosshair" type="Control" parent="GameUi"]
+[node name="Crosshair" type="Control" parent="GameUI"]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("8_ioo17")
 
-[node name="ComboLabel" type="RichTextLabel" parent="GameUi"]
+[node name="ComboLabel" type="RichTextLabel" parent="GameUI"]
 offset_left = 704.0
 offset_top = 136.0
 offset_right = 1090.0
@@ -275,7 +275,7 @@ theme_override_font_sizes/normal_font_size = 40
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="MoneyCounter" type="RichTextLabel" parent="GameUi"]
+[node name="MoneyCounter" type="RichTextLabel" parent="GameUI"]
 offset_left = 1505.0
 offset_top = 890.0
 offset_right = 1719.0

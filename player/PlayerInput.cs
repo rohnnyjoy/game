@@ -44,6 +44,7 @@ public class PlayerInput
 
     if (Input.IsActionJustPressed("shoot"))
     {
+      GD.Print("Shooting");
       player.CurrentWeapon?.OnPress();
     }
     else if (Input.IsActionJustReleased("shoot"))
@@ -64,8 +65,9 @@ public class PlayerInput
       player.JumpBufferTimer = Player.JUMP_BUFFER_TIME;
     }
 
-    if (Input.IsActionJustPressed("interact"))
+    if (@event is InputEventKey keyEvent && !keyEvent.Echo && Input.IsActionJustPressed("interact"))
     {
+      GD.Print("Interacting with: ", player.InteractionManager.DetectInteractable());
       player.InteractionManager.ProcessInteraction();
     }
   }

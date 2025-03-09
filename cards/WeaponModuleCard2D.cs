@@ -1,4 +1,5 @@
 using Godot;
+using Godot.Collections;
 using System;
 using System.Linq;
 
@@ -9,6 +10,7 @@ public partial class WeaponModuleCard2D : Card2D
 
   public override void _Ready()
   {
+    // Initialize CardCore using the module's properties.
     CardCore = new CardCore();
     CardCore.CardTexture = Module.CardTexture;
     CardCore.CardDescription = Module.ModuleDescription;
@@ -19,26 +21,41 @@ public partial class WeaponModuleCard2D : Card2D
   protected override void OnDroppedOutsideStacks()
   {
     ConvertTo3D();
+    var parent = GetParent();
+    if (parent is InventoryStack)
+    {
+      var newModules = new Array<WeaponModule>(Player.Instance.Inventory.WeaponModules);
+      newModules.Remove(Module);
+      Player.Instance.Inventory.WeaponModules = newModules;
+    }
+    else if (parent is PrimaryWeaponStack)
+    {
+      var newModules = new Array<WeaponModule>(Player.Instance.Inventory.PrimaryWeapon.Modules);
+      newModules.Remove(Module);
+      var newPrimaryWeapon = Player.Instance.Inventory.PrimaryWeapon;
+      newPrimaryWeapon.Modules = newModules;
+      Player.Instance.Inventory.PrimaryWeapon = newPrimaryWeapon;
+    }
+    else
+    {
+      GD.PrintErr("Dropped outside of stacks, but parent is not a stack, it is: " + parent);
+    }
   }
 
   private void ConvertTo3D()
   {
-    // Create an instance of the 3D card.
-    // It is assumed that WeaponModuleCard3D has a constructor that accepts a WeaponModule.
+    // Convert the 2D card to its 3D counterpart.
     WeaponModuleCard3D card3d = new WeaponModuleCard3D();
     card3d.Initialize(Module);
-    // Transfer the common data.
     card3d.CardCore = CardCore;
 
     Camera3D camera = GetViewport().GetCamera3D();
     if (camera != null)
     {
-      float dropDistance = 2.0f; // Closer spawn point.
-                                 // In Godot 4, the camera faces along its negative Z axis.
+      float dropDistance = 2.0f;
       Vector3 forward = -camera.GlobalTransform.Basis.Z.Normalized();
       Vector3 dropPosition = camera.GlobalTransform.Origin + forward * dropDistance;
 
-      // Raycast from the camera to the drop position to avoid spawning inside walls.
       var spaceState = camera.GetWorld3D().DirectSpaceState;
       PhysicsRayQueryParameters3D query = new PhysicsRayQueryParameters3D
       {
@@ -50,7 +67,6 @@ public partial class WeaponModuleCard2D : Card2D
       var collision = spaceState.IntersectRay(query);
       if (collision.Count() > 0)
       {
-        // Adjust drop position to be a safe offset away from the collision point.
         float safeOffset = 0.5f;
         if (collision.ContainsKey("position") && collision.ContainsKey("normal"))
         {
@@ -64,14 +80,12 @@ public partial class WeaponModuleCard2D : Card2D
       transform.Origin = dropPosition;
       card3d.GlobalTransform = transform;
 
-      // Add the card to the scene tree.
       Node ground = GetNodeOrNull("/root/World/Ground");
       if (ground != null)
         ground.AddChild(card3d);
       else
         GetTree().Root.AddChild(card3d);
 
-      // Immediately orient the card to face the camera.
       Vector3 toCamera = camera.GlobalTransform.Origin - dropPosition;
       if (toCamera.Length() > 0.001f)
       {
@@ -83,14 +97,12 @@ public partial class WeaponModuleCard2D : Card2D
         card3d.GlobalTransform = transform;
       }
 
-      // Instead of teleporting, apply an initial toss velocity (weaker toss).
       float tossStrength = 3.0f;
       float tossUpStrength = 1.0f;
       card3d.LinearVelocity = forward * tossStrength + Vector3.Up * tossUpStrength;
     }
     else
     {
-      // Fallback: place using the 2D global position (converted to 3D).
       Transform3D transform = card3d.GlobalTransform;
       transform.Origin = new Vector3(GlobalPosition.X, GlobalPosition.Y, 0);
       card3d.GlobalTransform = transform;

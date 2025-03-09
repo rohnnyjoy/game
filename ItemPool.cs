@@ -20,6 +20,8 @@ public partial class ItemPool : Node
       new HomingModule(),
       new ExplosiveModule(),
       new BouncingModule(),
+      new FastModule(),
+      new SlowModule(),
     };
     Instance = this;
   }

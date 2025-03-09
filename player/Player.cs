@@ -49,6 +49,7 @@ public partial class Player : CharacterBody3D
 
   public override void _Ready()
   {
+    GD.Print("Player ready");
     Instance = this;
 
     // Cache nodes.

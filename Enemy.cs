@@ -38,7 +38,6 @@ public partial class Enemy : CharacterBody3D
 
   // Onready nodes
   private AnimationPlayer animPlayer;
-  private ProgressBar healthBar;
   private Camera3D camera;
 
   public override void _Ready()
@@ -49,21 +48,11 @@ public partial class Enemy : CharacterBody3D
 
     // Get child nodes (adjust paths if necessary)
     animPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
-    healthBar = GetNode<ProgressBar>("HealthBar");
     camera = GetNode<Camera3D>("Camera3D");
-
-    // Initialize the health bar.
-    if (healthBar != null)
-    {
-      healthBar.MaxValue = health;
-      healthBar.Value = health;
-    }
   }
 
   public override void _Process(double delta)
   {
-    UpdateHealthBarPosition();
-
     if (timeSinceLastAttack < attackCooldown)
     {
       timeSinceLastAttack += (float)delta;
@@ -219,8 +208,6 @@ public partial class Enemy : CharacterBody3D
   public void TakeDamage(float amount)
   {
     health -= amount;
-    if (healthBar != null)
-      healthBar.Value = health;
 
     if (health <= 0)
     {
@@ -255,17 +242,5 @@ public partial class Enemy : CharacterBody3D
 
     // Remove the enemy.
     QueueFree();
-  }
-
-  private void UpdateHealthBarPosition()
-  {
-    Camera3D cam = GetViewport().GetCamera3D();
-    if (cam != null && healthBar != null)
-    {
-      Vector3 headWorldPosition = GlobalTransform.Origin + new Vector3(0, 2.0f, 0);
-      Vector2 screenPosition = cam.UnprojectPosition(headWorldPosition);
-      screenPosition -= healthBar.GetRect().Size * 0.5f;
-      healthBar.Position = screenPosition;
-    }
   }
 }

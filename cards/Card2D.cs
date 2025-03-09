@@ -32,23 +32,29 @@ public partial class Card2D : Button
   private float _oscillatorVelocity = 0.0f;
   private float _displacement = 0.0f;
 
-  // Declare the "drop" signal.
   [Signal]
   public delegate void DropEventHandler();
 
+  // Static reference to the currently dragged card.
+  public static Card2D CurrentlyDragged;
+
+  public bool IsDragged => _pickedUp;
+
+  // Expose the drag offset for use during drop
+  public Vector2 DragOffset => _offset;
+
   public override void _Ready()
   {
-    // Ensure there is a CardCore instance.
+    FocusMode = FocusModeEnum.None;
+
     if (CardCore == null)
       CardCore = new CardCore();
 
-    // Set the minimum size and pivot offset based on the card size.
     CustomMinimumSize = CardCore.CardSize;
     PivotOffset = CardCore.CardSize * 0.5f;
     MouseFilter = MouseFilterEnum.Stop;
     _lastPos = Position;
 
-    // Set style based on texture.
     if (CardCore.CardTexture != null)
     {
       var styleBox = new StyleBoxTexture();
@@ -66,7 +72,6 @@ public partial class Card2D : Button
       AddThemeStyleboxOverride("hover", styleBox);
     }
 
-    // Connect mouse signals.
     MouseEntered += OnMouseEntered;
     MouseExited += OnMouseExited;
   }
@@ -131,23 +136,24 @@ public partial class Card2D : Button
   {
     _offset = GlobalPosition - GetGlobalMousePosition();
     _pickedUp = true;
+    Card2D.CurrentlyDragged = this;
     _oscillatorVelocity = 0.0f;
     _displacement = 0.0f;
     _lastPos = Position;
     ZIndex = 999;
     MoveToFront();
     Tween tween = CreateTween();
-    tween.TweenProperty(this, "scale", new Vector2(1.1f, 1.1f), 0.1f);  // Corrected property name
+    tween.TweenProperty(this, "scale", new Vector2(1.1f, 1.1f), 0.1f);
     TooltipText = "";
   }
 
-  protected virtual async void OnDragEnd()
+  protected async void OnDragEnd()
   {
     GD.Print("Card dropped.");
     _pickedUp = false;
     ZIndex = 0;
+    Card2D.CurrentlyDragged = null;
 
-    // Find a target card stack in the "CardStacks" group.
     Node targetStack = null;
     foreach (Node stack in GetTree().GetNodesInGroup("CardStacks"))
     {
@@ -160,46 +166,19 @@ public partial class Card2D : Button
 
     if (targetStack != null)
     {
-      if (targetStack != GetParent())
+      if (targetStack is CardStack newStack)
       {
-        Node oldParent = GetParent();
-        Vector2 oldGlobalPos = GlobalPosition;
-        oldParent.RemoveChild(this);
-        if (oldParent is CardStack oldStack)
-        {
-          oldStack.UpdateCards(true, true);
-          oldStack.OnCardsReordered();
-        }
-        if (targetStack is CardStack newStack)
-        {
-          newStack.AddChild(this);
-          GlobalPosition = oldGlobalPos;
-          newStack.UpdateCards(true, true);
-          newStack.OnCardsReordered();
-        }
-      }
-      else
-      {
-        GD.Print("Same stack.", GetParent());
-        if (GetParent() is CardStack parentStack)
-        {
-          parentStack.OnCardDrop(this);
-        }
+        Vector2 targetGlobalPos = GetGlobalMousePosition() + _offset;
+        Vector2 dropLocalPos = targetGlobalPos - newStack.GetGlobalRect().Position;
+        newStack.OnCardDrop(this, dropLocalPos);
       }
     }
     else
     {
       if (GetParent() is CardStack parentStack)
-      {
         OnDroppedOutsideStacks();
-        // Remove the card from its parent stack.
-        parentStack.RemoveChild(this);
-        parentStack.UpdateCards(true, false);
-        parentStack.OnCardsReordered();
-      }
     }
 
-    // Wait briefly and then reset scale.
     await ToSignal(GetTree().CreateTimer(0.05f), "timeout");
     ResetScale();
     if (GetGlobalRect().HasPoint(GetGlobalMousePosition()))
@@ -211,8 +190,8 @@ public partial class Card2D : Button
   protected void ResetScale()
   {
     Tween tween = CreateTween();
-    tween.TweenProperty(this, "scale", Vector2.One, 0.3f);  // Corrected property name
-    tween.TweenProperty(this, "rotation_degrees", 0.0f, 0.3f);  // Corrected property name
+    tween.TweenProperty(this, "scale", Vector2.One, 0.3f);
+    tween.TweenProperty(this, "rotation_degrees", 0.0f, 0.3f);
   }
 
   protected void OnMouseEntered()
@@ -221,7 +200,7 @@ public partial class Card2D : Button
       TooltipText = CardCore.CardDescription;
     Tween tween = CreateTween().SetEase(Tween.EaseType.Out)
                                  .SetTrans(Tween.TransitionType.Elastic);
-    tween.TweenProperty(this, "scale", new Vector2(1.2f, 1.2f), 0.5f);  // Corrected property name
+    tween.TweenProperty(this, "scale", new Vector2(1.2f, 1.2f), 0.5f);
   }
 
   private void OnMouseExited()
@@ -232,13 +211,12 @@ public partial class Card2D : Button
     Tween tween = CreateTween().SetEase(Tween.EaseType.Out)
                                  .SetTrans(Tween.TransitionType.Back)
                                  .SetParallel(true);
-    tween.TweenProperty(this, "rotation_degrees", 0.0f, 0.5f);  // Corrected property name
+    tween.TweenProperty(this, "rotation_degrees", 0.0f, 0.5f);
     tween = CreateTween().SetEase(Tween.EaseType.Out)
                           .SetTrans(Tween.TransitionType.Elastic);
-    tween.TweenProperty(this, "scale", Vector2.One, 0.55f);  // Corrected property name
+    tween.TweenProperty(this, "scale", Vector2.One, 0.55f);
   }
 
-  // Helper method to remap a value from one range to another.
   private float Remap(float value, float from1, float to1, float from2, float to2)
   {
     return from2 + (value - from1) * (to2 - from2) / (to1 - from1);
