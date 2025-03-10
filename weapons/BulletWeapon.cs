@@ -1,20 +1,39 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 public partial class BulletWeapon : Weapon
 {
+  // Configurable parameters for gun recoil.
+  [Export]
+  public float GunRecoilRotation { get; set; } = 10.0f; // Degrees of upward rotation.
+  [Export]
+  public float GunRecoilKickback { get; set; } = 0.2f;   // Units to shift backward.
+  [Export]
+  public float RecoilRecoverySpeed { get; set; } = 10.0f;  // Recovery speed from recoil.
+
+  public MuzzleFlash MuzzleFlash { get; set; }
+
   private Node3D BulletOrigin;
-  private Node MuzzleFlash;
+  private Node3D Muzzle;
   private bool Firing = false;
   private RandomNumberGenerator rng = new RandomNumberGenerator();
+
+  // Store the original local transform of the gun (so it moves with its parent).
+  private Transform3D originalTransform;
+  // Represents the current recoil intensity (0 to 1).
+  private float currentRecoil = 0.0f;
 
   public override void _Ready()
   {
     base._Ready();
     BulletOrigin = GetNode<Node3D>("BulletOrigin");
-    MuzzleFlash = GetNode<Node>("MuzzleFlash");
+    Muzzle = GetNode<Node3D>("Muzzle");
     rng.Randomize();
+
+    // Save the original local transform.
+    originalTransform = Transform;
   }
 
   public override void OnPress()
@@ -56,13 +75,13 @@ public partial class BulletWeapon : Weapon
     if (camera == null)
       return;
 
-    // Determine the center of the screen (assuming your crosshair is centered).
+    // Determine the center of the screen.
     Vector2 screenCenter = GetViewport().GetVisibleRect().Size / 2;
     Vector3 rayOrigin = camera.ProjectRayOrigin(screenCenter);
     Vector3 rayDirection = camera.ProjectRayNormal(screenCenter);
-    Vector3 rayEnd = rayOrigin + rayDirection * 1000; // Arbitrary long distance
+    Vector3 rayEnd = rayOrigin + rayDirection * 1000;
 
-    // Cast a ray into the scene from the camera's crosshair using PhysicsRayQueryParameters3D.
+    // Cast a ray into the scene.
     var spaceState = GetWorld3D().DirectSpaceState;
     var query = new PhysicsRayQueryParameters3D
     {
@@ -71,42 +90,28 @@ public partial class BulletWeapon : Weapon
     };
     Godot.Collections.Dictionary result = spaceState.IntersectRay(query);
 
-    // Determine the target using the hit position if available.
-    Vector3 target;
-    if (result != null && result.ContainsKey("position"))
-    {
-      target = (Vector3)result["position"];
-    }
-    else
-    {
-      target = rayEnd;
-    }
+    Vector3 target = (result != null && result.ContainsKey("position"))
+                     ? (Vector3)result["position"]
+                     : rayEnd;
 
-    // Compute the bullet direction from its spawn point to the target.
+    // Compute bullet direction.
     Vector3 baseDirection = (target - BulletOrigin.GlobalTransform.Origin).Normalized();
 
     // Apply accuracy-based spread.
     float accuracy = GetAccuracy();
-
-    // Compute maximum deviation: 90° for 0 accuracy (full hemisphere) to 0° for perfect accuracy.
     float maxSpreadAngleDeg = Mathf.Lerp(90.0f, 0.0f, accuracy);
     float maxSpreadAngleRad = Mathf.DegToRad(maxSpreadAngleDeg);
 
-    // Generate a random deviation using a cosine distribution for uniformity on the spherical cap.
     float cosMax = Mathf.Cos(maxSpreadAngleRad);
     float cosTheta = Mathf.Lerp(cosMax, 1.0f, rng.Randf());
     float deviationAngle = Mathf.Acos(cosTheta);
 
-    // A random azimuth angle between 0 and 2π.
     float randomAzimuth = rng.Randf() * Mathf.Tau;
 
-    // Build an orthonormal basis with baseDirection as the 'forward' vector.
     Vector3 forward = baseDirection;
     Vector3 right = GetOrthogonal(forward).Normalized();
     Vector3 up = forward.Cross(right).Normalized();
 
-    // Compute the new direction using spherical coordinates:
-    // baseDirection is tilted by deviationAngle away from forward, with rotation defined by randomAzimuth.
     baseDirection = (forward * Mathf.Cos(deviationAngle)) +
                     (right * Mathf.Sin(deviationAngle) * Mathf.Cos(randomAzimuth)) +
                     (up * Mathf.Sin(deviationAngle) * Mathf.Sin(randomAzimuth));
@@ -125,16 +130,30 @@ public partial class BulletWeapon : Weapon
     bullet.Modules = [UniqueModule] + Modules;
     GetTree().CurrentScene.AddChild(bullet);
 
-    if (MuzzleFlash != null && MuzzleFlash.HasMethod("trigger_flash"))
+    // --- Spawn and trigger the muzzle flash ---
+    if (MuzzleFlash != null)
     {
-      MuzzleFlash.Call("trigger_flash");
+      try
+      {
+        var newMuzzleFlash = GunpowderMuzzleFlash.CreateInstance();
+        AddChild(newMuzzleFlash);
+        newMuzzleFlash.GlobalTransform = Muzzle.GlobalTransform;
+        newMuzzleFlash.Play();
+      }
+      catch (Exception e)
+      {
+        GD.PrintErr($"LOOKError: {e.Message}");
+      }
     }
 
-    Camera cam = camera as Camera;
-    if (cam != null)
+    // Optionally trigger camera shake.
+    if (camera is Camera cam)
     {
       cam.TriggerShake(0.04f, Mathf.Lerp(0.03f, 0.15f, GetDamage() / 100f));
     }
+
+    // --- Apply recoil effect to the gun model ---
+    currentRecoil = 1.0f;  // Set recoil intensity to maximum on fire.
   }
 
   private async Task Reload()
@@ -151,16 +170,39 @@ public partial class BulletWeapon : Weapon
 
   public override async void _Process(double delta)
   {
+    // Process weapon modules.
     foreach (var module in [UniqueModule] + Modules)
     {
       await module.OnWeaponProcess(delta);
     }
+
+    // Update recoil effect.
+    if (currentRecoil > 0.001f)
+    {
+      // Gradually recover from recoil.
+      currentRecoil = Mathf.Lerp(currentRecoil, 0, (float)(delta * RecoilRecoverySpeed));
+
+      // Create a rotation offset around the local X-axis (upward rotation).
+      Basis rotationOffset = new Basis(Vector3.Right, Mathf.DegToRad(GunRecoilRotation * currentRecoil));
+      // Create a translation offset along the local Z-axis (backward kick).
+      Vector3 translationOffset = new Vector3(0, 0, GunRecoilKickback * currentRecoil);
+
+      // Combine rotation and translation.
+      Transform3D recoilTransform = new Transform3D(rotationOffset, translationOffset);
+
+      // Apply recoil offset relative to the original local transform.
+      Transform = originalTransform * recoilTransform;
+    }
+    else
+    {
+      // Ensure we reset to the original local transform.
+      Transform = originalTransform;
+    }
   }
 
-  // Helper method to compute an orthogonal vector for the given vector.
+  // Helper method: returns a vector orthogonal to the given vector.
   private Vector3 GetOrthogonal(Vector3 v)
   {
-    // Choose the smallest absolute component to avoid degeneracy.
     if (Mathf.Abs(v.X) < Mathf.Abs(v.Y) && Mathf.Abs(v.X) < Mathf.Abs(v.Z))
     {
       return new Vector3(0, -v.Z, v.Y);

@@ -47,3 +47,9 @@ res://weapons/modules/SlowModule.cs
 res://weapons/modules/FastModule.cs
 res://weapons/modules/TrackingModule.cs
 res://weapons/modules/AimbotModule.cs
+res://effects/muzzle_flashes/StarMuzzleFlash.cs
+res://effects/muzzle_flashes/MuzzleFlash.cs
+res://effects/muzzle_flashes/CompoundMuzzleFlash.cs
+res://effects/muzzle_flashes/GunpowderMuzzleFlash.tscn
+res://effects/muzzle_flashes/GunpowderMuzzleFlash.cs
+res://player/Player.tscn

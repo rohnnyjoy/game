@@ -43,12 +43,9 @@ public partial class AimbotModule : WeaponModule
     if (!IsInstanceValid(bullet))
       return;
 
-    GD.Print("Aimbot: Start");
     // Use bullet's current velocity as the base direction.
     Vector3 origin = bullet.GlobalTransform.Origin;
     Vector3 base_direction = bullet.Velocity.Normalized();
-
-    GD.Print("Aimbot: Origin: " + origin);
 
     // Retrieve the last enemy this bullet locked onto (if any) using instance ID.
     Enemy storedEnemy = null;
@@ -68,7 +65,6 @@ public partial class AimbotModule : WeaponModule
         bullet.RemoveMeta("last_locked_enemy_id");
     }
     Node lastLockedEnemy = storedEnemy;
-    GD.Print("Aimbot: Last locked enemy: " + lastLockedEnemy);
 
     // Choose the best enemy (prefer one not equal to last_locked_enemy).
     Enemy best_enemy = null;
@@ -94,7 +90,6 @@ public partial class AimbotModule : WeaponModule
         // Check if enemy falls within the allowed cone.
         if (angle < aim_cone_angle)
         {
-          GD.Print("Aimbot: Enemy within cone: " + enemy.Name);
           // Determine the aim point: simply use the enemy's origin.
           Vector3 aim_point = enemy_origin;
           aim_point.Y += vertical_offset;
@@ -133,10 +128,6 @@ public partial class AimbotModule : WeaponModule
                 best_enemy = enemy;
               }
             }
-            else
-            {
-              GD.Print("Aimbot: Enemy is the last locked: " + enemy.Name);
-            }
             // Regardless, track a fallback candidate.
             if (angle < fallback_angle)
             {
@@ -147,8 +138,6 @@ public partial class AimbotModule : WeaponModule
         }
       }
     }
-
-    GD.Print($"Aimbot: Best enemy: {best_enemy?.Name}, Fallback: {fallback_enemy?.Name}");
 
     // Use best_enemy if found, otherwise fallback.
     if (best_enemy == null && fallback_enemy != null)

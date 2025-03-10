@@ -18,6 +18,7 @@ public partial class OlReliable : BulletWeapon
       // new HomingModule(),
       new AimbotModule()
     };
+    MuzzleFlash = new GunpowderMuzzleFlash();
     // Uncomment one of the following module sets if needed:
     // Modules = new Array<WeaponModule> { new PenetratingModule(), new ExplosiveModule() };
     // Modules = new Array<WeaponModule> { new BouncingModule(), new TrackingModule(), new SlowModule() };
