@@ -12,10 +12,10 @@ public partial class AimbotModule : WeaponModule
   public float vertical_offset { get; set; } = 0.0f;
 
   [Export]
-  public float target_line_width { get; set; } = 0.01f;
+  public float target_line_width { get; set; } = 0.1f;
 
   [Export]
-  public float target_line_duration { get; set; } = 0.01f;
+  public float target_line_duration { get; set; } = 0.05f;
 
   public AimbotModule()
   {
@@ -26,33 +26,48 @@ public partial class AimbotModule : WeaponModule
 
   public override async Task OnCollision(Bullet.CollisionData collisionData, Bullet bullet)
   {
+    if (!IsInstanceValid(bullet))
+      return;
     await Aimbot(bullet);
   }
 
   public override async Task OnFire(Bullet bullet)
   {
+    if (!IsInstanceValid(bullet))
+      return;
     await Aimbot(bullet);
   }
 
   private async Task Aimbot(Bullet bullet)
   {
+    if (!IsInstanceValid(bullet))
+      return;
+
+    GD.Print("Aimbot: Start");
     // Use bullet's current velocity as the base direction.
     Vector3 origin = bullet.GlobalTransform.Origin;
     Vector3 base_direction = bullet.Velocity.Normalized();
 
-    // Retrieve the last enemy this bullet locked onto (if any).
-    Node lastLockedEnemy = null;
-    Enemy storedEnemy = (Enemy)bullet.GetMeta("last_locked_enemy");
-    GD.Print("Stored enemy", storedEnemy);
-    if (storedEnemy != null)
-    {
-      lastLockedEnemy = storedEnemy;
-      if (IsInstanceValid(storedEnemy))
-        lastLockedEnemy = storedEnemy;
-      else
-        bullet.RemoveMeta("last_locked_enemy");
-    }
+    GD.Print("Aimbot: Origin: " + origin);
 
+    // Retrieve the last enemy this bullet locked onto (if any) using instance ID.
+    Enemy storedEnemy = null;
+    if (bullet.HasMeta("last_locked_enemy_id"))
+    {
+      // Cast meta value to ulong
+      ulong enemyId = (ulong)bullet.GetMeta("last_locked_enemy_id");
+      foreach (Node enemyNode in bullet.GetTree().GetNodesInGroup("enemies"))
+      {
+        if (enemyNode is Enemy enemy && enemy.GetInstanceId() == enemyId)
+        {
+          storedEnemy = enemy;
+          break;
+        }
+      }
+      if (storedEnemy == null)
+        bullet.RemoveMeta("last_locked_enemy_id");
+    }
+    Node lastLockedEnemy = storedEnemy;
     GD.Print("Aimbot: Last locked enemy: " + lastLockedEnemy);
 
     // Choose the best enemy (prefer one not equal to last_locked_enemy).
@@ -70,6 +85,9 @@ public partial class AimbotModule : WeaponModule
     {
       if (enemyNode is Enemy enemy)
       {
+        if (!IsInstanceValid(enemy))
+          continue;
+
         Vector3 enemy_origin = enemy.GlobalTransform.Origin;
         Vector3 to_enemy = (enemy_origin - origin).Normalized();
         float angle = Mathf.Acos(base_direction.Dot(to_enemy));
@@ -94,7 +112,8 @@ public partial class AimbotModule : WeaponModule
           var excludeArray = new Array<Rid> { bullet.GetRid() };
           foreach (Enemy e in enemyList)
           {
-            excludeArray.Add(e.GetRid());
+            if (IsInstanceValid(e))
+              excludeArray.Add(e.GetRid());
           }
           rayParams.Exclude = excludeArray;
 
@@ -136,8 +155,12 @@ public partial class AimbotModule : WeaponModule
       best_enemy = fallback_enemy;
 
     // If an enemy was found, adjust the bullet's velocity and flash a red line.
-    if (best_enemy != null)
+    if (best_enemy != null && IsInstanceValid(best_enemy))
     {
+      if (!IsInstanceValid(bullet))
+        return;
+
+      GD.Print("W1", best_enemy);
       Vector3 aim_point;
       if (best_enemy is CharacterBody3D bestEnemy3D)
       {
@@ -145,15 +168,20 @@ public partial class AimbotModule : WeaponModule
       }
       else
       {
-        aim_point = origin;
+        aim_point = best_enemy.GlobalTransform.Origin;
       }
       // Apply vertical offset.
       aim_point.Y += vertical_offset;
 
       // Adjust bullet velocity.
       bullet.Velocity = (aim_point - origin).Normalized() * bullet.Speed;
-      // Update the bullet's last locked enemy.
-      bullet.SetMeta("last_locked_enemy", best_enemy);
+      // Update the bullet's last locked enemy using its instance ID.
+      GD.Print("Setting meta");
+      if (IsInstanceValid(bullet) && IsInstanceValid(best_enemy))
+      {
+        bullet.SetMeta("last_locked_enemy_id", best_enemy.GetInstanceId());
+      }
+      GD.Print("Set meta");
       // Flash a red line from the bullet to the target.
       await FlashLine(bullet, origin, aim_point);
     }
@@ -161,6 +189,9 @@ public partial class AimbotModule : WeaponModule
 
   private async Task FlashLine(Node bullet, Vector3 start, Vector3 end)
   {
+    if (!IsInstanceValid(bullet))
+      return;
+
     SceneTree tree = bullet.GetTree();
     if (tree == null)
       return;
@@ -202,6 +233,7 @@ public partial class AimbotModule : WeaponModule
     // Keep the flash visible for target_line_duration seconds, then remove.
     var timer = tree.CreateTimer(target_line_duration);
     await ToSignal(timer, "timeout");
-    line_instance.QueueFree();
+    if (IsInstanceValid(line_instance))
+      line_instance.QueueFree();
   }
 }

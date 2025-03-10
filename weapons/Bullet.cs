@@ -62,6 +62,9 @@ public partial class Bullet : Area3D
   // Reference to the player found by group.
   private Node3D player;
 
+  // New flag to track inert state.
+  private bool isInert = false;
+
   public override void _Ready()
   {
     Scale = Vector3.One;
@@ -151,6 +154,10 @@ public partial class Bullet : Area3D
 
   public override async void _PhysicsProcess(double delta)
   {
+    // Skip processing if bullet is inert.
+    if (isInert)
+      return;
+
     float dt = (float)delta;
 
     Transform3D currentTransform = GlobalTransform;
@@ -164,7 +171,7 @@ public partial class Bullet : Area3D
       float distanceFromPlayer = GlobalPosition.DistanceTo(player.GlobalPosition);
       if (distanceFromPlayer > MaxDistanceFromPlayer)
       {
-        _Cleanup();
+        EnterInertState();
         return;
       }
     }
@@ -213,7 +220,7 @@ public partial class Bullet : Area3D
 
         if (DestroyOnImpact)
         {
-          _Cleanup();
+          EnterInertState();
           return;
         }
       }
@@ -284,7 +291,7 @@ public partial class Bullet : Area3D
 
         if (DestroyOnImpact)
         {
-          _Cleanup();
+          EnterInertState();
           return;
         }
 
@@ -311,7 +318,6 @@ public partial class Bullet : Area3D
         enemy.TakeDamage(collision.TotalDamageDealt);
 
         // Compute shake parameters based on total damage.
-        // These values can be adjusted to get the desired "snappy" feel.
         float shakeDuration = 0.05f;
         float shakeIntensity = Mathf.Clamp(collision.TotalDamageDealt * 0.05f, 0.1f, 0.3f);
 
@@ -463,6 +469,38 @@ public partial class Bullet : Area3D
     Color targetColor = gunmetalGray.Lerp(Colors.White, speedRatio);
     if (_mesh.MaterialOverride is StandardMaterial3D mat)
       mat.AlbedoColor = mat.AlbedoColor.Lerp(targetColor, dt * ColorChangeFactor);
+  }
+
+  /// <summary>
+  /// Puts the bullet into an inert state so that it stops moving,
+  /// disables collision, and is cleaned up after a configurable delay.
+  /// </summary>
+  private async void EnterInertState()
+  {
+    if (isInert)
+      return;
+    isInert = true;
+
+    // Stop bullet movement.
+    Velocity = Vector3.Zero;
+
+    // Disable collision shapes and areas.
+    foreach (Node child in GetChildren())
+    {
+      if (child is CollisionShape3D cs)
+        cs.Disabled = true;
+      else if (child is Area3D area)
+        area.Monitoring = false;
+    }
+
+    // Optionally, you could play an inert state animation or effect here.
+
+    // Wait for the configured delay.
+    var timer = GetTree().CreateTimer(TrailCleanupDelay);
+    await ToSignal(timer, "timeout");
+
+    // Clean up the bullet after the delay.
+    _Cleanup();
   }
 
   private void _Cleanup()

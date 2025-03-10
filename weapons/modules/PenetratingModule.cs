@@ -56,7 +56,6 @@ public partial class PenetratingModule : WeaponModule
       bullet.DestroyOnImpact = originalDestroyOnImpact;
     }
 
-    GD.Print("PEN complete with ", bullet.DestroyOnImpact);
     await Task.CompletedTask;
   }
 }
