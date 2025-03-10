@@ -1,4 +1,3 @@
-// Player.cs
 using Godot;
 using System;
 
@@ -23,8 +22,8 @@ public partial class Player : CharacterBody3D
   public bool IsSliding { get; set; }
   public Vector3 Velocity
   {
-    get => base.Velocity;
-    set => base.Velocity = value;
+	get => base.Velocity;
+	set => base.Velocity = value;
   }
 
   // Constants moved to public for access in helper classes.
@@ -49,56 +48,84 @@ public partial class Player : CharacterBody3D
 
   public override void _Ready()
   {
-    GD.Print("Player ready");
-    Instance = this;
+	GD.Print("Player ready");
+	Instance = this;
 
-    // Cache nodes.
-    Camera = GetNode<Camera3D>("Camera3D");
-    AnimPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
+	// Cache nodes.
+	Camera = GetNode<Camera3D>("Camera3D");
+	AnimPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
 
-    Inventory = new Inventory();
-    AddChild(Inventory);
+	// Initialize the CameraManager
+	InitializeCameraManager();
 
-    // Initialize sub-components.
-    playerInput = new PlayerInput(this);
-    playerMovement = new PlayerMovement(this);
+	// Add to the "players" group for enemy detection
+	AddToGroup("players");
 
-    // Additional setup.
-    Input.MouseMode = Input.MouseModeEnum.Captured;
-    InteractionManager = new InteractionManager();
-    EquipDefaultWeapon();
+	Inventory = new Inventory();
+	AddChild(Inventory);
+
+	// Initialize sub-components.
+	playerInput = new PlayerInput(this);
+	playerMovement = new PlayerMovement(this);
+
+	// Additional setup.
+	Input.MouseMode = Input.MouseModeEnum.Captured;
+	InteractionManager = new InteractionManager();
+	EquipDefaultWeapon();
+  }
+
+  private void InitializeCameraManager()
+  {
+	// Check if CameraManager already exists
+	CameraManager cameraManager = GetNode<CameraManager>("/root/CameraManager");
+	
+	// If it doesn't exist, create it
+	if (cameraManager == null)
+	{
+		cameraManager = new CameraManager();
+		GetTree().Root.AddChild(cameraManager);
+	}
+	
+	// Initialize with the player's camera
+	cameraManager.Initialize(Camera);
   }
 
   public override void _PhysicsProcess(double delta)
   {
-    playerMovement.ProcessMovement((float)delta);
-    InteractionManager.DetectInteractable();
+	playerMovement.ProcessMovement((float)delta);
+	InteractionManager.DetectInteractable();
   }
 
   public override void _Process(double delta)
   {
+	// Make sure the player's camera is always the current camera
+	CameraManager.Instance?.EnsurePlayerCameraIsCurrent();
   }
 
   public override void _UnhandledInput(InputEvent @event)
   {
-    playerInput.HandleInput(@event);
+	playerInput.HandleInput(@event);
   }
 
   public Vector3 GetInputDirection()
   {
-    Vector2 rawInput = Input.GetVector("left", "right", "up", "down");
-    return (Transform.Basis * new Vector3(rawInput.X, 0, rawInput.Y)).Normalized();
+	Vector2 rawInput = Input.GetVector("left", "right", "up", "down");
+	return (Transform.Basis * new Vector3(rawInput.X, 0, rawInput.Y)).Normalized();
   }
 
   private void EquipDefaultWeapon()
   {
-    GD.Print("Equipping default weapon");
-    if (Inventory?.PrimaryWeapon != null)
-    {
-      CurrentWeapon = Inventory.PrimaryWeapon;
-      GetNode<Node3D>("Camera3D/WeaponHolder").AddChild(CurrentWeapon);
-    }
+	GD.Print("Equipping default weapon");
+	if (Inventory?.PrimaryWeapon != null)
+	{
+	  CurrentWeapon = Inventory.PrimaryWeapon;
+	  GetNode<Node3D>("Camera3D/WeaponHolder").AddChild(CurrentWeapon);
+	}
   }
 
-  // You can continue moving interaction and damage methods here or create further helper classes.
+  // Called when the player is being destroyed
+  public override void _ExitTree()
+  {
+	base._ExitTree();
+  }
 }

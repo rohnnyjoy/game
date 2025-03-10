@@ -1,6 +1,9 @@
-[gd_scene load_steps=10 format=3 uid="uid://bccpo0iaadmj1"]
+[gd_scene load_steps=13 format=3 uid="uid://cymxvi3bjj71b"]
 
-[ext_resource type="Script" path="res://Enemy.gd" id="1_wheh0"]
+[ext_resource type="Script" path="res://Enemy.cs" id="1_6tcda"]
+[ext_resource type="PackedScene" uid="uid://bbqxn5xc7ejyb" path="res://weapons/unique/OlReliable.tscn" id="2_1xdgn"]
+[ext_resource type="Script" path="res://Camera.cs" id="3_ispe2"]
+[ext_resource type="Script" path="res://WeaponHolder.cs" id="4_sexbf"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_xk8km"]
 
@@ -28,17 +31,18 @@ length = 0.4
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_p6wdk"]
 _data = {
-&"RESET": SubResource("Animation_jhgv2"),
-&"idle": SubResource("Animation_knepc"),
-&"move": SubResource("Animation_qcgne"),
-&"shoot": SubResource("Animation_efeb8")
+"RESET": SubResource("Animation_jhgv2"),
+"idle": SubResource("Animation_knepc"),
+"move": SubResource("Animation_qcgne"),
+"shoot": SubResource("Animation_efeb8")
 }
 
 [node name="Enemy" type="CharacterBody3D"]
 floor_block_on_wall = false
 floor_max_angle = 1.0472
 floor_snap_length = 0.2
-script = ExtResource("1_wheh0")
+script = ExtResource("1_6tcda")
+PistolScene = ExtResource("2_1xdgn")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0087409, 0)
@@ -51,7 +55,7 @@ shape = SubResource("CapsuleShape3D_67y6s")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {
-&"": SubResource("AnimationLibrary_p6wdk")
+"": SubResource("AnimationLibrary_p6wdk")
 }
 autoplay = "idle"
 playback_default_blend_time = 0.05
@@ -59,5 +63,14 @@ playback_default_blend_time = 0.05
 [node name="HealthBar" type="ProgressBar" parent="."]
 offset_right = 4.0
 offset_bottom = 27.0
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.11639, 0.884005, -0.442217)
+fov = 90.0
+script = ExtResource("3_ispe2")
+
+[node name="WeaponHolder" type="Node3D" parent="Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, -0.25, -0.806086)
+script = ExtResource("4_sexbf")
 
 [connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]
