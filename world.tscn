@@ -1,8 +1,8 @@
-[gd_scene load_steps=18 format=3 uid="uid://c8oqxmm2w2wvv"]
+[gd_scene load_steps=19 format=3 uid="uid://c8oqxmm2w2wvv"]
 
 [ext_resource type="Script" uid="uid://ddsbsdyq56vkc" path="res://world.gd" id="1_6tkge"]
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
-[ext_resource type="PackedScene" uid="uid://cymxvi3bjj71b" path="res://Enemy.tscn" id="4_xr0ro"]
+[ext_resource type="PackedScene" uid="uid://cymxvi3bjj71b" path="res://enemy.tscn" id="4_xr0ro"]
 [ext_resource type="PackedScene" uid="uid://kadcr801fqcm" path="res://Player.tscn" id="5_taioi"]
 [ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://menu/PrimaryWeaponStack.cs" id="5_vq0ba"]
 [ext_resource type="Script" uid="uid://br7vpr5hwlegd" path="res://menu/InventoryStack.cs" id="6_6wwjs"]
@@ -10,6 +10,7 @@
 [ext_resource type="FontFile" uid="uid://cpuwdglpinmhy" path="res://fonts/Pixel.ttf" id="8_ic0uy"]
 [ext_resource type="Script" uid="uid://ckhbaxtaa30xu" path="res://Crosshair.cs" id="8_ioo17"]
 [ext_resource type="PackedScene" uid="uid://byd84w7py46y6" path="res://forest_home_planet.tscn" id="9_ioo17"]
+[ext_resource type="PackedScene" uid="uid://dglv3r42ustwg" path="res://islands.tscn" id="11_ic0uy"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_u5pdl"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -242,3 +243,6 @@ mesh = SubResource("CylinderMesh_ic0uy")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="MeshInstance3D/StaticBody3D"]
 shape = SubResource("ConcavePolygonShape3D_ic0uy")
+
+[node name="Sketchfab_Scene" parent="." instance=ExtResource("11_ic0uy")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.6141, -36.9674, 82.414)

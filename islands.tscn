@@ -1,0 +1,68 @@
+[gd_scene load_steps=5 format=3 uid="uid://dglv3r42ustwg"]
+
+[ext_resource type="PackedScene" uid="uid://desomi54mwq5w" path="res://models/mystic_stones_of_the_sky.glb" id="1_lqrhn"]
+[ext_resource type="Shader" uid="uid://cf5nh2xcbe34l" path="res://toon_shader.gdshader" id="2_w23mu"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fkaty"]
+render_priority = 0
+shader = ExtResource("2_w23mu")
+shader_parameter/color = Color(0.463441, 0.300817, 0.196253, 1)
+shader_parameter/shadow = 0.0
+shader_parameter/shadow_width = 0.0
+shader_parameter/shadow_color = Color(0.705, 0.705, 0.705, 0.705)
+shader_parameter/_specular_smoothness = 0.0
+shader_parameter/_specular_strength = 0.25
+shader_parameter/_glossiness = 0.27
+shader_parameter/_rim_size = 0.0
+shader_parameter/_rim_smoothness = 0.01
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lqrhn"]
+render_priority = 0
+shader = ExtResource("2_w23mu")
+shader_parameter/color = Color(0.244543, 0.614419, 0.277914, 1)
+shader_parameter/shadow = 0.0
+shader_parameter/shadow_width = 0.0
+shader_parameter/shadow_color = Color(0.705, 0.705, 0.705, 0.705)
+shader_parameter/_specular_smoothness = 0.0
+shader_parameter/_specular_strength = 0.026
+shader_parameter/_glossiness = 0.0
+shader_parameter/_rim_size = 0.455
+shader_parameter/_rim_smoothness = 0.0
+
+[node name="Sketchfab_Scene" instance=ExtResource("1_lqrhn")]
+
+[node name="MainIsland_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/MainIsland" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_fkaty")
+
+[node name="Rubble1_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/Rubble1" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_fkaty")
+
+[node name="Bush_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/Bush" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_lqrhn")
+
+[node name="Bush1_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/Bush1" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_lqrhn")
+
+[node name="TreeLeafs_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/TreeLeafs" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_lqrhn")
+
+[node name="Rubble_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/Rubble" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_fkaty")
+
+[node name="pCube108_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/pCube108" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_lqrhn")
+
+[node name="bush_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/bush" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_lqrhn")
+
+[node name="Rubble2_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/Rubble2" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_fkaty")
+
+[node name="RoutteIsland_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/RoutteIsland" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_fkaty")
+
+[node name="BridgeIslandSmall_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/BridgeIslandSmall" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_fkaty")
+
+[node name="BridgeislandBig_initialShadingGroup_0" parent="Sketchfab_model/EilandjeEindRenderV2_fbx/RootNode/BridgeislandBig" index="0"]
+surface_material_override/0 = SubResource("ShaderMaterial_fkaty")
