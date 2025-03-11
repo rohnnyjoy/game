@@ -228,7 +228,9 @@ shape = SubResource("ConcavePolygonShape3D_fudpf")
 shape = SubResource("ConcavePolygonShape3D_fpd4a")
 
 [node name="m13" parent="." index="13"]
+layers = 1023
 material_override = SubResource("ShaderMaterial_d2x3g")
+gi_mode = 0
 mesh = SubResource("ArrayMesh_d2x3g")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="m13" index="0"]

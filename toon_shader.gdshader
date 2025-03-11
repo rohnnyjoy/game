@@ -5,7 +5,7 @@
 */
 
 shader_type spatial;
-render_mode ambient_light_disabled;
+//render_mode ambient_light_disabled;
 
 uniform vec4 color : source_color = vec4(1.0);
 uniform sampler2D tex : source_color, hint_default_white;
