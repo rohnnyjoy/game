@@ -1,16 +1,15 @@
-[gd_scene load_steps=19 format=3 uid="uid://c8oqxmm2w2wvv"]
+[gd_scene load_steps=18 format=3 uid="uid://c8oqxmm2w2wvv"]
 
 [ext_resource type="Script" uid="uid://ddsbsdyq56vkc" path="res://world.gd" id="1_6tkge"]
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
-[ext_resource type="PackedScene" uid="uid://bccpo0iaadmj1" path="res://Enemy.tscn" id="4_xr0ro"]
+[ext_resource type="PackedScene" uid="uid://cymxvi3bjj71b" path="res://Enemy.tscn" id="4_xr0ro"]
 [ext_resource type="PackedScene" uid="uid://kadcr801fqcm" path="res://Player.tscn" id="5_taioi"]
 [ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://menu/PrimaryWeaponStack.cs" id="5_vq0ba"]
 [ext_resource type="Script" uid="uid://br7vpr5hwlegd" path="res://menu/InventoryStack.cs" id="6_6wwjs"]
 [ext_resource type="Script" uid="uid://cdlg2dks84qds" path="res://GameUi.cs" id="7_gbfbk"]
-[ext_resource type="FontFile" uid="uid://ymmh1stkgoon" path="res://fonts/Pixel.ttf" id="8_ic0uy"]
+[ext_resource type="FontFile" uid="uid://cpuwdglpinmhy" path="res://fonts/Pixel.ttf" id="8_ic0uy"]
 [ext_resource type="Script" uid="uid://ckhbaxtaa30xu" path="res://Crosshair.cs" id="8_ioo17"]
 [ext_resource type="PackedScene" uid="uid://byd84w7py46y6" path="res://forest_home_planet.tscn" id="9_ioo17"]
-[ext_resource type="Script" uid="uid://cbhero32hv31d" path="res://Enemy.cs" id="9_wse8f"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_u5pdl"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -79,199 +78,115 @@ script = ExtResource("6_6wwjs")
 
 [node name="Enemy" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.921, 5.41359, 21.6316)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy3" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.622, 5.41359, 10.2714)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy2" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.921, 5.41359, 17.1158)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy4" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.9019, 5.41359, 10.2714)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy5" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.4198, 5.35815, 21.2086)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy6" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.9941, 7.02277, 16.2104)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy7" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.4274, 5.41359, 17.1158)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy8" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.0038, 13.4072, 10.2714)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy9" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.1663, 5.41359, 21.6316)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy10" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 170.807, 5.41359, 10.2714)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy25" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 217.258, 5.41359, 10.2714)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy26" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 217.258, 5.41359, 34.2559)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy27" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(-0.981932, -0.189233, 0, 0.189233, -0.981932, 0, 0, 0, 1, 217.258, 5.41359, -6.12304)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy28" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(-0.981932, -0.189233, 0, 0.189233, -0.981932, 0, 0, 0, 1, 217.258, 5.41359, -6.12304)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy11" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.1663, 5.41359, 17.1158)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy12" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 64.1472, 5.41359, 10.2714)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy13" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.6651, 5.35815, 21.2086)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy14" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.2395, 7.02277, 16.2104)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy15" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.6727, 5.41359, 17.1158)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy16" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.2491, 13.4072, 10.2714)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy17" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.1663, 5.41359, 13.0686)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy18" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.8673, 5.41359, 1.7084)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy19" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.1663, 5.41359, 8.5528)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy20" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 64.1472, 5.41359, 1.7084)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy21" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.6651, 5.35815, 12.6456)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy22" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.2395, 7.02277, 7.64744)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy23" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.6727, 5.41359, 8.5528)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="Enemy24" parent="." instance=ExtResource("4_xr0ro")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.2491, 13.4072, 1.7084)
-script = ExtResource("9_wse8f")
 PistolScene = null
-Patrol = true
-Move = true
 
 [node name="ForestHomePlanet2" parent="." instance=ExtResource("9_ioo17")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.3644, 13.7321, -3.71425)

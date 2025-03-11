@@ -53,3 +53,4 @@ res://effects/muzzle_flashes/CompoundMuzzleFlash.cs
 res://effects/muzzle_flashes/GunpowderMuzzleFlash.tscn
 res://effects/muzzle_flashes/GunpowderMuzzleFlash.cs
 res://player/Player.tscn
+res://CameraManager.cs
