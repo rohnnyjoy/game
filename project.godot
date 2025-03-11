@@ -86,4 +86,7 @@ jolt_physics_3d/simulation/penetration_slop=0.00105
 
 [rendering]
 
+lights_and_shadows/use_physical_light_units=true
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=4
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=4
 environment/defaults/default_clear_color=Color(0.674815, 0.674815, 0.674814, 1)

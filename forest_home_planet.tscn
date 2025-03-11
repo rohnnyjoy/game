@@ -289,6 +289,10 @@ shape = SubResource("ConcavePolygonShape3D_ymcix")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="m22/StaticBody3D2" index="0"]
 shape = SubResource("ConcavePolygonShape3D_efjoj")
 
+[node name="m23" parent="." index="23"]
+gi_mode = 0
+gi_lightmap_texel_scale = 0.01
+
 [node name="StaticBody3D" type="StaticBody3D" parent="m23" index="0"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="m23/StaticBody3D" index="0"]

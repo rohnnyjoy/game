@@ -339,7 +339,6 @@ public partial class Enemy : CharacterBody3D
     // Create a Tween to animate the label.
     Tween tween = damageLabel.CreateTween();
 
-    // Animate upward movement: move the label up by 1 unit over 1 second.
     Vector3 startPos = damageLabel.GlobalTransform.Origin;
     Vector3 endPos = startPos + new Vector3(0, 1, 0);
     tween.TweenProperty(damageLabel, "global_position", endPos, 1.0f)

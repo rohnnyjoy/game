@@ -1,5 +1,5 @@
-res://forest_home_planet.tscn
-res://shaders/toon_shader.gdshader
+res://islands.tscn
+res://toon_shader.gdshader
 res://effects/muzzle_flashes/GunpowderMuzzleFlash.cs
 res://shaders/outline_shader.gdshader
 res://weapons/unique/OlReliable.tscn
@@ -8,6 +8,7 @@ res://weapons/Weapon.tscn
 res://environment.tscn
 res://weapons/unique/Microgun.tscn
 res://world.tscn
+res://forest_home_planet.tscn
 res://effects/muzzle_flashes/GunpowderMuzzleFlash.tscn
 res://player/Player.tscn
 res://player/Inventory.cs
@@ -53,5 +54,3 @@ res://Camera.cs
 res://cards/CardCore.cs
 res://GlobalEvents.cs
 res://enemy.tscn
-res://toon_shader.gdshader
-res://islands.tscn
