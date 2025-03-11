@@ -54,3 +54,4 @@ res://Camera.cs
 res://cards/CardCore.cs
 res://GlobalEvents.cs
 res://enemy.tscn
+res://materials/grass.tres
