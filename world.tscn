@@ -43,8 +43,8 @@ script = ExtResource("1_6tkge")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.0805, -13.2643, 79.3027)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-0.866025, -0.433013, 0.25, 0.032571, 0.450081, 0.892394, -0.498938, 0.780978, -0.375678, 59.893, 141.228, 0)
-light_intensity_lux = 15.0
+transform = Transform3D(-0.866025, -0.433013, 0.25, 0.032571, 0.450081, 0.892394, -0.498938, 0.780978, -0.375678, 33.6328, 227.061, -131.947)
+light_intensity_lux = 25.0
 light_energy = 0.135
 light_indirect_energy = 0.0
 light_specular = 0.0
