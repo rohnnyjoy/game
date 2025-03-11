@@ -1,8 +1,8 @@
+Node3D
 MeshInstance3D
 GPUParticles3D
 AnimationPlayer
 RichTextLabel
-Node3D
 SpringArm3D
 CollisionShape3D
 StaticBody3D

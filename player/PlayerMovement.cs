@@ -129,7 +129,11 @@ public class PlayerMovement
 
     Vector2 currentVel = new Vector2(player.Velocity.X, player.Velocity.Z);
     Vector2 newVel = player.AirLurchManager.PerformLurch(currentVel, new Vector2(inputDirection.X, inputDirection.Z));
-    player.Velocity = new Vector3(newVel.X, player.Velocity.Y, newVel.Y);
+    player.Velocity = new Vector3(
+          Mathf.MoveToward(player.Velocity.X, inputDirection.X * Player.SPEED, Player.AIR_ACCELERATION * delta),
+          player.Velocity.Y,
+          Mathf.MoveToward(player.Velocity.Z, inputDirection.Z * Player.SPEED, Player.AIR_ACCELERATION * delta)
+      );
   }
 
   private void ProcessBufferedJump(float delta)
