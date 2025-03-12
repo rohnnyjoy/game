@@ -69,9 +69,14 @@ public partial class Enemy : CharacterBody3D
 
   private void InitializeWeapon()
   {
-    if (PistolScene == null || weaponHolder == null)
+    if (PistolScene == null)
     {
-      GD.PrintErr("Enemy: Missing PistolScene or WeaponHolder");
+      GD.PrintErr("Enemy: Missing PistolScene");
+      return;
+    }
+    if (weaponHolder == null)
+    {
+      GD.PrintErr("Enemy: Missing WeaponHolder");
       return;
     }
 

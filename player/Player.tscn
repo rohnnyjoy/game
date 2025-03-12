@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://xcjrjq5cbn7y"]
+[gd_scene load_steps=13 format=3 uid="uid://kadcr801fqcm"]
 
 [ext_resource type="Script" uid="uid://c38ik6og0388m" path="res://player/Player.cs" id="1_kne1u"]
 [ext_resource type="Script" uid="uid://dlcbdtuorrtu7" path="res://Camera.cs" id="2_kpjcp"]
@@ -132,7 +132,7 @@ playback_default_blend_time = 0.05
 replication_config = SubResource("SceneReplicationConfig_hn37q")
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0125883, 0.884005, -1.02389)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0125883, 0.884005, -0.664331)
 fov = 90.0
 script = ExtResource("2_kpjcp")
 

@@ -4,6 +4,8 @@ using System;
 
 public class PlayerMovement
 {
+  private const float AIR_FRICTION = 0.0f;
+
   private Player player;
 
   public PlayerMovement(Player player)
@@ -123,18 +125,27 @@ public class PlayerMovement
 
   private void ProcessAirMovement(Vector3 inputDirection, float delta)
   {
-    // This example assumes you have a helper manager for air movement.
-    if (player.AirLurchManager == null)
-      player.AirLurchManager = new AirLurchManager(new Vector2(player.Velocity.X, player.Velocity.Z));
+    // Ensure we have an AirLurchManager instance.
+    // if (player.AirLurchManager == null)
+    //   player.AirLurchManager = new AirLurchManager(new Vector2(player.Velocity.X, player.Velocity.Z));
 
-    Vector2 currentVel = new Vector2(player.Velocity.X, player.Velocity.Z);
-    Vector2 newVel = player.AirLurchManager.PerformLurch(currentVel, new Vector2(inputDirection.X, inputDirection.Z));
-    player.Velocity = new Vector3(
-          Mathf.MoveToward(player.Velocity.X, inputDirection.X * Player.SPEED, Player.AIR_ACCELERATION * delta),
-          player.Velocity.Y,
-          Mathf.MoveToward(player.Velocity.Z, inputDirection.Z * Player.SPEED, Player.AIR_ACCELERATION * delta)
-      );
+    float currentSpeed = new Vector2(player.Velocity.X, player.Velocity.Z).Length();
+
+    // Accelerate horizontally toward the target velocity.
+    Vector3 newHorizontalVel = new Vector3(
+        Mathf.MoveToward(player.Velocity.X, inputDirection.X * Math.Max(Player.SPEED, currentSpeed), Player.AIR_ACCELERATION * delta),
+        0,
+        Mathf.MoveToward(player.Velocity.Z, inputDirection.Z * Math.Max(Player.SPEED, currentSpeed), Player.AIR_ACCELERATION * delta)
+    );
+
+    // Apply air friction (drag) to the horizontal velocity.
+    // This will gradually reduce the speed even if input is applied.
+    newHorizontalVel *= 1 - AIR_FRICTION * delta;
+
+    // Update the player's velocity while preserving the vertical component.
+    player.Velocity = new Vector3(newHorizontalVel.X, player.Velocity.Y, newHorizontalVel.Z);
   }
+
 
   private void ProcessBufferedJump(float delta)
   {

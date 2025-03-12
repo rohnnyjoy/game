@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://ddsbsdyq56vkc" path="res://world.gd" id="1_6tkge"]
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
 [ext_resource type="PackedScene" uid="uid://cymxvi3bjj71b" path="res://enemy.tscn" id="4_xr0ro"]
-[ext_resource type="PackedScene" uid="uid://kadcr801fqcm" path="res://Player.tscn" id="5_taioi"]
+[ext_resource type="PackedScene" uid="uid://kadcr801fqcm" path="res://player/Player.tscn" id="5_taioi"]
 [ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://menu/PrimaryWeaponStack.cs" id="5_vq0ba"]
 [ext_resource type="Script" uid="uid://br7vpr5hwlegd" path="res://menu/InventoryStack.cs" id="6_6wwjs"]
 [ext_resource type="Script" uid="uid://cdlg2dks84qds" path="res://GameUi.cs" id="7_gbfbk"]
