@@ -1,0 +1,77 @@
+[gd_scene load_steps=16 format=3 uid="uid://2e6nvcbuqhao"]
+
+[ext_resource type="Script" uid="uid://chfytb2m0tano" path="res://addons/proton_scatter/src/scatter.gd" id="1_hwvsa"]
+[ext_resource type="Script" uid="uid://bjc2usdbi8sjl" path="res://addons/proton_scatter/src/stack/modifier_stack.gd" id="2_84xri"]
+[ext_resource type="Script" uid="uid://bpxrsd5fmtqhk" path="res://addons/proton_scatter/src/modifiers/base_modifier.gd" id="3_p472w"]
+[ext_resource type="Script" uid="uid://dkjk4uts88l20" path="res://addons/proton_scatter/src/modifiers/create_inside_random.gd" id="4_p472w"]
+[ext_resource type="Script" uid="uid://cr46cee37x75e" path="res://addons/proton_scatter/src/modifiers/randomize_transforms.gd" id="4_v7woi"]
+[ext_resource type="Script" uid="uid://7yr8nlqu1r4r" path="res://addons/proton_scatter/src/modifiers/project_on_geometry.gd" id="5_tgf12"]
+[ext_resource type="Script" uid="uid://drd8cxkgqg38t" path="res://addons/proton_scatter/src/scatter_item.gd" id="6_11eqr"]
+[ext_resource type="Script" uid="uid://bilgwflit0t03" path="res://addons/proton_scatter/src/scatter_shape.gd" id="7_vk3gk"]
+[ext_resource type="Script" uid="uid://blskhsff0ltue" path="res://addons/proton_scatter/src/shapes/sphere_shape.gd" id="9_w0igc"]
+
+[sub_resource type="Resource" id="Resource_eq6fx"]
+script = ExtResource("4_p472w")
+amount = 10000
+enabled = true
+override_global_seed = false
+custom_seed = 0
+restrict_height = true
+reference_frame = 1
+
+[sub_resource type="Resource" id="Resource_fkpko"]
+script = ExtResource("4_v7woi")
+position = Vector3(0.2, 0, 0.2)
+rotation = Vector3(20, 360, 20)
+scale = Vector3(6, 5, 6)
+enabled = true
+override_global_seed = false
+custom_seed = 0
+restrict_height = false
+reference_frame = 2
+
+[sub_resource type="Resource" id="Resource_hk8h4"]
+script = ExtResource("5_tgf12")
+ray_direction = Vector3(0, -1, 0)
+ray_length = 10.0
+ray_offset = 1.0
+remove_points_on_miss = true
+align_with_collision_normal = false
+max_slope = 20.0
+collision_mask = 1
+exclude_mask = 0
+enabled = true
+override_global_seed = false
+custom_seed = 0
+restrict_height = false
+reference_frame = 0
+
+[sub_resource type="Resource" id="Resource_x02d4"]
+script = ExtResource("2_84xri")
+stack = Array[ExtResource("3_p472w")]([SubResource("Resource_eq6fx"), SubResource("Resource_fkpko"), SubResource("Resource_hk8h4")])
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tbr7i"]
+albedo_color = Color(0.505882, 0.572549, 0.121569, 1)
+
+[sub_resource type="Resource" id="Resource_p472w"]
+script = ExtResource("9_w0igc")
+radius = 5.0
+metadata/_custom_type_script = "uid://blskhsff0ltue"
+
+[node name="ProtonScatter" type="Node3D"]
+script = ExtResource("1_hwvsa")
+modifier_stack = SubResource("Resource_x02d4")
+Performance/use_chunks = true
+Performance/chunk_dimensions = Vector3(15, 15, 15)
+
+[node name="Grass" type="Node3D" parent="."]
+transform = Transform3D(0.992335, 0, 0, 0, 0.992335, 0, 0, 0, 0.992335, 0, 0, 0)
+script = ExtResource("6_11eqr")
+override_material = SubResource("StandardMaterial3D_tbr7i")
+lod_merge_angle = 19.268
+path = "uid://b5grk7govcwv8"
+
+[node name="ScatterShape" type="Node3D" parent="."]
+transform = Transform3D(0.998498, 0, 0, 0, 0.998498, 0, 0, 0, 0.998498, 0, 0, 0)
+script = ExtResource("7_vk3gk")
+shape = SubResource("Resource_p472w")

@@ -1,0 +1,77 @@
+[gd_scene load_steps=14 format=3 uid="uid://dmrxuql4mixtd"]
+
+[ext_resource type="Shader" path="res://grass.gdshader" id="1_ky7l3"]
+[ext_resource type="ArrayMesh" uid="uid://rk1abgpqrw3y" path="res://blade.res" id="2_dk7qc"]
+[ext_resource type="Texture2D" uid="uid://bsyhkfl1manf7" path="res://godot_mask.png" id="2_xga3d"]
+[ext_resource type="Script" path="res://GPUParticles3D.gd" id="4_6nubc"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pyprf"]
+albedo_color = Color(0.168627, 0.329412, 0, 1)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_8lwi5"]
+material = SubResource("StandardMaterial3D_pyprf")
+size = Vector2(10, 10)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_m675h"]
+noise_type = 2
+fractal_type = 0
+cellular_jitter = 0.775
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_vr5hp"]
+seamless = true
+seamless_blend_skirt = 0.355
+noise = SubResource("FastNoiseLite_m675h")
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_46aub"]
+noise_type = 0
+frequency = 0.005
+fractal_type = 0
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_l6xte"]
+noise = SubResource("FastNoiseLite_46aub")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ffqtc"]
+shader = ExtResource("1_ky7l3")
+shader_parameter/width = 10.0
+shader_parameter/height = 10.0
+shader_parameter/num_particles = null
+shader_parameter/wind_angle = 201.673
+shader_parameter/wind_speed = 0.181
+shader_parameter/wind_strength = 0.815
+shader_parameter/use_mask = false
+shader_parameter/_noise = SubResource("NoiseTexture2D_vr5hp")
+shader_parameter/_noisecolor = SubResource("NoiseTexture2D_l6xte")
+shader_parameter/_grassmask = ExtResource("2_xga3d")
+
+[sub_resource type="Curve" id="Curve_5b1pv"]
+_data = [Vector2(0.274576, 0.101915), 0.0, -0.280001, 0, 0, Vector2(1, 1), -0.230604, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_8l5j6"]
+curve = SubResource("Curve_5b1pv")
+
+[node name="Node3D" type="Node3D"]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_8lwi5")
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="."]
+cast_shadow = 0
+amount = 30000
+visibility_aabb = AABB(-1, 0, -1, 2, 0.01, 2)
+process_material = SubResource("ShaderMaterial_ffqtc")
+draw_pass_1 = ExtResource("2_dk7qc")
+script = ExtResource("4_6nubc")
+width = 10.0
+height = 10.0
+num_particles = 30000
+wind_angle = 201.673
+wind_speed = 0.181
+wind_strength = 0.815
+noise = SubResource("NoiseTexture2D_vr5hp")
+noise_color = SubResource("NoiseTexture2D_l6xte")
+grass_mask = ExtResource("2_xga3d")
+heightmap = SubResource("NoiseTexture2D_l6xte")
+color1 = Color(0.105882, 0.423529, 0, 1)
+color2 = Color(0.423529, 0.678431, 0.109804, 1)
+color_curve = SubResource("CurveTexture_8l5j6")
