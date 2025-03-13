@@ -9,6 +9,7 @@ public partial class Inventory : Node
   private Weapon _primaryWeapon = GD.Load<PackedScene>("res://weapons/unique/OlReliable.tscn").Instantiate<Weapon>();
   private Array<WeaponModule> _weaponModules = new()
     {
+        new ScatterModule(),
         new PenetratingModule(),
         new HomingModule(),
         new ExplosiveModule(),

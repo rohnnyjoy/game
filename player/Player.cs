@@ -42,7 +42,7 @@ public partial class Player : CharacterBody3D
   public const float JUMP_BUFFER_TIME = 0.2f;
   public const int MAX_JUMPS = 2;
 
-  public const float AIR_ACCELERATION = 35.0f;
+  public const float AIR_ACCELERATION = 22.0f;
 
   // Sub-components.
   private PlayerInput playerInput;

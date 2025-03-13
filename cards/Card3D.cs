@@ -73,8 +73,8 @@ public partial class Card3D : RigidBody3D, IInteractable
     CustomIntegrator = true;
 
     // Disable collisions.
-    CollisionLayer = 1 << 3;  // Example: Assign to layer 3.
-    CollisionMask = 1 << 3;   // Allow detection on layer 3.
+    CollisionLayer = 1 << 24;
+    CollisionMask = 1 << 24;
 
     // Create RayCast3D for ground detection.
     _raycast = new RayCast3D();

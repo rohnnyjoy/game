@@ -216,7 +216,7 @@ public partial class Bullet : Area3D
           await module.OnCollision(collisionData, this);
 
         DefaultBulletCollision(collisionData, this);
-        SpawnCollisionParticles(collisionData);
+        // SpawnCollisionParticles(collisionData);
 
         if (DestroyOnImpact)
         {
