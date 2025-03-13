@@ -1,4 +1,4 @@
-res://islands.tscn
+res://weapons/unique/OlReliable.tscn
 res://toon_shader.gdshader
 res://grass_particles/blade.res
 res://grass_particles/math.gdshaderinc
@@ -10,15 +10,14 @@ res://addons/proton_scatter/demos/assets/materials/m_water.tres
 res://addons/proton_scatter/demos/assets/materials/m_bush.tres
 res://shaders/outline_shader.gdshader
 res://grass_particles/bladegrass.gdshader
-res://weapons/unique/OlReliable.tscn
-res://Player.tscn
+res://player/Player.tscn
 res://weapons/Weapon.tscn
 res://environment.tscn
 res://weapons/unique/Microgun.tscn
 res://world.tscn
 res://forest_home_planet.tscn
 res://effects/muzzle_flashes/GunpowderMuzzleFlash.tscn
-res://player/Player.tscn
+res://islands.tscn
 res://addons/proton_scatter/presets/scatter_default.tscn
 res://addons/proton_scatter/demos/assets/mushroom.tscn
 res://addons/proton_scatter/demos/assets/pine_tree.tscn
@@ -32,6 +31,7 @@ res://addons/proton_scatter/demos/assets/grass.tscn
 res://addons/proton_scatter/demos/assets/grass_2.tscn
 res://addons/proton_scatter/demos/showcase.tscn
 res://addons/proton_scatter/presets/grass.tscn
+res://enemy.tscn
 res://player/Inventory.cs
 res://player/InteractionManager.cs
 res://effects/ActionLineParticle.cs
@@ -74,4 +74,10 @@ res://weapons/modules/HomingModule.cs
 res://Camera.cs
 res://cards/CardCore.cs
 res://GlobalEvents.cs
-res://enemy.tscn
+res://decoration/grass/GrassMultiMesh.cs
+res://decoration/grass/grass_multi.tscn
+res://decoration/grass/blade.res
+res://grass_particles/grass_particles.tscn
+res://decoration/grass/grass.gdshader
+res://decoration/grass/grass.tscn
+res://decoration/grass/math.gdshaderinc

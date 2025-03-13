@@ -1,9 +1,10 @@
-[gd_scene load_steps=20 format=3 uid="uid://dmrxuql4mixtd"]
+[gd_scene load_steps=21 format=3 uid="uid://dmrxuql4mixtd"]
 
-[ext_resource type="Shader" path="res://grass_particles/grass.gdshader" id="1_ky7l3"]
+[ext_resource type="Shader" uid="uid://y13yjbxm1qyu" path="res://grass_particles/bladegrass.gdshader" id="1_8wexd"]
+[ext_resource type="Shader" uid="uid://bskslct0ysfa2" path="res://grass_particles/grass.gdshader" id="1_ky7l3"]
 [ext_resource type="ArrayMesh" uid="uid://cgh1t16advsvo" path="res://grass_particles/blade.res" id="2_dk7qc"]
 [ext_resource type="Texture2D" uid="uid://bsyhkfl1manf7" path="res://grass_particles/godot_mask.png" id="2_xga3d"]
-[ext_resource type="Script" path="res://grass_particles/GPUParticles3D.gd" id="4_6nubc"]
+[ext_resource type="Script" uid="uid://dc2xt7cef7q7" path="res://grass_particles/GPUParticles3D.gd" id="4_6nubc"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pyprf"]
 albedo_color = Color(0.168627, 0.329412, 0, 1)
@@ -12,11 +13,26 @@ albedo_color = Color(0.168627, 0.329412, 0, 1)
 material = SubResource("StandardMaterial3D_pyprf")
 size = Vector2(10, 10)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ck67m"]
-albedo_color = Color(1, 1, 1, 0)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0iacc"]
+render_priority = 0
+shader = ExtResource("1_8wexd")
+shader_parameter/color1 = Color(0, 0.835294, 0, 1)
+shader_parameter/color2 = Color(0, 0.835294, 0, 1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8wexd"]
-albedo_color = Color(0.333333, 0.466667, 0.101961, 1)
+albedo_color = Color(0.261608, 0.483803, 0.0428376, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ffqtc"]
+render_priority = 0
+shader = ExtResource("1_ky7l3")
+shader_parameter/wind_speed = 0.181
+shader_parameter/wind_strength = 0.815
+shader_parameter/wind_angle = 201.673
+shader_parameter/max_bend_degrees = 15.0
+shader_parameter/noise_scale = 0.05
+shader_parameter/max_height = 1.0
+shader_parameter/color1 = Color(0, 0, 0, 1)
+shader_parameter/color2 = Color(0, 0, 0, 1)
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_m675h"]
 noise_type = 2
@@ -35,19 +51,6 @@ fractal_type = 0
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_l6xte"]
 noise = SubResource("FastNoiseLite_46aub")
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ffqtc"]
-shader = ExtResource("1_ky7l3")
-shader_parameter/width = 10.0
-shader_parameter/height = 10.0
-shader_parameter/num_particles = 0.0
-shader_parameter/wind_angle = 201.673
-shader_parameter/wind_speed = 0.181
-shader_parameter/wind_strength = 0.815
-shader_parameter/_noise = SubResource("NoiseTexture2D_vr5hp")
-shader_parameter/_noisecolor = SubResource("NoiseTexture2D_l6xte")
-shader_parameter/_grassmask = ExtResource("2_xga3d")
-shader_parameter/use_mask = false
 
 [sub_resource type="Curve" id="Curve_5b1pv"]
 _data = [Vector2(0.274576, 0.101915), 0.0, -0.280001, 0, 0, Vector2(1, 1), -0.230604, 0.0, 0, 0]
@@ -79,7 +82,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.0333862, 0)
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.567017, -0.195984, 0)
 mesh = SubResource("PlaneMesh_8lwi5")
-surface_material_override/0 = SubResource("StandardMaterial3D_ck67m")
+surface_material_override/0 = SubResource("ShaderMaterial_0iacc")
 
 [node name="GPUParticles3D" type="GPUParticles3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.602173, 1.7345, 0)
