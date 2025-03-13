@@ -22,18 +22,6 @@ shader_parameter/color2 = Color(0, 0.835294, 0, 1)
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8wexd"]
 albedo_color = Color(0.261608, 0.483803, 0.0428376, 1)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ffqtc"]
-render_priority = 0
-shader = ExtResource("1_ky7l3")
-shader_parameter/wind_speed = 0.181
-shader_parameter/wind_strength = 0.815
-shader_parameter/wind_angle = 201.673
-shader_parameter/max_bend_degrees = 15.0
-shader_parameter/noise_scale = 0.05
-shader_parameter/max_height = 1.0
-shader_parameter/color1 = Color(0, 0, 0, 1)
-shader_parameter/color2 = Color(0, 0, 0, 1)
-
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_m675h"]
 noise_type = 2
 fractal_type = 0
@@ -51,6 +39,19 @@ fractal_type = 0
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_l6xte"]
 noise = SubResource("FastNoiseLite_46aub")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ffqtc"]
+shader = ExtResource("1_ky7l3")
+shader_parameter/width = 10.0
+shader_parameter/height = 10.0
+shader_parameter/num_particles = 0.0
+shader_parameter/wind_angle = 201.673
+shader_parameter/wind_speed = 0.181
+shader_parameter/wind_strength = 0.815
+shader_parameter/_noise = SubResource("NoiseTexture2D_vr5hp")
+shader_parameter/_noisecolor = SubResource("NoiseTexture2D_l6xte")
+shader_parameter/_grassmask = ExtResource("2_xga3d")
+shader_parameter/use_mask = false
 
 [sub_resource type="Curve" id="Curve_5b1pv"]
 _data = [Vector2(0.274576, 0.101915), 0.0, -0.280001, 0, 0, Vector2(1, 1), -0.230604, 0.0, 0, 0]

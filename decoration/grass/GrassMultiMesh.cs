@@ -31,6 +31,10 @@ public partial class GrassMultiMesh : MultiMeshInstance3D
   [Export]
   public int CollisionLayer { get; set; } = 9;
 
+  // New exported variable to affect mesh scale.
+  [Export]
+  public float MeshScale { get; set; } = 1.0f;
+
   public override void _Ready()
   {
     CallDeferred("PopulateGrass");
@@ -69,21 +73,16 @@ public partial class GrassMultiMesh : MultiMeshInstance3D
       float posX = (float)(random.NextDouble() * Width - Width / 2);
       float posZ = (float)(random.NextDouble() * Depth - Depth / 2);
 
-      // Use the noise texture to modulate placement.
-      if (noiseImage != null)
-      {
-        // Normalize position to [0,1] to match the noise texture's UV space.
-        float u = (posX + Width / 2) / Width;
-        float v = (posZ + Depth / 2) / Depth;
-        int pixelX = (int)(u * noiseImage.GetWidth());
-        int pixelY = (int)(v * noiseImage.GetHeight());
-        Color noiseColor = noiseImage.GetPixel(pixelX, pixelY);
-        float noiseValue = noiseColor.R; // Assuming a grayscale texture.
+      float u = (posX + Width / 2) / Width;
+      float v = (posZ + Depth / 2) / Depth;
+      int pixelX = (int)(u * noiseImage.GetWidth());
+      int pixelY = (int)(v * noiseImage.GetHeight());
+      Color noiseColor = noiseImage.GetPixel(pixelX, pixelY);
+      float noiseValue = noiseColor.R; // Assuming a grayscale texture.
 
-        // Skip this candidate if the noise value is below the threshold.
-        if (noiseValue < (float)random.NextDouble())
-          continue;
-      }
+      // Skip this candidate if the noise value is below the threshold.
+      if (noiseValue > Math.Pow((float)random.NextDouble(), 2))
+        continue;
 
       Vector3 start = new Vector3(posX, rayStartY, posZ);
       Vector3 end = new Vector3(posX, rayEndY, posZ);
@@ -101,7 +100,6 @@ public partial class GrassMultiMesh : MultiMeshInstance3D
         Node collider = (Node)result["collider"];
         if (collider == null || !collider.IsInGroup("grass"))
           continue;
-        GD.Print($"Valid count {validCount} | Attempts {attempts}");
         Vector3 normal = (Vector3)result["normal"];
         if (normal.Dot(Vector3.Up) >= MinNormalDot)
         {
@@ -113,23 +111,8 @@ public partial class GrassMultiMesh : MultiMeshInstance3D
           float rotationAngle = (float)(random.NextDouble() * 2.0 * Math.PI);
           Basis basis = new Basis(Vector3.Up, rotationAngle);
 
-          // Random base scale.
-          float randomScale = (float)(0.8 + random.NextDouble() * 0.4);
-
-          // Optionally modulate the scale further using the noise value.
-          if (noiseImage != null)
-          {
-            float u = (posX + Width / 2) / Width;
-            float v = (posZ + Depth / 2) / Depth;
-            int pixelX = (int)(u * noiseImage.GetWidth());
-            int pixelY = (int)(v * noiseImage.GetHeight());
-            Color noiseColor = noiseImage.GetPixel(pixelX, pixelY);
-            float noiseValue = noiseColor.R;
-            if (noiseValue > (float)random.NextDouble())
-              continue;
-            // For example, slightly adjust scale based on noise.
-            randomScale *= (0.9f + noiseValue * 0.2f);
-          }
+          // Random base scale modified by the MeshScale variable.
+          float randomScale = (noiseValue * 2.5f + 0.6f) * MeshScale;
 
           transform.Basis = basis.Scaled(new Vector3(randomScale, randomScale, randomScale));
 
@@ -143,6 +126,7 @@ public partial class GrassMultiMesh : MultiMeshInstance3D
         }
       }
     }
+    GD.Print($"Placed {validCount} grass blades after {attempts} attempts.");
 
     multi.InstanceCount = validCount;
     Multimesh = multi;

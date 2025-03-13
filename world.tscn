@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3 uid="uid://c8oqxmm2w2wvv"]
+[gd_scene load_steps=24 format=4 uid="uid://c8oqxmm2w2wvv"]
 
 [ext_resource type="Script" uid="uid://ddsbsdyq56vkc" path="res://world.gd" id="1_6tkge"]
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
@@ -12,24 +12,23 @@
 [ext_resource type="PackedScene" uid="uid://dglv3r42ustwg" path="res://islands.tscn" id="11_ic0uy"]
 [ext_resource type="PackedScene" uid="uid://d07f71yhlond8" path="res://decoration/grass/grass_multi.tscn" id="11_k3n1d"]
 [ext_resource type="ArrayMesh" uid="uid://brdcg2had804y" path="res://decoration/grass/blade.res" id="12_2o6r5"]
+[ext_resource type="Texture2D" uid="uid://d038lo6vi57t5" path="res://models/linen_with_flowers_2.png" id="13_2o6r5"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_u5pdl"]
-sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
-ground_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+[sub_resource type="PhysicalSkyMaterial" id="PhysicalSkyMaterial_k3n1d"]
+ground_color = Color(0.6, 0.713726, 0.996078, 1)
 
 [sub_resource type="Sky" id="Sky_w2qqb"]
-sky_material = SubResource("ProceduralSkyMaterial_u5pdl")
+sky_material = SubResource("PhysicalSkyMaterial_k3n1d")
+process_mode = 1
 
 [sub_resource type="Environment" id="Environment_6knbf"]
 background_mode = 2
-background_energy_multiplier = 0.44
-background_intensity = 10.0
+background_intensity = 1.2
 sky = SubResource("Sky_w2qqb")
-sky_custom_fov = 91.3
 ambient_light_color = Color(1, 1, 1, 1)
-ambient_light_energy = 16.0
 reflected_light_source = 1
-tonemap_exposure = 2.13
+tonemap_mode = 2
+ssr_enabled = true
 ssil_radius = 0.01
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l8uhh"]
@@ -47,6 +46,45 @@ metadata/_preview_in_3d_space_ = true
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_2o6r5"]
 seamless = true
 noise = SubResource("FastNoiseLite_k3n1d")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s22qn"]
+resource_name = "Material_36"
+transparency = 4
+cull_mode = 2
+albedo_texture = ExtResource("13_2o6r5")
+roughness = 0.892971
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_impft"]
+_surfaces = [{
+"aabb": AABB(-112.4, 34.047, -149.316, 180.296, 74.3073, 169.745),
+"format": 34896613377,
+"index_count": 36,
+"index_data": PackedByteArray("AAABAAIAAAADAAEABAAFAAYABAAHAAUACAAJAAoACAALAAkADAANAA4ADAAPAA0AEAARABIAEAATABEAFAAVABYAFAAXABUA"),
+"name": "Material_36",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 24,
+"vertex_data": PackedByteArray("KMztd///AABk0yRvP8EAAB7sL2TA5QAAb7Pign7bAABYyjscu6UAAH/x2hKVgwAAH+MAAGKgAAC42BYv7ogAADRJ1HB5rQAAdTjrcelvAAD+V9SHB4kAAKwp61pblAAAAADwX1wwAABsOAhhmRAAAMsn8XboNAAAoBAHSgwMAAAzUIDosx0AAFp+Zem4AwAAwHBR+2shAADNXZTWAAAAANjYJO2TJwAA///D420FAACf8ejQOiIAADjn///GCgAA")
+}]
+blend_shape_mode = 0
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_u887k"]
+resource_name = "Sketchfab_Scene_Linen_wFlower_L_Material #36_0"
+_surfaces = [{
+"aabb": AABB(-112.4, 34.047, -149.316, 180.296, 74.3073, 169.745),
+"attribute_data": PackedByteArray("AAAAAP///////wAAAAD//wAAAAD///////8AAAAA//8AAAAA////////AAAAAP//AAAAAP///////wAAAAD//wAAAAD///////8AAAAA//8AAAAA////////AAAAAP//"),
+"format": 34896613399,
+"index_count": 36,
+"index_data": PackedByteArray("AAABAAIAAAADAAEABAAFAAYABAAHAAUACAAJAAoACAALAAkADAANAA4ADAAPAA0AEAARABIAEAATABEAFAAVABYAFAAXABUA"),
+"material": SubResource("StandardMaterial3D_s22qn"),
+"name": "Material_36",
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 24,
+"vertex_data": PackedByteArray("KMztd///+Txk0yRvP8H5PB7sL2TA5fk8b7Pign7b+TxYyjscu6WmUX/x2hKVg6ZRH+MAAGKgplG42BYv7oimUTRJ1HB5rb8vdTjrcelvvy/+V9SHB4m/L6wp61pblL8vAADwX1wwEzJsOAhhmRATMssn8XboNBMyoBAHSgwMEzIzUIDosx0TMlp+Zem4AxMywHBR+2shEzLNXZTWAAATMtjYJO2TJ6ZR///D420FplGf8ejQOiKmUTjn///GCqZRxtzyS8bc8kvG3PJLxtzyS17MaGJezGhiXsxoYl7MaGL86EY6/OhGOvzoRjr86EY6Re8MlEXvDJRF7wyURe8MlEXvDJRF7wyURe8MlEXvDJRezGhiXsxoYl7MaGJezGhi")
+}]
+blend_shape_mode = 0
+shadow_mesh = SubResource("ArrayMesh_impft")
 
 [node name="World" type="Node"]
 script = ExtResource("1_6tkge")
@@ -253,13 +291,29 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Sketchfab_Scene" parent="." instance=ExtResource("11_ic0uy")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -0.14274, 0.285948, 0.997833)
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -0.168314, 0.28594, 0.872192)
 
 [node name="GrassMulti" parent="." instance=ExtResource("11_k3n1d")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0569916, -0.0810356, -0.11758)
 layers = 34815
+cast_shadow = 0
+gi_mode = 0
+gi_lightmap_texel_scale = 0.01
 GrassMesh = ExtResource("12_2o6r5")
 Width = 100.0
 Depth = 100.0
 InstanceCount = 80000
 NoiseTexture = SubResource("NoiseTexture2D_2o6r5")
+
+[node name="FlowerMulti" parent="." instance=ExtResource("11_k3n1d")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0569916, -0.0810356, -0.11758)
+layers = 34815
+cast_shadow = 0
+gi_mode = 0
+gi_lightmap_texel_scale = 0.01
+GrassMesh = SubResource("ArrayMesh_u887k")
+Width = 100.0
+Depth = 100.0
+InstanceCount = 200
+NoiseTexture = SubResource("NoiseTexture2D_2o6r5")
+MeshScale = 0.004

@@ -131,12 +131,18 @@ public class PlayerMovement
 
     float currentSpeed = new Vector2(player.Velocity.X, player.Velocity.Z).Length();
 
+    Vector3 newHorizontalVel = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
+
     // Accelerate horizontally toward the target velocity.
-    Vector3 newHorizontalVel = new Vector3(
-        Mathf.MoveToward(player.Velocity.X, inputDirection.X * Math.Max(Player.SPEED, currentSpeed), Player.AIR_ACCELERATION * delta),
-        0,
-        Mathf.MoveToward(player.Velocity.Z, inputDirection.Z * Math.Max(Player.SPEED, currentSpeed), Player.AIR_ACCELERATION * delta)
-    );
+    if (inputDirection != Vector3.Zero)
+    {
+
+      newHorizontalVel = new Vector3(
+          Mathf.MoveToward(player.Velocity.X, inputDirection.X * Math.Max(Player.SPEED, currentSpeed), Player.AIR_ACCELERATION * delta),
+          0,
+          Mathf.MoveToward(player.Velocity.Z, inputDirection.Z * Math.Max(Player.SPEED, currentSpeed), Player.AIR_ACCELERATION * delta)
+      );
+    }
 
     // Apply air friction (drag) to the horizontal velocity.
     // This will gradually reduce the speed even if input is applied.

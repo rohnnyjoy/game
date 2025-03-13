@@ -81,3 +81,7 @@ res://grass_particles/grass_particles.tscn
 res://decoration/grass/grass.gdshader
 res://decoration/grass/grass.tscn
 res://decoration/grass/math.gdshaderinc
+res://decoration/grass/grass_simple.tscn
+res://FloatingContainer.cs
+res://decoration/rock.gdshader
+res://addons/proton_scatter/demos/assets/materials/grass.gdshader

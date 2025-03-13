@@ -1,13 +1,13 @@
+StaticBody3D
+Node3D
 MultiMeshInstance3D
 MeshInstance3D
-Node3D
 Path3D
 GPUParticles3D
 AnimationPlayer
 RichTextLabel
 SpringArm3D
 CollisionShape3D
-StaticBody3D
 RigidBody3D
 Control
 CanvasLayer

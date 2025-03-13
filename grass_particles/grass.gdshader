@@ -1,88 +1,70 @@
-shader_type spatial;
+shader_type particles;
 #include "math.gdshaderinc"
-render_mode unshaded, cull_disabled;
+uniform float width;
+uniform float height;
+uniform float num_particles;
+uniform float wind_angle:hint_range(0.0, 360.0, 0.01);
+uniform float wind_speed:hint_range(0.0, 1.0, 0.01);
+uniform float wind_strength:hint_range(0.0, 1.0, 0.01);
+uniform sampler2D _noise;
+uniform sampler2D _noisecolor;
+uniform sampler2D _grassmask;
+uniform bool use_mask;
 
-// Wind parameters.
-uniform float wind_speed : hint_range(0.0, 2.0) = 1.0;
-uniform float wind_strength : hint_range(0.0, 1.0) = 0.5;
-// Global wind angle (in degrees) – rotates the bending direction.
-uniform float wind_angle : hint_range(0.0, 360.0) = 45.0;
-// Maximum bending angle at the tip (in degrees). (Set to 90 for full 90° bend.)
-uniform float max_bend_degrees : hint_range(0.0, 90.0) = 15.0;
-
-// Noise texture parameters.
-uniform float noise_scale : hint_range(0.01, 1.0) = 0.05;
-uniform sampler2D noise_texture;
-
-// Assumed maximum height of the grass blade (local space, with pivot at base).
-uniform float max_height : hint_range(0.1, 10.0) = 1.0;
-
-// Color parameters.
-uniform vec3 color1 : source_color;
-uniform vec3 color2 : source_color;
-uniform sampler2D _colorcurve;
-
-varying float windSampleOut;
-
-void vertex() {
-    // Retrieve the blade’s base world position and its base Y-rotation.
-    vec3 bladePos = INSTANCE_CUSTOM.xyz;
-    float baseAngle = INSTANCE_CUSTOM.a; // in radians
-
-    // Compute base UV from blade's base position.
-    vec2 baseUV = bladePos.xz * noise_scale;
-
-    // Rotate the UV coordinates by the wind_angle.
-    float radWind = radians(wind_angle);
-    // Construct a 2x2 rotation matrix using two vec2 columns.
-    mat2 uvRot = mat2( vec2(cos(radWind), sin(radWind)), vec2(-sin(radWind), cos(radWind)) );
-    vec2 rotatedUV = uvRot * baseUV;
-
-    // Add a time-dependent offset to scroll the noise field.
-    vec2 uv = rotatedUV + vec2(TIME * wind_speed, TIME * wind_speed);
-
-    // Sample the noise texture.
-    float wind_sample = texture(noise_texture, uv).r;
-    windSampleOut = wind_sample;
-
-    // Map noise value from [0, 1] to [0, 1] by clamping negative values to zero.
-    float wind_offset = max((wind_sample - 0.5) * 2.0, 0.0);
-
-    // Compute the overall bending angle in radians.
-    float maxBend = radians(max_bend_degrees) * wind_strength;
-    float bendingAngle = wind_offset * maxBend;
-
-    // Compute a factor based on the vertex's height so that the base remains fixed.
-    float factor = clamp(VERTEX.y / max_height, 0.0, 1.0);
-    float finalAngle = bendingAngle * factor;
-
-    // Get the blade's base rotation matrix (rotation about Y by baseAngle).
-    mat3 baseRot = mat3(rotation3d(vec3(0, 1, 0), baseAngle));
-
-    // Transform the vertex and normal into the blade’s local space.
-    vec3 localPos = inverse(baseRot) * VERTEX;
-    vec3 localNormal = inverse(baseRot) * NORMAL;
-
-    // In local space, assume the unbent blade has its bending axis as the X axis.
-    // Now, rotate this local X axis by the wind_angle so the bending occurs in that direction.
-    vec3 baseBendAxis = vec3(1.0, 0.0, 0.0);
-    mat3 windRot = mat3(rotation3d(vec3(0, 1, 0), radWind));
-    vec3 bendAxisLocal = windRot * baseBendAxis; // This is now the local bending direction.
-
-    // Apply a rotation about bendAxisLocal by finalAngle.
-    mat3 bendMat = mat3(rotation3d(bendAxisLocal, finalAngle));
-    localPos = bendMat * localPos;
-    localNormal = bendMat * localNormal;
-
-    // Transform the deformed vertex and normal back to world space.
-    VERTEX = baseRot * localPos;
-    NORMAL = normalize(baseRot * localNormal);
+void start() {
 }
+void process() {
+	//All the animations is donde in the particle shader
 
-void fragment() {
-    // Use the vertical UV coordinate to sample a color curve texture.
-    float curve = texture(_colorcurve, vec2(UV.y, 0.0)).r;
-    // Blend between two colors.
-    vec3 base_color = mix(color1, color2, curve);
-    ALBEDO = base_color;
+	// empty transform
+	mat4 basis = mat4(vec4(1,0,0,0),vec4(0,1,0,0),vec4(0,0,1,0),vec4(0,0,0,1));
+	// get the cols and rows
+	float sq_particles = sqrt(num_particles);
+	// this just works
+	float cols = round(width/height * sq_particles);
+	float rows = round(height/width * sq_particles);
+	// mod function is a wrapper
+	float col_idx = mod(float(INDEX),cols);
+	// discard decimals (trunc)
+	float row_idx = trunc(float(INDEX)/cols);
+	// custom coordinates so I can load textures
+	vec2 uv = vec2(col_idx/cols,row_idx/rows);
+
+	float randvalue = rand(vec2(col_idx,row_idx));
+	// remap to 0.3-1.0 so I don't get 0
+	randvalue = remap(randvalue,0.0,1.0,0.3,1.0);
+	// start from the top left corner
+	vec3 pos = EMISSION_TRANSFORM[3].xyz - vec3(width/2.0,0.0,height/2.0);
+	// define the space between grass blades
+	float spacex = width/cols;
+	float spacey = height/rows;
+	// assign the position + space + randomspace
+	basis[3].x = pos.x + spacex * col_idx + spacex/2.0 * (randvalue-0.5);
+	basis[3].z = pos.z + spacey * row_idx + spacey/2.0 * (randvalue-0.5);
+	// displace grass depending on the mask
+	basis[3].y += 10000.0 * (1.0 - step(0.5,texture(_grassmask,uv).r)) * float(use_mask);
+
+	// rotate wind_dir in the Y axis
+	vec3 wind_dir = mat3(rotation3d(vec3(0,1,0),radians(wind_angle))) * vec3(1,0,0);
+	// wind texture displaced by wind direction * wind speed
+	float wind = texture(_noise,uv + wind_dir.xz * TIME * wind_speed).r;
+
+	// rotate by random value (STATIC)
+	float rot_y = TAU * randvalue;
+	// sine wave rotation in X and Y axis
+	float rot_x = sin(TIME+TAU/4.0*randvalue)/2.0 * radians(12.0*randvalue) + wind*wind_strength;
+	float rot_z = sin(TIME+TAU/4.0*randvalue)/2.0 * radians(12.0*randvalue) + wind*wind_strength;
+
+	// apply the rotations to the transform
+	basis*= rotation3d(vec3(1,0,0),rot_x);
+	basis*= rotation3d(vec3(0,1,0),rot_y);
+	basis*= rotation3d(vec3(0,0,1),rot_z);
+
+	// legacy code don't touch
+	basis[1]+= (randvalue-0.5)*0.5;
+
+	TRANSFORM = basis;
+	// apply color to each particle
+	CUSTOM.x = texture(_noisecolor,uv).r;
+
 }
