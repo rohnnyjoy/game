@@ -86,3 +86,4 @@ res://FloatingContainer.cs
 res://decoration/rock.gdshader
 res://addons/proton_scatter/demos/assets/materials/grass.gdshader
 res://weapons/modules/ScatterModule.cs
+res://effects/CollisionParticle.tscn

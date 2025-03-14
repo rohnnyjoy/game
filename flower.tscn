@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://dx1tc2c3f210u"]
+
+[ext_resource type="PackedScene" uid="uid://df3l36cancnab" path="res://models/linen_with_flowers.glb" id="1_p547k"]
+
+[node name="Sketchfab_Scene" instance=ExtResource("1_p547k")]
+
+[node name="Linen_wFlower" parent="Sketchfab_model/586f2ca77fb54dd0bc9096af5349c438_fbx/RootNode/Linen_Flower_Group" index="0"]
+visible = false
+
+[node name="Linen_wFlower_M" parent="Sketchfab_model/586f2ca77fb54dd0bc9096af5349c438_fbx/RootNode/Linen_Flower_Group" index="1"]
+visible = false

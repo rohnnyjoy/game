@@ -65,6 +65,8 @@ public partial class Bullet : Area3D
   // New flag to track inert state.
   private bool isInert = false;
 
+  private PackedScene collisionParticleScene = GD.Load<PackedScene>("res://effects/CollisionParticle.tscn");
+
   public override void _Ready()
   {
     Scale = Vector3.One;
@@ -216,7 +218,7 @@ public partial class Bullet : Area3D
           await module.OnCollision(collisionData, this);
 
         DefaultBulletCollision(collisionData, this);
-        // SpawnCollisionParticles(collisionData);
+        SpawnCollisionParticles(collisionData);
 
         if (DestroyOnImpact)
         {
@@ -340,15 +342,17 @@ public partial class Bullet : Area3D
 
   private void SpawnCollisionParticles(CollisionData collision)
   {
-    int countOld = (int)TriangularScaleDamage(0, 8, collision.TotalDamageDealt, 0, 10);
-    for (int i = 0; i < countOld; i++)
+    GpuParticles3D particles = collisionParticleScene.Instantiate<GpuParticles3D>();
+    GetTree().CurrentScene.AddChild(particles);
+    particles.GlobalPosition = collision.Position;
+    if (Velocity.Length() > 0.001f)
     {
-      CollisionParticle particle = new CollisionParticle();
-      particle.GlobalPosition = collision.Position;
-      particle.InitialDirection = new Vector3(GD.Randf() * 2 - 1, GD.Randf() * 2 - 1, GD.Randf() * 2 - 1);
-      particle.Gravity = 30.0f;
-      GetTree().CurrentScene.AddChild(particle);
+      Vector3 desiredDirection = collision.Normal.Normalized();
+      particles.LookAt(particles.GlobalPosition + desiredDirection, Vector3.Up);
+      particles.Rotate(Vector3.Up, Mathf.Pi / 2);
     }
+    particles.Emitting = true;
+
 
     if (collision.TotalDamageDealt > 30)
     {
