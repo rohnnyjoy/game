@@ -1,2 +1,4 @@
+Compositor
 Shader
+ShaderMaterial
 StandardMaterial3D

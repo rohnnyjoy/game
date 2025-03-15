@@ -52,13 +52,6 @@ public class PlayerInput
       player.CurrentWeapon?.OnRelease();
     }
 
-    if (Input.IsActionJustPressed("dash"))
-    {
-      var newVelocity = player.GetInputDirection() * Player.DASH_SPEED;
-      newVelocity.Y = player.Velocity.Y;
-      player.Velocity = newVelocity;
-    }
-
     // Jump buffer logic.
     if (@event.IsActionPressed("ui_accept"))
     {

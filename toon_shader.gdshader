@@ -1,5 +1,5 @@
 /*
-	Toon Shader by Firerabbit
+	Toon Shader with Emission by Firerabbit
 
 	MIT License
 */
@@ -21,8 +21,14 @@ uniform float _glossiness : hint_range(0.0,0.5) = 0.1;
 uniform float _rim_size : hint_range(0,1) = 0.5;
 uniform float _rim_smoothness : hint_range(0.0,0.5) = 0.01;
 
+// New uniforms for emission support
+uniform vec4 emission_color : source_color = vec4(0.0); // Default no emission
+uniform float emission_strength : hint_range(0.0, 10.0) = 0.0;
+
 void fragment() {
 	ALBEDO = pow(texture(tex, UV).rgb, vec3(2.2)) * color.rgb;
+    // Set emission based on emission color and strength.
+	EMISSION = emission_color.rgb * emission_strength;
 }
 
 void light() {

@@ -144,6 +144,16 @@ public class PlayerMovement
       );
     }
 
+
+    if (Input.IsActionJustPressed("dash") && player.GetInputDirection().Length() > 0)
+    {
+      var newVelocity = player.GetInputDirection() * Player.DASH_SPEED;
+      newVelocity.Y = player.Velocity.Y;
+      player.Velocity = newVelocity;
+      newHorizontalVel = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
+    }
+
+
     // Apply air friction (drag) to the horizontal velocity.
     // This will gradually reduce the speed even if input is applied.
     newHorizontalVel *= 1 - AIR_FRICTION * delta;

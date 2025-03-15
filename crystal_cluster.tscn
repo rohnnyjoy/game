@@ -1,0 +1,5 @@
+[gd_scene load_steps=2 format=3 uid="uid://cpm3yb5gqytcr"]
+
+[ext_resource type="PackedScene" uid="uid://bshrlerkwv2p3" path="res://models/stylized_crystal.glb" id="1_rmu7o"]
+
+[node name="Sketchfab_Scene" instance=ExtResource("1_rmu7o")]

@@ -9,7 +9,7 @@
 [ext_resource type="Script" uid="uid://cdlg2dks84qds" path="res://GameUi.cs" id="7_gbfbk"]
 [ext_resource type="FontFile" uid="uid://cpuwdglpinmhy" path="res://fonts/Pixel.ttf" id="8_ic0uy"]
 [ext_resource type="Script" uid="uid://ckhbaxtaa30xu" path="res://Crosshair.cs" id="8_ioo17"]
-[ext_resource type="PackedScene" uid="uid://dglv3r42ustwg" path="res://islands.tscn" id="11_ic0uy"]
+[ext_resource type="PackedScene" uid="uid://dglv3r42ustwg" path="res://effects/islands.tscn" id="11_ic0uy"]
 [ext_resource type="PackedScene" uid="uid://d07f71yhlond8" path="res://decoration/grass/grass_multi.tscn" id="11_k3n1d"]
 [ext_resource type="ArrayMesh" uid="uid://brdcg2had804y" path="res://decoration/grass/blade.res" id="12_2o6r5"]
 [ext_resource type="Texture2D" uid="uid://d038lo6vi57t5" path="res://models/linen_with_flowers_2.png" id="13_2o6r5"]
@@ -30,8 +30,9 @@ reflected_light_source = 1
 tonemap_mode = 2
 ssr_enabled = true
 ssil_radius = 0.01
+glow_enabled = true
 volumetric_fog_enabled = true
-volumetric_fog_density = 0.03
+volumetric_fog_density = 0.0129
 volumetric_fog_ambient_inject = 1.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l8uhh"]
@@ -93,7 +94,7 @@ shadow_mesh = SubResource("ArrayMesh_impft")
 script = ExtResource("1_6tkge")
 
 [node name="Player" parent="." instance=ExtResource("5_taioi")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.12916, 3.88055, -4.51357)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.12916, 3.88055, -7.5407)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(-0.866025, -0.433013, 0.25, 0.032571, 0.450081, 0.892394, -0.498938, 0.780978, -0.375678, 33.6328, 227.061, -131.947)
@@ -139,39 +140,39 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_w1h00")
 script = ExtResource("6_6wwjs")
 
 [node name="Enemy" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.33654, 2.67685, 10.2355)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.33654, 2.67685, 7.20841)
 PistolScene = null
 
 [node name="Enemy3" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.63554, 2.67685, -1.12467)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.63554, 2.67685, -4.15179)
 PistolScene = null
 
 [node name="Enemy2" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.33654, 2.67685, 5.71973)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.33654, 2.67685, 2.69261)
 PistolScene = null
 
 [node name="Enemy4" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64436, 2.67685, -1.12467)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64436, 2.67685, -4.15179)
 PistolScene = null
 
 [node name="Enemy5" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.83774, 2.62135, 9.81253)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.83774, 2.62135, 6.7854)
 PistolScene = null
 
 [node name="Enemy6" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.736561, 4.28605, 4.81433)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.736561, 4.28605, 1.7872)
 PistolScene = null
 
 [node name="Enemy7" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.16986, 2.67685, 5.71973)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.16986, 2.67685, 2.69261)
 PistolScene = null
 
 [node name="Enemy8" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.2537, 10.6704, -1.12467)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.2537, 10.6704, -4.15179)
 PistolScene = null
 
 [node name="Enemy9" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, 10.2355)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, 7.20841)
 PistolScene = null
 
 [node name="Enemy10" parent="." instance=ExtResource("4_xr0ro")]
@@ -195,59 +196,59 @@ transform = Transform3D(-0.981932, -0.189233, 0, 0.189233, -0.981932, 0, 0, 0, 1
 PistolScene = null
 
 [node name="Enemy11" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, 5.71973)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, 2.69261)
 PistolScene = null
 
 [node name="Enemy12" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.88966, 2.67685, -1.12467)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.88966, 2.67685, -4.15179)
 PistolScene = null
 
 [node name="Enemy13" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.40756, 2.62135, 9.81253)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.40756, 2.62135, 6.7854)
 PistolScene = null
 
 [node name="Enemy14" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.98196, 4.28605, 4.81433)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.98196, 4.28605, 1.7872)
 PistolScene = null
 
 [node name="Enemy15" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.4152, 2.67685, 5.71973)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.4152, 2.67685, 2.69261)
 PistolScene = null
 
 [node name="Enemy16" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.00844, 10.6704, -1.12467)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.00844, 10.6704, -4.15179)
 PistolScene = null
 
 [node name="Enemy17" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, 1.67253)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, -1.3546)
 PistolScene = null
 
 [node name="Enemy18" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.60976, 2.67685, -9.68767)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.60976, 2.67685, -12.7148)
 PistolScene = null
 
 [node name="Enemy19" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, -2.84327)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, -5.87039)
 PistolScene = null
 
 [node name="Enemy20" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.88966, 2.67685, -9.68767)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.88966, 2.67685, -12.7148)
 PistolScene = null
 
 [node name="Enemy21" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.40756, 2.62135, 1.24953)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.40756, 2.62135, -1.77759)
 PistolScene = null
 
 [node name="Enemy22" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.98196, 4.28605, -3.74867)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.98196, 4.28605, -6.77579)
 PistolScene = null
 
 [node name="Enemy23" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.4152, 2.67685, -2.84327)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.4152, 2.67685, -5.87039)
 PistolScene = null
 
 [node name="Enemy24" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.00844, 10.6704, -9.68767)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.00844, 10.6704, -12.7148)
 PistolScene = null
 
 [node name="GameUI" type="CanvasLayer" parent="."]
@@ -293,8 +294,8 @@ text = "0"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Sketchfab_Scene" parent="." instance=ExtResource("11_ic0uy")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -0.168314, 0.28594, 0.872192)
+[node name="Islands" parent="." instance=ExtResource("11_ic0uy")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -0.168314, 0.28594, -2.15489)
 
 [node name="GrassMulti" parent="." instance=ExtResource("11_k3n1d")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0569916, -0.0810356, -0.11758)
