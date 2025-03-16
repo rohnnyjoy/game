@@ -2,7 +2,7 @@
 
 [ext_resource type="Shader" uid="uid://pnqvpudrgemp" path="res://decoration/school/school.gdshader" id="1_4o3nq"]
 [ext_resource type="Script" uid="uid://cwjioggwhc8qg" path="res://decoration/school/bake_util.gd" id="1_abqv7"]
-[ext_resource type="ArrayMesh" uid="uid://50u118qdw67e" path="res://decoration/school/sardine.res" id="3_xps1y"]
+[ext_resource type="ArrayMesh" uid="uid://dahfcd5es155a" path="res://models/characters/fish/fish.res" id="3_xps1y"]
 
 [sub_resource type="Image" id="Image_xps1y"]
 data = {
@@ -42,7 +42,10 @@ shader_parameter/_rand_speed = 0.21
 shader_parameter/noise_frequency = 0.1
 shader_parameter/noise_scale = 0.0
 shader_parameter/radial_spread = 0.748
-shader_parameter/particle_scale = 1.0
+shader_parameter/particle_scale = 0.2
+shader_parameter/extra_rot_x = -90.0
+shader_parameter/extra_rot_y = 8.55e-06
+shader_parameter/extra_rot_z = -180.0
 
 [sub_resource type="Curve3D" id="Curve3D_7ahwb"]
 closed = true
@@ -63,9 +66,8 @@ particles = NodePath("../school_fish")
 [node name="school_fish" type="GPUParticles3D" parent="."]
 cast_shadow = 0
 lod_bias = 0.001
-amount = 200
+amount = 100
 lifetime = 23.65
-one_shot = true
 explosiveness = 0.73
 process_material = SubResource("ShaderMaterial_xps1y")
 draw_pass_1 = ExtResource("3_xps1y")
