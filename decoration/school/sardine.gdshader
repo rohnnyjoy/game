@@ -13,7 +13,7 @@ varying float temp_mask;
 
 void vertex() {
 	float frequency = (TIME/2. + VERTEX.z)*22.0;
-	VERTEX.x += cos(frequency)*0.005;
+	VERTEX.x += cos(frequency) * 0.5;
 }
 
 void fragment() {
