@@ -35,11 +35,11 @@ public class PlayerInput
     if (@event is InputEventMouseMotion mouseMotion)
     {
       player.RotateY(-mouseMotion.Relative.X * 0.005f);
-      player.Camera.RotateX(-mouseMotion.Relative.Y * 0.005f);
+      player.CameraPivot.RotateX(-mouseMotion.Relative.Y * 0.005f);
       // Clamp the camera's rotation.
-      player.Camera.Rotation = new Vector3(Mathf.Clamp(player.Camera.Rotation.X, -Mathf.Pi / 2, Mathf.Pi / 2),
-                                            player.Camera.Rotation.Y,
-                                            player.Camera.Rotation.Z);
+      player.CameraPivot.Rotation = new Vector3(Mathf.Clamp(player.CameraPivot.Rotation.X, -Mathf.Pi / 2, Mathf.Pi / 2),
+                                            player.CameraPivot.Rotation.Y,
+                                            player.CameraPivot.Rotation.Z);
     }
 
     if (Input.IsActionJustPressed("shoot"))

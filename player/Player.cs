@@ -9,7 +9,7 @@ public partial class Player : CharacterBody3D
   public NodePath InventoryPath; // Assigned in the editor.
 
   public Inventory Inventory { get; private set; }
-  public Camera3D Camera { get; private set; }
+  public CameraPivot CameraPivot { get; private set; }
   public AnimationPlayer AnimPlayer { get; private set; }
   public Weapon CurrentWeapon { get; set; }
   public Vector3 PreSlideHorizontalVelocity { get; set; }
@@ -54,7 +54,7 @@ public partial class Player : CharacterBody3D
     Instance = this;
 
     // Cache nodes.
-    Camera = GetNode<Camera3D>("Camera3D");
+    CameraPivot = GetNode<CameraPivot>("CameraPivot");
     AnimPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
 
     // Initialize the CameraManager
@@ -89,7 +89,7 @@ public partial class Player : CharacterBody3D
     }
 
     // Initialize with the player's camera
-    cameraManager.Initialize(Camera);
+    // cameraManager.Initialize(Camera);
   }
 
   public override void _PhysicsProcess(double delta)
@@ -101,7 +101,7 @@ public partial class Player : CharacterBody3D
   public override void _Process(double delta)
   {
     // Make sure the player's camera is always the current camera
-    CameraManager.Instance?.EnsurePlayerCameraIsCurrent();
+    // CameraManager.Instance?.EnsurePlayerCameraIsCurrent();
   }
 
   public override void _UnhandledInput(InputEvent @event)
@@ -121,7 +121,7 @@ public partial class Player : CharacterBody3D
     if (Inventory?.PrimaryWeapon != null)
     {
       CurrentWeapon = Inventory.PrimaryWeapon;
-      GetNode<Node3D>("Camera3D/WeaponHolder").AddChild(CurrentWeapon);
+      CameraPivot.WeaponHolder.AddChild(CurrentWeapon);
     }
   }
 

@@ -28,28 +28,33 @@ vec2 rotate2D(vec2 position, vec2 pivot, float angle) {
 }
 
 void vertex() {
-    // Use the same frequency as before.
+    // Compute frequency based on time and depth.
     float frequency = (TIME / 2.0 + VERTEX.z) * 22.0;
 
-    // Compute twist angle from the sine of the frequency.
-    float twistAngle = sin(frequency) * amplitude_z;
-
-    // Create a 2D vector for the current X and Z coordinates.
+    // Start with the original XZ position.
     vec2 pos = vec2(VERTEX.x, VERTEX.z);
 
-    // Rotate the (X,Z) position by the twist angle.
-    pos = rotate2D(pos, vec2(0.0), twistAngle);
+    // Apply the original X ripple offset.
+    float offsetX = cos(frequency) * amplitude_x;
+    pos.x += offsetX;
 
-    // Add the original ripple offset on X.
-    pos.x += cos(frequency) * amplitude_x;
+    // Instead of twisting around the origin, use a pivot that incorporates the X offset.
+    vec2 pivot = vec2(offsetX, 0.0);
 
-    // Update the vertex's X and Z.
+    // Calculate twist angle.
+    float twistAngle = sin(frequency) * amplitude_z;
+
+    // Rotate the position about the shifted pivot.
+    pos = rotate2D(pos, pivot, twistAngle);
+
+    // Update vertex X and Z.
     VERTEX.x = pos.x;
     VERTEX.z = pos.y;
 
     // Apply a vertical ripple on Y.
     VERTEX.y += sin(frequency) * amplitude_y;
 }
+
 
 void fragment() {
     vec4 colour = texture(tex_albedo, UV);

@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://cbhero32hv31d" path="res://Enemy.cs" id="1_6tcda"]
 [ext_resource type="PackedScene" uid="uid://bbqxn5xc7ejyb" path="res://weapons/unique/OlReliable.tscn" id="2_1xdgn"]
 [ext_resource type="Script" uid="uid://dlcbdtuorrtu7" path="res://Camera.cs" id="3_ispe2"]
-[ext_resource type="Script" uid="uid://b473g26ihvyw1" path="res://WeaponHolder.cs" id="4_sexbf"]
+[ext_resource type="Script" uid="uid://b473g26ihvyw1" path="res://player/WeaponHolder.cs" id="4_sexbf"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_xk8km"]
 

@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3 uid="uid://c2vpqfik2lif8"]
+
+[ext_resource type="PackedScene" uid="uid://dwuyhd8x2gpr4" path="res://models/Revolver.glb" id="1_wulko"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wulko"]
+cull_mode = 2
+
+[node name="Sketchfab_Scene" instance=ExtResource("1_wulko")]
+
+[node name="rotator_0" parent="Sketchfab_model/Root/rotator" index="0"]
+transform = Transform3D(0.927921, -0.365928, -0.0711294, 0.365928, 0.930545, -0.0135007, 0.0711294, -0.0135007, 0.997375, 0.0232874, 0.0383983, 0.00746393)
+surface_material_override/0 = SubResource("StandardMaterial3D_wulko")
+
+[node name="barrel_0" parent="Sketchfab_model/Root/barrel" index="0"]
+transform = Transform3D(0.927921, -0.372777, 9.40983e-17, 0.372777, 0.927921, 7.2042e-19, -8.75843e-17, 3.44092e-17, 1, 0.298882, -1.3862, 0)
+surface_material_override/0 = SubResource("StandardMaterial3D_wulko")
+
+[node name="body_0" parent="Sketchfab_model/Root/body" index="0"]
+transform = Transform3D(0.92792, -0.365928, -0.0711294, 0.365928, 0.930545, -0.0135007, 0.0711294, -0.0135007, 0.997376, -0.0422046, 0.3711, 0.0721347)
+surface_material_override/0 = SubResource("StandardMaterial3D_wulko")
+
+[node name="body_1" parent="Sketchfab_model/Root/body" index="1"]
+transform = Transform3D(0.927921, -0.365928, -0.0711294, 0.365928, 0.930545, -0.0135007, 0.0711294, -0.0135007, 0.997375, -0.0422046, 0.3711, 0.0721347)
+surface_material_override/0 = SubResource("StandardMaterial3D_wulko")

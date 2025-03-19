@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=4 uid="uid://c8oqxmm2w2wvv"]
+[gd_scene load_steps=27 format=4 uid="uid://c8oqxmm2w2wvv"]
 
 [ext_resource type="Script" uid="uid://ddsbsdyq56vkc" path="res://world.gd" id="1_6tkge"]
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
@@ -15,7 +15,10 @@
 [ext_resource type="Texture2D" uid="uid://d038lo6vi57t5" path="res://models/linen_with_flowers_2.png" id="13_2o6r5"]
 
 [sub_resource type="PhysicalSkyMaterial" id="PhysicalSkyMaterial_k3n1d"]
-ground_color = Color(0.6, 0.713726, 0.996078, 1)
+rayleigh_color = Color(0.180857, 0.256698, 0.398178, 1)
+mie_color = Color(0.452317, 0.503161, 0.613038, 1)
+turbidity = 0.0
+ground_color = Color(1, 1, 1, 1)
 
 [sub_resource type="Sky" id="Sky_w2qqb"]
 sky_material = SubResource("PhysicalSkyMaterial_k3n1d")
@@ -23,17 +26,25 @@ process_mode = 1
 
 [sub_resource type="Environment" id="Environment_6knbf"]
 background_mode = 2
-background_intensity = 1.2
+background_intensity = 1.0
 sky = SubResource("Sky_w2qqb")
 ambient_light_color = Color(1, 1, 1, 1)
-reflected_light_source = 1
 tonemap_mode = 2
 ssr_enabled = true
-ssil_radius = 0.01
+ssao_enabled = true
+ssao_radius = 4.0
+ssao_light_affect = 1.0
+ssil_enabled = true
+ssil_radius = 10.0
+sdfgi_use_occlusion = true
 glow_enabled = true
-fog_enabled = true
+fog_light_color = Color(0.597174, 0.615301, 0.656074, 1)
+fog_density = 0.005
 volumetric_fog_enabled = true
-volumetric_fog_density = 0.02
+volumetric_fog_density = 0.03
+volumetric_fog_albedo = Color(0.289742, 0.289741, 0.289741, 1)
+volumetric_fog_emission = Color(0.298608, 0.357493, 0.507151, 1)
+volumetric_fog_anisotropy = 0.9
 volumetric_fog_ambient_inject = 1.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l8uhh"]
@@ -58,6 +69,9 @@ transparency = 4
 cull_mode = 2
 albedo_texture = ExtResource("13_2o6r5")
 roughness = 0.892971
+emission_enabled = true
+emission = Color(0.925884, 0.861003, 0.973223, 1)
+emission_intensity = 13000.0
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_impft"]
 _surfaces = [{
@@ -91,6 +105,18 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_impft")
 
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_2o6r5"]
+noise_type = 2
+frequency = 0.086
+offset = Vector3(0, -20.6, 0)
+fractal_weighted_strength = 1.0
+
+[sub_resource type="NoiseTexture3D" id="NoiseTexture3D_70uel"]
+noise = SubResource("FastNoiseLite_2o6r5")
+
+[sub_resource type="FogMaterial" id="FogMaterial_2o6r5"]
+density_texture = SubResource("NoiseTexture3D_70uel")
+
 [node name="World" type="Node"]
 script = ExtResource("1_6tkge")
 
@@ -98,16 +124,12 @@ script = ExtResource("1_6tkge")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.12916, 3.88055, -7.5407)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-0.866025, -0.433013, 0.25, 0.032571, 0.450081, 0.892394, -0.498938, 0.780978, -0.375678, 33.6328, 227.061, -131.947)
-light_intensity_lux = 25.0
-light_energy = 0.135
-light_indirect_energy = 0.0
-light_specular = 0.0
+transform = Transform3D(-0.866025, -0.433013, 0.25, 0.032571, 0.450081, 0.892394, -0.498938, 0.780978, -0.375678, 133.654, 359.376, -145.03)
+light_intensity_lux = 5.0
+light_energy = 0.05
+light_angular_distance = 0.5
 shadow_enabled = true
-shadow_normal_bias = 10.0
-shadow_transmittance_bias = -16.0
-shadow_opacity = 0.48
-shadow_blur = 5.338
+sky_mode = 1
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_6knbf")
@@ -302,7 +324,6 @@ transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -0.168314, 0.28594, -2.
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0569916, -0.0810356, -0.11758)
 layers = 34815
 cast_shadow = 0
-gi_mode = 0
 gi_lightmap_texel_scale = 0.01
 GrassMesh = ExtResource("12_2o6r5")
 Width = 100.0
@@ -314,11 +335,19 @@ NoiseTexture = SubResource("NoiseTexture2D_2o6r5")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0569916, -0.0810356, -0.11758)
 layers = 34815
 cast_shadow = 0
-gi_mode = 0
 gi_lightmap_texel_scale = 0.01
 GrassMesh = SubResource("ArrayMesh_u887k")
 Width = 100.0
 Depth = 100.0
-InstanceCount = 200
+InstanceCount = 40
 NoiseTexture = SubResource("NoiseTexture2D_2o6r5")
 MeshScale = 0.004
+SpawnPointLights = true
+LightEnergy = 0.02
+LightRange = 8.0
+
+[node name="FogVolume" type="FogVolume" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.4103, -19.1621, 0)
+visible = false
+size = Vector3(200, 20, 200)
+material = SubResource("FogMaterial_2o6r5")

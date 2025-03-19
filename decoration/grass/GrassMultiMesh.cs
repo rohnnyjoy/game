@@ -35,6 +35,14 @@ public partial class GrassMultiMesh : MultiMeshInstance3D
   [Export]
   public float MeshScale { get; set; } = 1.0f;
 
+  // New exported parameters for point light spawning.
+  [Export]
+  public bool SpawnPointLights { get; set; } = false;
+  [Export]
+  public float LightEnergy { get; set; } = 0.2f;
+  [Export]
+  public float LightRange { get; set; } = 2.0f;
+
   public override void _Ready()
   {
     CallDeferred("PopulateGrass");
@@ -119,8 +127,23 @@ public partial class GrassMultiMesh : MultiMeshInstance3D
           // Set the instance transform.
           multi.SetInstanceTransform(validCount, transform);
           // Communicate the grass blade's position using custom data.
-          // We use a Color to store 4 floats: x, y, z, and an extra value (here 0.0f).
+          // We use a Color to store 4 floats: x, y, z, and an extra value (here rotationAngle).
           multi.SetInstanceCustomData(validCount, new Color(collisionPosition.X, collisionPosition.Y, collisionPosition.Z, rotationAngle));
+
+          // If enabled, create a dim PointLight3D at this position.
+          if (SpawnPointLights)
+          {
+            // With this:
+            OmniLight3D omniLight = new OmniLight3D();
+            omniLight.LightEnergy = LightEnergy;
+            omniLight.OmniRange = LightRange;
+            // Optionally offset the light if needed.
+            Vector3 lightPosition = collisionPosition;
+            omniLight.Transform = new Transform3D(Basis.Identity, lightPosition);
+            // Enable shadows if desired.
+            omniLight.ShadowEnabled = false;
+            AddChild(omniLight);
+          }
 
           validCount++;
         }

@@ -1,8 +1,9 @@
-[gd_scene load_steps=13 format=3 uid="uid://kadcr801fqcm"]
+[gd_scene load_steps=14 format=3 uid="uid://kadcr801fqcm"]
 
 [ext_resource type="Script" uid="uid://c38ik6og0388m" path="res://player/Player.cs" id="1_kne1u"]
+[ext_resource type="Script" uid="uid://cfl7010e0y50c" path="res://player/CameraPivot.cs" id="2_83hs8"]
 [ext_resource type="Script" uid="uid://dlcbdtuorrtu7" path="res://Camera.cs" id="2_kpjcp"]
-[ext_resource type="Script" uid="uid://b473g26ihvyw1" path="res://WeaponHolder.cs" id="3_kne1u"]
+[ext_resource type="Script" uid="uid://b473g26ihvyw1" path="res://player/WeaponHolder.cs" id="4_83hs8"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_xk8km"]
 
@@ -131,13 +132,17 @@ playback_default_blend_time = 0.05
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_hn37q")
 
-[node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0125883, 0.884005, -0.664331)
+[node name="CameraPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00395989, 0.761912, -0.00331533)
+script = ExtResource("2_83hs8")
+
+[node name="Camera" type="Camera3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0249005, 0.00643039, -0.539932)
 fov = 90.0
 script = ExtResource("2_kpjcp")
 
-[node name="WeaponHolder" type="Node3D" parent="Camera3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, -0.25, -1.03789)
-script = ExtResource("3_kne1u")
+[node name="WeaponHolder" type="Node3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.456794, -0.0790061, -1.31992)
+script = ExtResource("4_83hs8")
 
 [connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]

@@ -1,30 +1,16 @@
-[gd_scene load_steps=5 format=3 uid="uid://bbqxn5xc7ejyb"]
+[gd_scene load_steps=3 format=3 uid="uid://bbqxn5xc7ejyb"]
 
 [ext_resource type="Script" uid="uid://pxs6qsaeu8ik" path="res://weapons/unique/OlReliable.cs" id="1_bg0wr"]
-[ext_resource type="PackedScene" uid="uid://dwuyhd8x2gpr4" path="res://models/Revolver.glb" id="2_ub1mw"]
-
-[sub_resource type="Animation" id="Animation_ub1mw"]
-resource_name = "recoil"
-
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_8b47q"]
-_data = {
-&"recoil": SubResource("Animation_ub1mw")
-}
+[ext_resource type="PackedScene" uid="uid://c2vpqfik2lif8" path="res://models/revolver.tscn" id="2_ub1mw"]
 
 [node name="OlReliable" type="Node3D"]
 script = ExtResource("1_bg0wr")
 
 [node name="Pistol" parent="." instance=ExtResource("2_ub1mw")]
-transform = Transform3D(-0.0645418, 0, -0.0270991, 0, 0.07, 0, 0.0270991, 0, -0.0645418, -0.00405118, -0.0323222, -0.0692951)
+transform = Transform3D(-0.05, 0, -7.54979e-09, 0, 0.05, 0, 7.54979e-09, 0, -0.05, -0.00304568, 0, 0)
 
 [node name="Muzzle" type="Node3D" parent="."]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 0.999999, 0, -1, 0, -4.37114e-08, -1.82986e-05, 0.0569414, -0.465581)
 
 [node name="BulletOrigin" type="Node3D" parent="."]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 0.999999, 0, -0.999999, 0, -4.37114e-08, -1.82986e-05, 0.0893265, -0.658733)
-
-[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
-root_node = NodePath("../Pistol")
-libraries = {
-&"": SubResource("AnimationLibrary_8b47q")
-}

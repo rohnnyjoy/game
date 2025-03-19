@@ -62,7 +62,7 @@ public partial class InteractionManager : Node3D
           float distance = origin.DistanceTo(interactablePos);
 
           // Use the player's camera if available.
-          Camera3D camera = Player.Instance.Camera;
+          Camera3D camera = Player.Instance.CameraPivot.GetNode<Camera3D>("Camera");
           Vector3 rayOrigin = camera != null ? camera.GlobalPosition : origin;
 
           // Check for clear line-of-sight.
