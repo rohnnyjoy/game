@@ -1,3 +1,4 @@
+Resource
 Shader
 Compositor
 ShaderMaterial

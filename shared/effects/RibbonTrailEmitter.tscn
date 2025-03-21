@@ -1,0 +1,29 @@
+[gd_scene load_steps=6 format=3 uid="uid://so3ivn88ip6g"]
+
+[ext_resource type="Script" uid="uid://bwrco1fq4hln8" path="res://shared/effects/RibbonTrailEmitter.cs" id="1_hiofj"]
+
+[sub_resource type="Curve" id="Curve_e11vn"]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Gradient" id="Gradient_48mm3"]
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 0.376471)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_inaw3"]
+gradient = SubResource("Gradient_48mm3")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_e11vn"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+diffuse_mode = 3
+specular_mode = 2
+albedo_texture = SubResource("GradientTexture1D_inaw3")
+billboard_keep_scale = true
+
+[node name="RibbonTrailEmitter" type="Node3D"]
+script = ExtResource("1_hiofj")
+Lifetime = 0.1
+BaseWidth = 0.05
+WidthProfile = SubResource("Curve_e11vn")
+Material = SubResource("StandardMaterial3D_e11vn")

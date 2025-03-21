@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3 uid="uid://b4m17a4q80dex"]
+
+[ext_resource type="Script" uid="uid://biusge5ytla3k" path="res://environment/RubbleSpawner.cs" id="1_td8ae"]
+[ext_resource type="PackedScene" uid="uid://4p3j0hhxjcba" path="res://shared/effects/Rubble.tscn" id="2_midl4"]
+
+[node name="RubbleSpawner" type="Node"]
+script = ExtResource("1_td8ae")
+RubbleScene = ExtResource("2_midl4")

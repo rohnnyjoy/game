@@ -1,0 +1,40 @@
+[gd_scene load_steps=6 format=3 uid="uid://4p3j0hhxjcba"]
+
+[ext_resource type="PackedScene" uid="uid://so3ivn88ip6g" path="res://shared/effects/RibbonTrailEmitter.tscn" id="1_g87jv"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_4ywad"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4ywad"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+diffuse_mode = 3
+specular_mode = 2
+albedo_color = Color(1, 1, 1, 0.145098)
+billboard_keep_scale = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_g87jv"]
+albedo_color = Color(0.60933, 0.60933, 0.60933, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_4ywad"]
+material = SubResource("StandardMaterial3D_g87jv")
+radius = 0.15
+height = 0.3
+radial_segments = 4
+rings = 4
+
+[node name="Rubble" type="RigidBody3D"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, 0, 0)
+shape = SubResource("SphereShape3D_4ywad")
+
+[node name="BasicRibbonTrail2" parent="." instance=ExtResource("1_g87jv")]
+Lifetime = 0.5
+BaseWidth = 0.15
+Material = SubResource("StandardMaterial3D_4ywad")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_4ywad")
+
+[editable path="BasicRibbonTrail2"]

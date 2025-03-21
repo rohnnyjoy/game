@@ -1,0 +1,27 @@
+[gd_resource type="Resource" load_steps=6 format=3 uid="uid://b5e0wnjpf3i4l"]
+
+[ext_resource type="Script" uid="uid://ch2ywojfmte2c" path="res://bullets/modifiers/BulletModifier.cs" id="1_0gco4"]
+[ext_resource type="Script" uid="uid://nc2igvi3mof" path="res://bullets/modifiers/ScatterBulletModifier.cs" id="2_0gco4"]
+[ext_resource type="Texture2D" uid="uid://btfbyyyt6bgcg" path="res://icons/explosive.png" id="2_lwwmj"]
+[ext_resource type="Script" uid="uid://cxh5ccfuf0ijv" path="res://modules/ScatterModule.cs" id="3_xvopl"]
+
+[sub_resource type="Resource" id="Resource_lwwmj"]
+script = ExtResource("2_0gco4")
+DuplicationCount = 5
+BulletDamageFactor = 0.0
+SpreadAngle = 0.261799
+
+[resource]
+script = ExtResource("3_xvopl")
+DuplicationCount = 5
+BulletDamageFactor = 0.2
+SpreadAngle = 0.261799
+BulletModifiers = Array[ExtResource("1_0gco4")]([SubResource("Resource_lwwmj")])
+ModuleName = "Scatter Module"
+ModuleDescription = "Duplicates bullet in a scatter pattern with configurable horizontal and vertical spread."
+Rarity = 2
+ModuleName = "Scatter Module"
+ModuleDescription = "Duplicates bullet in a scatter pattern with configurable horizontal and vertical spread."
+CardTexture = ExtResource("2_lwwmj")
+Rarity = 2
+BulletModifiers = Array[ExtResource("1_0gco4")]([SubResource("Resource_lwwmj")])

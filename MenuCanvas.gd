@@ -5,7 +5,7 @@ var inventory_visible: bool = false
 func _ready() -> void:
     visible = inventory_visible
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
     if Input.is_action_just_pressed("toggle_inventory"):
         inventory_visible = !inventory_visible
         visible = inventory_visible

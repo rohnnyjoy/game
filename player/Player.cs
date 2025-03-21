@@ -4,19 +4,14 @@ using System;
 public partial class Player : CharacterBody3D
 {
   public static Player Instance { get; private set; }
-
-  [Export]
-  public NodePath InventoryPath; // Assigned in the editor.
-
   public Inventory Inventory { get; private set; }
-  public CameraPivot CameraPivot { get; private set; }
-  public AnimationPlayer AnimPlayer { get; private set; }
+  public WeaponHolder WeaponHolder { get; private set; }
+  public CameraShake CameraShake { get; private set; }
+  // public AnimationPlayer AnimPlayer { get; private set; }
   public Weapon CurrentWeapon { get; set; }
   public Vector3 PreSlideHorizontalVelocity { get; set; }
   public AirLurchManager AirLurchManager { get; set; }
-  public InteractionManager InteractionManager;
 
-  // Expose some fields to helper classes.
   public float JumpBufferTimer { get; set; }
   public int JumpsRemaining { get; set; }
   public bool IsSliding { get; set; }
@@ -26,82 +21,25 @@ public partial class Player : CharacterBody3D
     set => base.Velocity = value;
   }
 
-  // Constants moved to public for access in helper classes.
-  public const float DASH_SPEED = 20.0f;
-  public const float EXTRA_UPWARD_BOOST = 3.0f;
-  public const float SPEED = 10.0f;
-  public const float JUMP_VELOCITY = 24.0f;
-  public const float GROUND_ACCEL = 80.0f;
-  public const float GROUND_DECEL = 150.0f;
-  public const float INITIAL_BOOST_FACTOR = 0.8f;
-  public const float GRAVITY = 60.0f;
-  public const float SLIDE_FRICTION_COEFFICIENT = 15.0f;
-  public const float WALL_HOP_BOOST = 1.2f;
-  public const float WALL_HOP_UPWARD_BOOST = 18.0f;
-  public const float WALL_HOP_MIN_NORMAL_Y = 0.7f;
-  public const float JUMP_BUFFER_TIME = 0.2f;
-  public const int MAX_JUMPS = 2;
+  [Export] public NodePath WeaponHolderPath;
+  [Export] public NodePath CameraShakePath;
+  // [Export] public NodePath AnimPlayerPath;
 
-  public const float AIR_ACCELERATION = 22.0f;
-
-  // Sub-components.
   private PlayerInput playerInput;
-  private PlayerMovement playerMovement;
 
   public override void _Ready()
   {
     GD.Print("Player ready");
     Instance = this;
-
-    // Cache nodes.
-    CameraPivot = GetNode<CameraPivot>("CameraPivot");
-    AnimPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
-
-    // Initialize the CameraManager
-    InitializeCameraManager();
-
-    // Add to the "players" group for enemy detection
+    WeaponHolder = GetNode<WeaponHolder>(WeaponHolderPath);
+    CameraShake = GetNode<CameraShake>(CameraShakePath);
+    // AnimPlayer = GetNode<AnimationPlayer>(AnimPlayerPath);
     AddToGroup("players");
-
     Inventory = new Inventory();
     AddChild(Inventory);
-
-    // Initialize sub-components.
     playerInput = new PlayerInput(this);
-    playerMovement = new PlayerMovement(this);
-
-    // Additional setup.
     Input.MouseMode = Input.MouseModeEnum.Captured;
-    InteractionManager = new InteractionManager();
     EquipDefaultWeapon();
-  }
-
-  private void InitializeCameraManager()
-  {
-    // Check if CameraManager already exists
-    CameraManager cameraManager = GetNode<CameraManager>("/root/CameraManager");
-
-    // If it doesn't exist, create it
-    if (cameraManager == null)
-    {
-      cameraManager = new CameraManager();
-      GetTree().Root.AddChild(cameraManager);
-    }
-
-    // Initialize with the player's camera
-    // cameraManager.Initialize(Camera);
-  }
-
-  public override void _PhysicsProcess(double delta)
-  {
-    playerMovement.ProcessMovement((float)delta);
-    InteractionManager.DetectInteractable();
-  }
-
-  public override void _Process(double delta)
-  {
-    // Make sure the player's camera is always the current camera
-    // CameraManager.Instance?.EnsurePlayerCameraIsCurrent();
   }
 
   public override void _UnhandledInput(InputEvent @event)
@@ -121,11 +59,10 @@ public partial class Player : CharacterBody3D
     if (Inventory?.PrimaryWeapon != null)
     {
       CurrentWeapon = Inventory.PrimaryWeapon;
-      CameraPivot.WeaponHolder.AddChild(CurrentWeapon);
+      WeaponHolder.AddChild(CurrentWeapon);
     }
   }
 
-  // Called when the player is being destroyed
   public override void _ExitTree()
   {
     base._ExitTree();

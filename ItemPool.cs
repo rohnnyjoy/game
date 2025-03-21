@@ -16,7 +16,7 @@ public partial class ItemPool : Node
   public override void _Ready()
   {
     Modules = new List<WeaponModule>{
-      new PenetratingModule(),
+      new PiercingModule(),
       new HomingModule(),
       new ExplosiveModule(),
       new BouncingModule(),

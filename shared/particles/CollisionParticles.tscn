@@ -1,0 +1,56 @@
+[gd_scene load_steps=6 format=3 uid="uid://hxmex0v3c8hk"]
+
+[sub_resource type="Curve" id="Curve_hipoi"]
+_limits = [-0.339708, 3.0, 0.0, 1.0]
+_data = [Vector2(0, -0.0782192), 0.0, -0.0609013, 0, 0, Vector2(1, 0.99485), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_yxlpr"]
+curve = SubResource("Curve_hipoi")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_yxlpr"]
+angle_min = -270.6
+angle_max = 265.7
+initial_velocity_min = 20.0
+initial_velocity_max = 30.0
+angular_velocity_min = -54.49
+angular_velocity_max = -41.52
+gravity = Vector3(0, -10, 0)
+linear_accel_min = -100.0
+linear_accel_max = -100.0
+radial_accel_min = -2.23517e-06
+radial_accel_max = -2.23517e-06
+scale_min = 0.1
+scale_max = 0.2
+scale_over_velocity_curve = SubResource("CurveTexture_yxlpr")
+hue_variation_min = 0.1
+hue_variation_max = 0.42
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xwd5b"]
+shading_mode = 0
+vertex_color_use_as_albedo = true
+vertex_color_is_srgb = true
+albedo_color = Color(1, 0.717647, 0, 1)
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+proximity_fade_distance = 0.01
+distance_fade_max_distance = 0.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_1iiln"]
+material = SubResource("StandardMaterial3D_xwd5b")
+
+[node name="CollisionParticle" type="GPUParticles3D"]
+visibility_range_fade_mode = 1
+emitting = false
+amount = 5
+lifetime = 1.2
+interp_to_end = 0.3
+one_shot = true
+explosiveness = 1.0
+randomness = 0.14
+local_coords = true
+process_material = SubResource("ParticleProcessMaterial_yxlpr")
+draw_pass_1 = SubResource("BoxMesh_1iiln")

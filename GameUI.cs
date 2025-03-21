@@ -28,21 +28,15 @@ public partial class GameUi : CanvasLayer
 
   public override void _Ready()
   {
-    InteractionLabel = GetNode<RichTextLabel>("InteractionLabel");
-    ComboLabel = GetNode<RichTextLabel>("ComboLabel");
-    MoneyCounter = GetNode<RichTextLabel>("MoneyCounter");
-
-    // Center scaling so the label scales from its center.
-    ComboLabel.PivotOffset = ComboLabel.Size / 2;
-    originalPosition = ComboLabel.Position;
-    originalScale = ComboLabel.Scale;
-
-    // Start hidden.
-    ComboLabel.Visible = false;
-    MoneyCounter.Text = moneyBank.ToString();
-
     GlobalEvents.Instance.Connect("MoneyUpdated", new Callable(this, nameof(OnMoneyUpdated)));
     Instance = this;
+  }
+
+  private void SetupUi()
+  {
+    originalPosition = ComboLabel.Position;
+    originalScale = ComboLabel.Scale;
+    MoneyCounter.Text = moneyBank.ToString();
   }
 
   public async void OnMoneyUpdated(int oldAmount, int newAmount)

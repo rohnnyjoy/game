@@ -31,17 +31,6 @@ public class PlayerInput
 
   public void HandleInput(InputEvent @event)
   {
-    // Handle camera rotation and shooting.
-    if (@event is InputEventMouseMotion mouseMotion)
-    {
-      player.RotateY(-mouseMotion.Relative.X * 0.005f);
-      player.CameraPivot.RotateX(-mouseMotion.Relative.Y * 0.005f);
-      // Clamp the camera's rotation.
-      player.CameraPivot.Rotation = new Vector3(Mathf.Clamp(player.CameraPivot.Rotation.X, -Mathf.Pi / 2, Mathf.Pi / 2),
-                                            player.CameraPivot.Rotation.Y,
-                                            player.CameraPivot.Rotation.Z);
-    }
-
     if (Input.IsActionJustPressed("shoot"))
     {
       GD.Print("Shooting");
@@ -50,18 +39,6 @@ public class PlayerInput
     else if (Input.IsActionJustReleased("shoot"))
     {
       player.CurrentWeapon?.OnRelease();
-    }
-
-    // Jump buffer logic.
-    if (@event.IsActionPressed("ui_accept"))
-    {
-      player.JumpBufferTimer = Player.JUMP_BUFFER_TIME;
-    }
-
-    if (@event is InputEventKey keyEvent && !keyEvent.Echo && Input.IsActionJustPressed("interact"))
-    {
-      GD.Print("Interacting with: ", player.InteractionManager.DetectInteractable());
-      player.InteractionManager.ProcessInteraction();
     }
   }
 }

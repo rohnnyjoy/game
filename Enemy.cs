@@ -44,7 +44,7 @@ public partial class Enemy : CharacterBody3D
   // Onready nodes
   private AnimationPlayer animPlayer;
   private Camera3D camera;
-  private WeaponHolder weaponHolder;
+  // private WeaponHolder weaponHolder;
 
   public override void _Ready()
   {
@@ -55,7 +55,7 @@ public partial class Enemy : CharacterBody3D
     // Get child nodes (adjust paths if necessary)
     animPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
     camera = GetNode<Camera3D>("Camera3D");
-    weaponHolder = GetNode<WeaponHolder>("Camera3D/WeaponHolder");
+    // weaponHolder = GetNode<WeaponHolder>("Camera3D/WeaponHolder");
 
     // Ensure enemy camera never becomes the current camera
     if (camera != null)
@@ -74,17 +74,17 @@ public partial class Enemy : CharacterBody3D
       GD.PrintErr("Enemy: Missing PistolScene");
       return;
     }
-    if (weaponHolder == null)
-    {
-      GD.PrintErr("Enemy: Missing WeaponHolder");
-      return;
-    }
+    // if (weaponHolder == null)
+    // {
+    //   GD.PrintErr("Enemy: Missing WeaponHolder");
+    //   return;
+    // }
 
     // Cleanup any existing weapon children first
-    foreach (Node child in weaponHolder.GetChildren())
-    {
-      child.QueueFree();
-    }
+    // foreach (Node child in weaponHolder.GetChildren())
+    // {
+    //   child.QueueFree();
+    // }
 
     try
     {
@@ -92,7 +92,7 @@ public partial class Enemy : CharacterBody3D
       Node weaponNode = PistolScene.Instantiate();
 
       // Add it to the weapon holder
-      weaponHolder.AddChild(weaponNode);
+      // weaponHolder.AddChild(weaponNode);
 
       // Find the Weapon component - could be the node itself or a child
       if (weaponNode is Weapon weapon)
@@ -122,7 +122,7 @@ public partial class Enemy : CharacterBody3D
       target = FindNearestPlayer();
       if (target != null)
       {
-        EmitSignal(nameof(EnemyDetectedEventHandler), target);
+        // EmitSignal(nameof(EnemyDetectedEventHandler), target);
       }
     }
 
@@ -174,14 +174,14 @@ public partial class Enemy : CharacterBody3D
 
   private void FireWeapon()
   {
-    GD.Print("Enemy: Attempting to fire weapon");
-    if (activeWeapon != null)
-    {
-      GD.Print($"Enemy: Firing using activeWeapon ({activeWeapon.Name})");
-      activeWeapon.OnPress();
-      return;
-    }
-    GD.PrintErr("Enemy: No weapon found to fire");
+    // GD.Print("Enemy: Attempting to fire weapon");
+    // if (activeWeapon != null)
+    // {
+    //   GD.Print($"Enemy: Firing using activeWeapon ({activeWeapon.Name})");
+    //   activeWeapon.OnPress();
+    //   return;
+    // }
+    // GD.PrintErr("Enemy: No weapon found to fire");
   }
 
   private void StopFiring()

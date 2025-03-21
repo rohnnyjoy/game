@@ -5,15 +5,18 @@ using System.Threading.Tasks;
 
 public partial class BulletWeapon : Weapon
 {
-  // Configurable parameters for gun recoil.
   [Export]
-  public float GunRecoilRotation { get; set; } = 10.0f; // Degrees of upward rotation.
+  public PackedScene BulletScene { get; set; }
+  [Export]
+  public PackedScene MuzzleFlash { get; set; }
+
+  [Export]
+  public float GunRecoilRotation { get; set; } = 15.0f; // Degrees of upward rotation.
   [Export]
   public float GunRecoilKickback { get; set; } = 0.2f;   // Units to shift backward.
   [Export]
-  public float RecoilRecoverySpeed { get; set; } = 10.0f;  // Recovery speed from recoil.
+  public float RecoilRecoverySpeed { get; set; } = 4.0f;  // Recovery speed from recoil.
 
-  public MuzzleFlash MuzzleFlash { get; set; }
 
   private Node3D BulletOrigin;
   private Node3D Muzzle;
@@ -68,7 +71,7 @@ public partial class BulletWeapon : Weapon
 
   private void FireBullet()
   {
-    Bullet bullet = new Bullet();
+    Bullet bullet = (Bullet)BulletScene.Instantiate();
 
     // Get the camera.
     Camera3D camera = GetViewport().GetCamera3D();
@@ -122,36 +125,32 @@ public partial class BulletWeapon : Weapon
     bullet.Damage = GetDamage();
     bullet.GlobalTransform = BulletOrigin.GlobalTransform;
 
-    foreach (var module in [UniqueModule] + Modules)
+    foreach (var module in ImmutableModules + Modules)
     {
       bullet = module.ModifyBullet(bullet);
     }
 
-    bullet.Modules = [UniqueModule] + Modules;
+    foreach (var module in ImmutableModules + Modules)
+    {
+      foreach (var modifier in module.BulletModifiers)
+      {
+        bullet.Modifiers.Add(modifier);
+      }
+    }
     GetTree().CurrentScene.AddChild(bullet);
+    GD.Print("Firing bullet");
 
-    // --- Spawn and trigger the muzzle flash ---
     if (MuzzleFlash != null)
     {
-      try
-      {
-        var newMuzzleFlash = GunpowderMuzzleFlash.CreateInstance();
-        AddChild(newMuzzleFlash);
-        newMuzzleFlash.GlobalTransform = Muzzle.GlobalTransform;
-        newMuzzleFlash.Play();
-      }
-      catch (Exception e)
-      {
-        GD.PrintErr($"LOOKError: {e.Message}");
-      }
+      GpuParticles3D flash = (GpuParticles3D)MuzzleFlash.Instantiate();
+      Muzzle.AddChild(flash);
+      // Double-check that the muzzle flash has correct settings.
+      flash.Emitting = true;
+      flash.OneShot = true;
+      flash.GlobalTransform = Muzzle.GlobalTransform;
     }
 
-    // Optionally trigger camera shake.
-    if (camera is Camera cam)
-    {
-      cam.TriggerShake(0.04f, Mathf.Lerp(0.03f, 0.15f, GetDamage() / 100f));
-    }
-
+    Player.Instance.CameraShake.TriggerShake(0.04f, Mathf.Lerp(0.03f, 0.15f, GetDamage() / 100f));
     // --- Apply recoil effect to the gun model ---
     currentRecoil = 1.0f;  // Set recoil intensity to maximum on fire.
   }
@@ -162,7 +161,7 @@ public partial class BulletWeapon : Weapon
     await Task.Delay((int)(GetReloadSpeed() * 1000));
     CurrentAmmo = GetAmmo();
     Reloading = false;
-    foreach (var module in [UniqueModule] + Modules)
+    foreach (var module in ImmutableModules + Modules)
     {
       await module.OnReload();
     }
@@ -171,7 +170,7 @@ public partial class BulletWeapon : Weapon
   public override async void _Process(double delta)
   {
     // Process weapon modules.
-    foreach (var module in [UniqueModule] + Modules)
+    foreach (var module in ImmutableModules + Modules)
     {
       await module.OnWeaponProcess(delta);
     }
@@ -179,6 +178,7 @@ public partial class BulletWeapon : Weapon
     // Update recoil effect.
     if (currentRecoil > 0.001f)
     {
+      GD.Print("Recoil: ", currentRecoil);
       // Gradually recover from recoil.
       currentRecoil = Mathf.Lerp(currentRecoil, 0, (float)(delta * RecoilRecoverySpeed));
 

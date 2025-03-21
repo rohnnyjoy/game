@@ -1,9 +1,7 @@
-[gd_scene load_steps=13 format=3 uid="uid://cymxvi3bjj71b"]
+[gd_scene load_steps=11 format=3 uid="uid://cymxvi3bjj71b"]
 
 [ext_resource type="Script" uid="uid://cbhero32hv31d" path="res://Enemy.cs" id="1_6tcda"]
-[ext_resource type="PackedScene" uid="uid://bbqxn5xc7ejyb" path="res://weapons/unique/OlReliable.tscn" id="2_1xdgn"]
-[ext_resource type="Script" uid="uid://dlcbdtuorrtu7" path="res://Camera.cs" id="3_ispe2"]
-[ext_resource type="Script" uid="uid://b473g26ihvyw1" path="res://player/WeaponHolder.cs" id="4_sexbf"]
+[ext_resource type="PackedScene" uid="uid://bbqxn5xc7ejyb" path="res://weapons/ol_reliable/OlReliable.tscn" id="2_1xdgn"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_xk8km"]
 
@@ -68,10 +66,8 @@ offset_bottom = 27.0
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.11639, 0.884005, -0.442217)
 fov = 90.0
-script = ExtResource("3_ispe2")
 
 [node name="WeaponHolder" type="Node3D" parent="Camera3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, -0.25, -0.806086)
-script = ExtResource("4_sexbf")
 
 [connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]

@@ -1,0 +1,29 @@
+[gd_scene load_steps=7 format=3 uid="uid://7des0y8vwq0i"]
+
+[ext_resource type="Script" uid="uid://bcmp2xrbb4ka6" path="res://bullets/Bullet.cs" id="1_hhhyh"]
+[ext_resource type="PackedScene" uid="uid://b4dw2m2f75q84" path="res://bullets/basic_bullet/basic_bullet.fbx" id="2_2ql6f"]
+[ext_resource type="PackedScene" uid="uid://hxmex0v3c8hk" path="res://shared/particles/CollisionParticles.tscn" id="2_gxunt"]
+[ext_resource type="PackedScene" uid="uid://so3ivn88ip6g" path="res://shared/effects/RibbonTrailEmitter.tscn" id="3_6kd1a"]
+
+[sub_resource type="Curve" id="Curve_6kd1a"]
+_data = [Vector2(0, 0.0210843), 0.0, 0.0, 0, 0, Vector2(0.99999, 1), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4wdog"]
+albedo_color = Color(0.74978, 0.74978, 0.74978, 1)
+metallic = 0.86
+
+[node name="BasicBullet" type="Node3D"]
+script = ExtResource("1_hhhyh")
+CollisionParticles = Array[PackedScene]([ExtResource("2_gxunt")])
+
+[node name="BasicRibbonTrail" parent="." instance=ExtResource("3_6kd1a")]
+WidthProfile = SubResource("Curve_6kd1a")
+IndexBasedWidth = false
+
+[node name="bullet" parent="." instance=ExtResource("2_2ql6f")]
+
+[node name="Zylinder_001" parent="bullet" index="0"]
+material_override = SubResource("StandardMaterial3D_4wdog")
+
+[editable path="bullet"]

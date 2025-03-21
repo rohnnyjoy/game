@@ -1,0 +1,93 @@
+[gd_scene load_steps=7 format=3 uid="uid://8c8uw88dh3v"]
+
+[sub_resource type="Curve" id="Curve_8lsdy"]
+_limits = [0.0, 3.0, 0.0, 1.0]
+_data = [Vector2(0.093596, 0), 0.0, 0.0, 0, 0, Vector2(0.950739, 1.61887), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_1byfo"]
+curve = SubResource("Curve_8lsdy")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_gicx1"]
+particle_flag_rotate_y = true
+angle_min = -259.3
+angle_max = 253.8
+spread = 14.516
+initial_velocity_min = 19.58
+initial_velocity_max = 19.69
+orbit_velocity_min = 9.49949e-08
+orbit_velocity_max = 9.49949e-08
+gravity = Vector3(0, 0, 0)
+linear_accel_min = -100.0
+linear_accel_max = -60.0
+radial_accel_min = -2.23517e-06
+radial_accel_max = -2.23517e-06
+tangential_accel_min = -2.23517e-06
+tangential_accel_max = -2.23517e-06
+scale_min = 0.0
+scale_max = 0.2
+scale_over_velocity_max = 60.0
+scale_over_velocity_curve = SubResource("CurveTexture_1byfo")
+hue_variation_min = -1.0
+hue_variation_max = -0.73
+anim_speed_min = 2.08
+anim_speed_max = 2.08
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_eg1n5"]
+shading_mode = 0
+specular_mode = 1
+vertex_color_use_as_albedo = true
+vertex_color_is_srgb = true
+albedo_color = Color(1, 1, 0.635294, 1)
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="BoxMesh" id="BoxMesh_kp7dx"]
+material = SubResource("StandardMaterial3D_eg1n5")
+
+[sub_resource type="CSharpScript" id="CSharpScript_hs72d"]
+script/source = "using Godot;
+
+public partial class GunpowderMuzzleFlash : MuzzleFlash
+{
+
+  protected static PackedScene _muzzleFlashScene = GD.Load<PackedScene>(\"res://effects/muzzle_flashes/GunpowderMuzzleFlash.tscn\");
+
+  public override void _Ready()
+  {
+	GD.Print(\"Instantiated GunpowderMuzzleFlash\");
+  }
+
+  public static GunpowderMuzzleFlash CreateInstance()
+  {
+	return _muzzleFlashScene.Instantiate<GunpowderMuzzleFlash>();
+  }
+
+  public override void Play()
+  {
+	Restart();
+  }
+}
+"
+
+[node name="GunpowderMuzzleFlash" type="GPUParticles3D"]
+physics_interpolation_mode = 2
+gi_lightmap_texel_scale = 4.291
+visibility_range_fade_mode = 1
+emitting = false
+amount = 50
+amount_ratio = 0.9718
+lifetime = 0.04
+one_shot = true
+speed_scale = 6.92
+explosiveness = 0.42
+randomness = 0.66
+fixed_fps = 60
+collision_base_size = 0.0
+local_coords = true
+process_material = SubResource("ParticleProcessMaterial_gicx1")
+draw_pass_1 = SubResource("BoxMesh_kp7dx")
+script = SubResource("CSharpScript_hs72d")

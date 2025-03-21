@@ -2,30 +2,49 @@ using Godot;
 using System;
 using Godot.Collections;
 
-public partial class InteractionManager : Node3D
+public partial class InteractionManager : Node
 {
-  [Export]
-  public float InteractRadius = 2.0f;
+  [Export] public float InteractRadius = 2.0f;
+  [Export] public int MaxResults = 32;
+  [Export] public NodePath PlayerPath;
+  [Export] public NodePath CameraPath;
 
-  [Export]
-  public int MaxResults = 32;
 
-  /// <summary>
-  /// Returns the best candidate interactable (if any) near the player.
-  /// Uses Player.Instance for the origin and camera.
-  /// </summary>
+  private Player _player;
+  private Camera3D _camera;
+
+  public override void _Ready()
+  {
+    _player = GetNode<Player>(PlayerPath);
+    _camera = GetNode<Camera3D>(CameraPath);
+  }
+
+  public override void _Input(InputEvent @event)
+  {
+    if (@event is InputEventKey keyEvent && !keyEvent.Echo && Input.IsActionJustPressed("interact"))
+    {
+      GD.Print("Interacting with: ", DetectInteractable());
+      ProcessInteraction();
+    }
+  }
+
+
+  public override void _PhysicsProcess(double delta)
+  {
+    DetectInteractable();
+  }
+
+
   public IInteractable DetectInteractable()
   {
-    if (Player.Instance == null)
+    if (_player == null)
     {
-      GD.PrintErr("Player.Instance is not set!");
+      GD.PrintErr("Player is not set!");
       return null;
     }
 
-    // Use the player's global position.
-    Vector3 origin = Player.Instance.GlobalPosition;
+    Vector3 origin = _player.GlobalPosition;
 
-    // Set up a sphere query centered at the player's position.
     PhysicsShapeQueryParameters3D query = new PhysicsShapeQueryParameters3D
     {
       Transform = new Transform3D(Basis.Identity, origin),
@@ -33,17 +52,14 @@ public partial class InteractionManager : Node3D
       CollideWithBodies = true
     };
 
-    World3D world3d = Player.Instance.GetWorld3D();
+    World3D world3d = _player.GetWorld3D();
     if (world3d == null)
     {
       GD.PrintErr("World3D not found!");
       return null;
     }
 
-
-
     PhysicsDirectSpaceState3D spaceState = world3d.DirectSpaceState;
-    // IntersectShape returns an Array<Dictionary>
     Array<Dictionary> results = (Array<Dictionary>)spaceState.IntersectShape(query, MaxResults);
 
     IInteractable bestInteractable = null;
@@ -51,30 +67,18 @@ public partial class InteractionManager : Node3D
 
     foreach (Dictionary result in results)
     {
-      // Use the Variant extension method As<T>() to convert to Node.
       Node colliderNode = result["collider"].As<Node>();
-      if (colliderNode != null)
+      if (colliderNode is Node3D collider && collider is IInteractable interactable)
       {
-        Node3D collider = colliderNode as Node3D;
-        if (collider != null && collider is IInteractable interactable)
+        float distance = origin.DistanceTo(collider.GlobalPosition);
+        Vector3 rayOrigin = _camera != null ? _camera.GlobalPosition : origin;
+        if (distance < bestDistance)
         {
-          Vector3 interactablePos = collider.GlobalPosition;
-          float distance = origin.DistanceTo(interactablePos);
-
-          // Use the player's camera if available.
-          Camera3D camera = Player.Instance.CameraPivot.GetNode<Camera3D>("Camera");
-          Vector3 rayOrigin = camera != null ? camera.GlobalPosition : origin;
-
-          // Check for clear line-of-sight.
-          if (distance < bestDistance)
-          {
-            bestDistance = distance;
-            bestInteractable = interactable;
-          }
+          bestDistance = distance;
+          bestInteractable = interactable;
         }
       }
     }
-
 
     GameUi.Instance.InteractionLabel.Visible = bestInteractable != null;
     if (bestInteractable != null)
@@ -86,10 +90,6 @@ public partial class InteractionManager : Node3D
     return bestInteractable;
   }
 
-  /// <summary>
-  /// When called (e.g. from the Player), this method checks for an interactable
-  /// and if the interact key is pressed, invokes its OnInteract().
-  /// </summary>
   public void ProcessInteraction()
   {
     IInteractable interactable = DetectInteractable();

@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3 uid="uid://d07f71yhlond8"]
+
+[ext_resource type="Script" uid="uid://yywinr071gee" path="res://environment/grass/GrassMultiMesh.cs" id="2_e1ni5"]
+[ext_resource type="ArrayMesh" uid="uid://brdcg2had804y" path="res://environment/grass/blade.res" id="2_onjhu"]
+
+[node name="GrassMulti" type="MultiMeshInstance3D"]
+script = ExtResource("2_e1ni5")
+GrassMesh = ExtResource("2_onjhu")

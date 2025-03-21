@@ -1,11 +1,9 @@
+res://weapons/shotgun/
+res://weapons
+res://player
+res://weapons/shared/muzzle_flashes/basic_muzzle_flash
+res://bullets/
 res://
 res://models/characters/fish
 res://models/characters
-res://decoration/school/
-res://effects
-res://grass_particles
-res://materials/
-res://player
 res://shop
-res://menu
-res://weapons/unique
