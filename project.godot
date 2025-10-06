@@ -16,8 +16,8 @@ config/features=PackedStringArray("4.4", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
-InventoryStore="*res://inventory/state/InventoryStore.cs"
 
+InventoryStore="*res://inventory/state/InventoryStore.cs"
 GlobalEvents="*res://GlobalEvents.cs"
 ItemPool="*res://ItemPool.cs"
 

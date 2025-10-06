@@ -8,6 +8,7 @@ public partial class SlotView : Control
   private ModuleVm _module;
   private Vector2 _cardSize = new Vector2(100, 100);
   private ColorRect _placeholderOverlay;
+  private Vector2 _grabOffsetInInner = Vector2.Zero;
 
   public StackKind Kind { get; set; } = StackKind.Inventory;
   public Texture2D FrameTexture { get; private set; }
@@ -125,6 +126,30 @@ public partial class SlotView : Control
       _placeholderOverlay.Visible = enabled;
   }
 
+  private Vector2 GetInnerTopLeftLocal()
+  {
+    if (_content == null)
+      return Vector2.Zero;
+
+    Vector2 innerGlobal = _content.GetGlobalRect().Position;
+    Vector2 selfGlobal = GetGlobalRect().Position;
+    return innerGlobal - selfGlobal;
+  }
+
+  public override void _GuiInput(InputEvent @event)
+  {
+    if (@event is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left)
+    {
+      Vector2 localClick = GetLocalMousePosition();
+      Vector2 innerTopLeft = GetInnerTopLeftLocal();
+      _grabOffsetInInner = localClick - innerTopLeft;
+      _grabOffsetInInner.X = Mathf.Clamp(_grabOffsetInInner.X, 0, _cardSize.X);
+      _grabOffsetInInner.Y = Mathf.Clamp(_grabOffsetInInner.Y, 0, _cardSize.Y);
+    }
+
+    base._GuiInput(@event);
+  }
+
   public override Variant _GetDragData(Vector2 atPosition)
   {
     if (_module == null)
@@ -140,14 +165,20 @@ public partial class SlotView : Control
     {
       Texture = _module.Icon,
       StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-      CustomMinimumSize = _cardSize
+      MouseFilter = MouseFilterEnum.Ignore,
+      CustomMinimumSize = _cardSize,
+      SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+      SizeFlagsVertical = SizeFlags.ShrinkCenter
     };
-    preview.SetAnchorsPreset(LayoutPreset.FullRect);
+
     Control wrapper = new Control
     {
+      MouseFilter = MouseFilterEnum.Ignore,
       CustomMinimumSize = _cardSize
     };
     wrapper.AddChild(preview);
+    // Keep cursor anchored at the exact grab point we measured on mouse-down
+    wrapper.Position = -_grabOffsetInInner;
     SetDragPreview(wrapper);
 
     return data;

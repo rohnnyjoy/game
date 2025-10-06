@@ -43,7 +43,7 @@ public partial class ModuleStackView : Panel
     if (_store != null)
     {
       _store.StateChanged += OnStoreStateChanged;
-      RenderModules(_store.GetModules(Kind));
+      RenderCurrent();
     }
   }
 
@@ -301,6 +301,7 @@ public partial class ModuleStackView : Panel
     Vector2 globalMouse = GetViewport()?.GetMousePosition() ?? GetGlobalMousePosition();
     int index = ComputeDropIndex(globalMouse);
     ShowPlaceholder(index);
+    RenderCurrent();
   }
 
   private void ClearHoverState()
@@ -372,6 +373,58 @@ public partial class ModuleStackView : Panel
 
   private void OnStoreStateChanged(InventoryState state, ChangeOrigin origin)
   {
-    RenderModules(_store.GetModules(Kind));
+    RenderCurrent();
+  }
+
+  private void RenderCurrent()
+  {
+    if (_store == null)
+      return;
+
+    var baseModules = _store.GetModules(Kind);
+
+    if (!_isDragHovering || string.IsNullOrEmpty(_hoverModuleId))
+    {
+      RenderModules(baseModules);
+      return;
+    }
+
+    // Build preview sequence: remove from same stack if applicable, insert placeholder at index
+    var others = new System.Collections.Generic.List<ModuleVm>(baseModules);
+    // If dragging within the same stack, remove the module being dragged so we create a gap
+    int removeIdx = others.FindIndex(vm => vm.ModuleId == _hoverModuleId);
+    if (removeIdx >= 0)
+      others.RemoveAt(removeIdx);
+
+    int placeholderIndex = Math.Clamp(_placeholderIndex >= 0 ? _placeholderIndex : others.Count, 0, others.Count);
+    int slotCount = Math.Max(VisibleSlotCount, others.Count + 1);
+    EnsureSlotCount(slotCount);
+
+    int j = 0;
+    for (int i = 0; i < _slots.Count; i++)
+    {
+      var slot = _slots[i];
+      slot.ConfigureVisuals(Layout.SlotNinePatchTexture, Layout.SlotNinePatchMargin, Layout.SlotPadding, CardSize);
+      slot.Kind = Kind;
+
+      if (i == placeholderIndex)
+      {
+        slot.SetContent(null);
+        slot.SetPlaceholderHighlight(true);
+      }
+      else if (j < others.Count)
+      {
+        slot.SetContent(others[j]);
+        slot.SetPlaceholderHighlight(false);
+        j++;
+      }
+      else
+      {
+        slot.SetContent(null);
+        slot.SetPlaceholderHighlight(false);
+      }
+    }
+
+    ApplyLayout(slotCount);
   }
 }
