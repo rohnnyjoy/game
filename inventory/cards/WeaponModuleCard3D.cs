@@ -31,11 +31,20 @@ public partial class WeaponModuleCard3D : Card3D
   public override void OnInteract()
   {
     // Add to inventory
-    var newModules = new Godot.Collections.Array<WeaponModule>(Player.Instance.Inventory.WeaponModules)
+    var store = InventoryStore.Instance;
+    if (store != null)
     {
-        Module
-    };
-    Player.Instance.Inventory.WeaponModules = newModules;
+      int insertIndex = store.State.InventoryModuleIds.Count;
+      store.AddModule(Module, StackKind.Inventory, insertIndex, ChangeOrigin.Gameplay);
+    }
+    else
+    {
+      var newModules = new Godot.Collections.Array<WeaponModule>(Player.Instance.Inventory.WeaponModules)
+      {
+          Module
+      };
+      Player.Instance.Inventory.WeaponModules = newModules;
+    }
     QueueFree();
   }
 

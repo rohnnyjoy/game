@@ -237,12 +237,14 @@ texture_filter = 1
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
 script = ExtResource("5_vq0ba")
+PlaceholderWidth = 8.0
 
 [node name="MenuCanvas_MenuRoot_VBox#InventoryStack" type="Panel" parent="."]
 texture_filter = 1
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
 script = ExtResource("6_6wwjs")
+PlaceholderWidth = 8.0
 
 [node name="GameUI#UIRoot" type="Control" parent="."]
 layout_mode = 3

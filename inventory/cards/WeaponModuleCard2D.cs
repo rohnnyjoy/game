@@ -52,7 +52,12 @@ public partial class WeaponModuleCard2D : Card2D
   {
     ConvertTo3D();
     var parent = GetParent();
-    if (parent is InventoryStack)
+    var store = InventoryStore.Instance;
+    if (store != null && store.TryGetModuleId(Module, out string moduleId))
+    {
+      store.RemoveModule(moduleId, ChangeOrigin.Gameplay);
+    }
+    else if (parent is InventoryStack)
     {
       var newModules = new Array<WeaponModule>(Player.Instance.Inventory.WeaponModules);
       newModules.Remove(Module);

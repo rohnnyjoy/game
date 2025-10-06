@@ -161,15 +161,15 @@ public partial class SlotFrame : PanelContainer
     if (n == null) return;
 
     int index = GetIndex(); // index within HBoxContainer
-    if (n is InventoryStack inv)
+    if (n is InventoryStack)
     {
-      GD.Print($"[SlotFrame:{Name}] routing drop to InventoryStack index={index}");
-      inv.HandleDrop(card, index);
+      GD.Print($"[SlotFrame:{Name}] legacy drop target InventoryStack index={index} ignored");
+      return;
     }
-    else if (n is PrimaryWeaponStack pw)
+    if (n is PrimaryWeaponStack)
     {
-      GD.Print($"[SlotFrame:{Name}] routing drop to PrimaryWeaponStack index={index}");
-      pw.HandleDrop(card, index);
+      GD.Print($"[SlotFrame:{Name}] legacy drop target PrimaryWeaponStack index={index} ignored");
+      return;
     }
   }
 }

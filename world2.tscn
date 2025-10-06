@@ -129,6 +129,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
 script = ExtResource("4_fcnjm")
+PlaceholderWidth = 8.0
 
 [node name="InventoryStack" type="Panel" parent="MenuCanvas/MenuRoot/VBox"]
 texture_filter = 1
@@ -137,6 +138,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
 script = ExtResource("5_7gfau")
+PlaceholderWidth = 8.0
 
 [node name="EnemySpawner" type="Node3D" parent="."]
 script = ExtResource("17_spwnr")

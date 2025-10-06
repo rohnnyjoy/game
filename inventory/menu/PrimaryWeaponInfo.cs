@@ -13,6 +13,7 @@ public partial class PrimaryWeaponInfo : PanelContainer
   private DynaTextControl _modulesValue;
 
   private Weapon _currentWeapon;
+  private InventoryStore _store;
 
   private readonly FontFile _pixelFont = GD.Load<FontFile>("res://assets/fonts/Born2bSportyV2.ttf");
 
@@ -20,8 +21,9 @@ public partial class PrimaryWeaponInfo : PanelContainer
   {
     BuildUiIfNeeded();
 
-    if (Player.Instance?.Inventory != null)
-      Player.Instance.Inventory.InventoryChanged += OnInventoryChanged;
+    _store = InventoryStore.Instance;
+    if (_store != null)
+      _store.StateChanged += OnStoreStateChanged;
 
     HookWeaponEvents();
     UpdateInfo();
@@ -30,8 +32,8 @@ public partial class PrimaryWeaponInfo : PanelContainer
   public override void _ExitTree()
   {
     UnhookWeaponEvents();
-    if (Player.Instance?.Inventory != null)
-      Player.Instance.Inventory.InventoryChanged -= OnInventoryChanged;
+    if (_store != null)
+      _store.StateChanged -= OnStoreStateChanged;
     base._ExitTree();
   }
 
@@ -122,7 +124,7 @@ public partial class PrimaryWeaponInfo : PanelContainer
     valueLabel = v;
   }
 
-  private void OnInventoryChanged()
+  private void OnStoreStateChanged(InventoryState state, ChangeOrigin origin)
   {
     HookWeaponEvents();
     UpdateInfo();

@@ -34,12 +34,20 @@ public partial class ShopItem : WeaponModuleCard3D
       // "Unwrap" the module: if a module is set, add it to the player's inventory.
       if (Module != null)
       {
-        // Create a new array based on the current modules and add this one.
-        var newModules = new Godot.Collections.Array<WeaponModule>(Player.Instance.Inventory.WeaponModules)
-                {
-                    Module
-                };
-        Player.Instance.Inventory.WeaponModules = newModules;
+        var store = InventoryStore.Instance;
+        if (store != null)
+        {
+          int insertIndex = store.State.InventoryModuleIds.Count;
+          store.AddModule(Module, StackKind.Inventory, insertIndex, ChangeOrigin.Gameplay);
+        }
+        else
+        {
+          var newModules = new Godot.Collections.Array<WeaponModule>(Player.Instance.Inventory.WeaponModules)
+                  {
+                      Module
+                  };
+          Player.Instance.Inventory.WeaponModules = newModules;
+        }
       }
       else { }
 

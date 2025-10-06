@@ -144,6 +144,116 @@ internal static class Program
     Assert(state.Position == Vector3.Zero, "Position should snap to collision point");
   }
 
+  private static WeaponModule CreateModule(string name)
+  {
+    return new WeaponModule
+    {
+      ModuleName = name,
+      ModuleDescription = $"Module {name}"
+    };
+  }
+
+  private static Weapon CreateWeapon()
+  {
+    var weapon = new Weapon
+    {
+      Modules = new Godot.Collections.Array<WeaponModule>()
+    };
+    return weapon;
+  }
+
+  private static void WithStore(Action<InventoryStore> action)
+  {
+    var store = new InventoryStore();
+    store._EnterTree();
+    try
+    {
+      action(store);
+    }
+    finally
+    {
+      store._ExitTree();
+    }
+  }
+
+  private static void TestInventoryStoreInitialization()
+  {
+    WithStore(store =>
+    {
+      var weapon = CreateWeapon();
+      var invModules = new[] { CreateModule("InvA"), CreateModule("InvB") };
+      var primaryModules = new[] { CreateModule("PrimA") };
+
+      int events = 0;
+      store.StateChanged += (_, origin) =>
+      {
+        events++;
+        Assert(origin == ChangeOrigin.System, "Initialization should report system origin");
+      };
+
+      store.Initialize(weapon, invModules, primaryModules, ChangeOrigin.System);
+
+      Assert(events == 1, "Initialize should emit exactly one StateChanged event");
+      Assert(store.State.InventoryModuleIds.Count == 2, "Inventory state should include both modules");
+      Assert(store.State.PrimaryWeaponModuleIds.Count == 1, "Primary weapon state should include the provided module");
+      Assert(weapon.Modules.Count == 1 && weapon.Modules[0] == primaryModules[0], "Weapon modules should match store state");
+    });
+  }
+
+  private static void TestInventoryStoreMoveModule()
+  {
+    WithStore(store =>
+    {
+      var weapon = CreateWeapon();
+      var invModules = new[] { CreateModule("InvA") };
+      var primaryModules = new[] { CreateModule("PrimA") };
+      store.Initialize(weapon, invModules, primaryModules, ChangeOrigin.System);
+
+      bool hasInvId = store.TryGetModuleId(invModules[0], out string invId);
+      bool hasPrimId = store.TryGetModuleId(primaryModules[0], out string primId);
+      Assert(hasInvId && hasPrimId, "Module IDs should be registered after initialization");
+
+      int events = 0;
+      ChangeOrigin lastOrigin = ChangeOrigin.Unknown;
+      store.StateChanged += (_, origin) =>
+      {
+        events++;
+        lastOrigin = origin;
+      };
+
+      store.MoveModule(invId, StackKind.Inventory, StackKind.PrimaryWeapon, 1, ChangeOrigin.UI);
+
+      Assert(events == 1, "MoveModule should emit exactly one StateChanged event");
+      Assert(lastOrigin == ChangeOrigin.UI, "MoveModule should propagate UI origin");
+      Assert(store.State.InventoryModuleIds.Count == 0, "Inventory should be empty after moving the module");
+      Assert(store.State.PrimaryWeaponModuleIds.Count == 2, "Primary weapon should contain two modules");
+      Assert(store.State.PrimaryWeaponModuleIds[0] == primId && store.State.PrimaryWeaponModuleIds[1] == invId, "Module order should reflect insertion index");
+      Assert(weapon.Modules.Count == 2 && weapon.Modules[1] == invModules[0], "Weapon modules should stay in sync with store state");
+    });
+  }
+
+  private static void TestInventoryStoreRemoveModule()
+  {
+    WithStore(store =>
+    {
+      var weapon = CreateWeapon();
+      var module = CreateModule("Solo");
+      store.Initialize(weapon, new[] { module }, Array.Empty<WeaponModule>(), ChangeOrigin.System);
+
+      bool hasId = store.TryGetModuleId(module, out string moduleId);
+      Assert(hasId, "Module should be registered before removal");
+
+      int events = 0;
+      store.StateChanged += (_, __) => events++;
+
+      store.RemoveModule(moduleId, ChangeOrigin.Gameplay);
+
+      Assert(events == 1, "RemoveModule should emit exactly one StateChanged event");
+      Assert(store.State.InventoryModuleIds.Count == 0, "Inventory should be empty after removal");
+      Assert(!store.TryGetModuleId(module, out _), "Catalog should prune removed module IDs");
+    });
+  }
+
   private static void RunAll()
   {
     TestBounceReflection();
@@ -151,6 +261,9 @@ internal static class Program
     TestPierceContinuation();
     TestPierceExhausted();
     TestDefaultBehavior();
+    TestInventoryStoreInitialization();
+    TestInventoryStoreMoveModule();
+    TestInventoryStoreRemoveModule();
   }
 
   public static int Main()

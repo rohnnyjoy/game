@@ -93,3 +93,6 @@ res://player/camera/CameraShake.cs
 res://shared/effects/ActionLineParticle.cs
 res://modules/ExplosiveModule.cs
 res://bullets/Bullet.cs
+res://inventory/menu/ModuleStackView.cs
+res://inventory/ui/SlotView.cs
+res://inventory/state/InventoryStore.cs
