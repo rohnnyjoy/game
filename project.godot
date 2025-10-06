@@ -19,7 +19,6 @@ config/icon="res://icon.svg"
 
 GlobalEvents="*res://GlobalEvents.cs"
 ItemPool="*res://ItemPool.cs"
-GameUi="*res://GameUi.cs"
 
 [display]
 

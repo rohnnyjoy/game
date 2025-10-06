@@ -182,7 +182,13 @@ public partial class SpriteSheetFx : Node3D
     if (!billboard)
     {
       var nrm = normal.LengthSquared() < 1e-6f ? Vector3.Up : normal.Normalized();
-      LookAt(GlobalPosition + nrm, Vector3.Up);
+      // Pick a non-colinear up vector to avoid unwanted rotation around local Z.
+      Vector3 upCandidate = Vector3.Up;
+      if (Mathf.Abs(nrm.Dot(upCandidate)) > 0.999f)
+      {
+        upCandidate = Vector3.Right;
+      }
+      LookAt(GlobalPosition + nrm, upCandidate);
       if (randomRoll)
       {
         float angle = (float)GD.RandRange(0.0, Math.PI * 2.0);

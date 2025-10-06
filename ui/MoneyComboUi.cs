@@ -40,7 +40,7 @@ public partial class MoneyComboUi : Control
   [Export] public float ParallaxPixelScale = 0f;            // 0 = auto based on FontPx
   [Export] public float ScaleBase = 1.0f; // leave scale at 1; use FontPx for size
   [Export] public int FontPx = 52;        // pixel size for crisp font rendering (larger for readability)
-  [Export] public Vector2 CrosshairOffset = new Vector2(48, 0);
+  [Export] public Vector2 CrosshairOffset = new Vector2(80, 0);
   [Export] public string FontPath = "res://assets/fonts/Born2bSportyV2.ttf";
   [Export] public float TextRotation = 0.0f; // global phrase rotation (Balatro: text_rot)
   [Export] public int ScaleClampMax = 10000;  // Balatro scale_number default max when shrinking large values
@@ -179,6 +179,13 @@ public partial class MoneyComboUi : Control
       float newScale = ScaleNumber(absVal, ScaleBase, ScaleClampMax);
       text.SetScale(newScale);
 
+      // Add Balatro-style jiggle on coin gain; strength scales gently with delta
+      if (delta != 0)
+      {
+        float jiggle = Mathf.Clamp(0.2f + 0.02f * MathF.Abs(delta), 0.2f, 1.5f);
+        GameUi.Instance?.AddJiggle(jiggle);
+      }
+
       // Reserve/start a shared drain start time and wait until it elapses, handling push-outs from subsequent updates
       GlobalEvents.Instance?.ClaimMoneyDrainStartAt(DrainDelay);
       if (!waitingToDrain)
@@ -214,6 +221,8 @@ public partial class MoneyComboUi : Control
       if (quiverAmt > 0f) text.SetQuiver(quiverAmt, 0.5f, 0.5f);
       text.TriggerPulse(pulseAmt);
       text.SetScale(ScaleNumber(absVal, ScaleBase, ScaleClampMax));
+      // Nudge on subsequent batches too
+      GameUi.Instance?.AddJiggle(Mathf.Clamp(0.15f + 0.01f * absVal, 0.1f, 1.0f));
       GlobalEvents.Instance?.ClaimMoneyDrainStartAt(DrainDelay);
       waitingToDrain = true;
       _ = WaitAndDrain();

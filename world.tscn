@@ -72,19 +72,6 @@ volumetric_fog_emission = Color(0.298608, 0.357493, 0.507151, 1)
 volumetric_fog_anisotropy = 0.9
 volumetric_fog_ambient_inject = 1.0
 
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_inv"]
-content_margin_left = 16.0
-content_margin_top = 16.0
-content_margin_right = 16.0
-content_margin_bottom = 16.0
-texture = ExtResource("14_nptex")
-texture_margin_left = 18.0
-texture_margin_top = 18.0
-texture_margin_right = 18.0
-texture_margin_bottom = 18.0
-axis_stretch_horizontal = 1
-axis_stretch_vertical = 1
-
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_k3n1d"]
 noise_type = 0
 frequency = 0.0191
@@ -149,6 +136,19 @@ noise = SubResource("FastNoiseLite_2o6r5")
 [sub_resource type="FogMaterial" id="FogMaterial_2o6r5"]
 density_texture = SubResource("NoiseTexture3D_70uel")
 
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_inv"]
+content_margin_left = 16.0
+content_margin_top = 16.0
+content_margin_right = 16.0
+content_margin_bottom = 16.0
+texture = ExtResource("14_nptex")
+texture_margin_left = 18.0
+texture_margin_top = 18.0
+texture_margin_right = 18.0
+texture_margin_bottom = 18.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
 [node name="World2" type="Node"]
 script = SubResource("GDScript_ic0uy")
 
@@ -171,41 +171,6 @@ environment = SubResource("Environment_6knbf")
 [node name="MenuCanvas" type="CanvasLayer" parent="."]
 layer = 2
 script = ExtResource("3_nmfmg")
-
-[node name="MenuRoot" type="MarginContainer" parent="MenuCanvas"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 32
-theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 32
-
-[node name="VBox" type="VBoxContainer" parent="MenuCanvas/MenuRoot"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="PrimaryWeaponInfo" type="PanelContainer" parent="MenuCanvas/MenuRoot/VBox"]
-texture_filter = 1
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
-script = ExtResource("16_wpnfo")
-
-[node name="WeaponInventoryDisplay" type="Panel" parent="MenuCanvas/MenuRoot/VBox"]
-texture_filter = 1
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
-script = ExtResource("5_vq0ba")
-
-[node name="InventoryStack" type="Panel" parent="MenuCanvas/MenuRoot/VBox"]
-texture_filter = 1
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
-script = ExtResource("6_6wwjs")
 
 [node name="EnemySpawner" type="Node3D" parent="."]
 script = ExtResource("17_spwnr")
@@ -239,13 +204,47 @@ SpawnPointLights = true
 LightEnergy = 0.02
 LightRange = 8.0
 
-[node name="GameUI" type="CanvasLayer" parent="." node_paths=PackedStringArray("InteractionLabel", "ComboLabel", "MoneyCounter")]
+[node name="GameUI" type="CanvasLayer" parent="."]
 script = ExtResource("7_gbfbk")
-InteractionLabel = NodePath("UIRoot/BottomCenter/Center/InteractionLabel")
-ComboLabel = NodePath("UIRoot/TopCenter/Center/ComboWrapper/ComboLabel")
-MoneyCounter = NodePath("UIRoot/BottomRight/MoneyCounter")
 
-[node name="UIRoot" type="Control" parent="GameUI"]
+[node name="FogVolume" type="FogVolume" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.4103, -19.1621, 0)
+visible = false
+size = Vector3(200, 20, 200)
+material = SubResource("FogMaterial_2o6r5")
+
+[node name="MenuCanvas#MenuRoot" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="MenuCanvas_MenuRoot#VBox" type="VBoxContainer" parent="."]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="MenuCanvas_MenuRoot_VBox#PrimaryWeaponInfo" type="PanelContainer" parent="."]
+texture_filter = 1
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
+script = ExtResource("16_wpnfo")
+
+[node name="MenuCanvas_MenuRoot_VBox#WeaponInventoryDisplay" type="Panel" parent="."]
+texture_filter = 1
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
+script = ExtResource("5_vq0ba")
+
+[node name="MenuCanvas_MenuRoot_VBox#InventoryStack" type="Panel" parent="."]
+texture_filter = 1
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
+script = ExtResource("6_6wwjs")
+
+[node name="GameUI#UIRoot" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -254,20 +253,21 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Center" type="CenterContainer" parent="GameUI/UIRoot"]
-layout_mode = 0
+[node name="GameUI_UIRoot#Center" type="CenterContainer" parent="."]
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 
-[node name="Crosshair" type="Control" parent="GameUI/UIRoot/Center"]
+[node name="GameUI_UIRoot_Center#Crosshair" type="Control" parent="."]
 custom_minimum_size = Vector2(40, 40)
-layout_mode = 2
+layout_mode = 3
+anchors_preset = 0
 mouse_filter = 2
 script = ExtResource("8_ioo17")
 
-[node name="TopCenter" type="MarginContainer" parent="GameUI/UIRoot"]
-layout_mode = 0
+[node name="GameUI_UIRoot#TopCenter" type="MarginContainer" parent="."]
+anchors_preset = 10
 anchor_right = 1.0
 offset_top = 10.0
 offset_bottom = 90.0
@@ -277,24 +277,23 @@ theme_override_constants/margin_top = 0
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 0
 
-[node name="Center" type="CenterContainer" parent="GameUI/UIRoot/TopCenter"]
-layout_mode = 2
+[node name="GameUI_UIRoot_TopCenter#Center" type="CenterContainer" parent="."]
 mouse_filter = 2
 
-[node name="ComboWrapper" type="Control" parent="GameUI/UIRoot/TopCenter/Center"]
-layout_mode = 2
+[node name="GameUI_UIRoot_TopCenter_Center#ComboWrapper" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
 mouse_filter = 2
 
-[node name="ComboLabel" type="RichTextLabel" parent="GameUI/UIRoot/TopCenter/Center/ComboWrapper"]
-layout_mode = 0
+[node name="GameUI_UIRoot_TopCenter_Center_ComboWrapper#ComboLabel" type="RichTextLabel" parent="."]
 mouse_filter = 2
 theme_override_fonts/normal_font = ExtResource("8_ic0uy")
 theme_override_font_sizes/normal_font_size = 40
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="BottomCenter" type="MarginContainer" parent="GameUI/UIRoot"]
-layout_mode = 0
+[node name="GameUI_UIRoot#BottomCenter" type="MarginContainer" parent="."]
+anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -306,17 +305,15 @@ theme_override_constants/margin_top = 0
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 0
 
-[node name="Center" type="CenterContainer" parent="GameUI/UIRoot/BottomCenter"]
-layout_mode = 2
+[node name="GameUI_UIRoot_BottomCenter#Center" type="CenterContainer" parent="."]
 mouse_filter = 2
 
-[node name="InteractionLabel" type="RichTextLabel" parent="GameUI/UIRoot/BottomCenter/Center"]
-layout_mode = 2
+[node name="GameUI_UIRoot_BottomCenter_Center#InteractionLabel" type="RichTextLabel" parent="."]
 mouse_filter = 2
 theme_override_fonts/normal_font = ExtResource("8_ic0uy")
 
-[node name="BottomRight" type="MarginContainer" parent="GameUI/UIRoot"]
-layout_mode = 0
+[node name="GameUI_UIRoot#BottomRight" type="MarginContainer" parent="."]
+anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
@@ -327,17 +324,10 @@ offset_right = -20.0
 offset_bottom = -20.0
 mouse_filter = 2
 
-[node name="MoneyCounter" type="RichTextLabel" parent="GameUI/UIRoot/BottomRight"]
-layout_mode = 2
+[node name="GameUI_UIRoot_BottomRight#MoneyCounter" type="RichTextLabel" parent="."]
 mouse_filter = 2
 theme_override_fonts/normal_font = ExtResource("8_ic0uy")
 theme_override_font_sizes/normal_font_size = 40
 text = "0"
 horizontal_alignment = 1
 vertical_alignment = 1
-
-[node name="FogVolume" type="FogVolume" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.4103, -19.1621, 0)
-visible = false
-size = Vector3(200, 20, 200)
-material = SubResource("FogMaterial_2o6r5")

@@ -42,6 +42,15 @@ public partial class SlotFrame : PanelContainer
   public void AdoptCard(Card2D card)
   {
     if (card == null) return;
+    var current = GetCard();
+    if (current == card)
+    {
+      // Already adopted; just normalize transforms
+      card.Position = Vector2.Zero;
+      card.RotationDegrees = 0f;
+      card.Scale = Vector2.One;
+      return;
+    }
     // Ensure only this card is present in the frame.
     if (card.GetParent() == _center)
     {
@@ -94,6 +103,7 @@ public partial class SlotFrame : PanelContainer
   public void ClearCard()
   {
     // Remove all Card2D children from this frame
+    if (GetCard() == null) return;
     foreach (Node child in _center.GetChildren())
     {
       if (child is Card2D c)
@@ -123,6 +133,7 @@ public partial class SlotFrame : PanelContainer
     var obj = v.AsGodotObject();
     var card = obj as Card2D;
     if (card == null) return;
+    GD.Print($"[SlotFrame:{Name}] _DropData at={atPosition} card={card?.Name}");
 
     // Find owning stack (InventoryStack or PrimaryWeaponStack)
     Node n = this;
@@ -132,8 +143,14 @@ public partial class SlotFrame : PanelContainer
 
     int index = GetIndex(); // index within HBoxContainer
     if (n is InventoryStack inv)
+    {
+      GD.Print($"[SlotFrame:{Name}] routing drop to InventoryStack index={index}");
       inv.HandleDrop(card, index);
+    }
     else if (n is PrimaryWeaponStack pw)
+    {
+      GD.Print($"[SlotFrame:{Name}] routing drop to PrimaryWeaponStack index={index}");
       pw.HandleDrop(card, index);
+    }
   }
 }

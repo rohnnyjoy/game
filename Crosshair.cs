@@ -5,15 +5,20 @@ public partial class Crosshair : Control
   public override void _Ready()
   {
     // Schedule a redraw of the control.
+    SetProcess(true);
     QueueRedraw();
   }
 
-  // No per-frame logic needed
+  public override void _Process(double delta)
+  {
+    QueueRedraw();
+  }
 
   public override void _Draw()
   {
-    // Draw centered relative to this control's rect.
-    Vector2 center = Size / 2;
+    // Draw centered, but cancel any UI layer offset so the crosshair remains fixed.
+    Vector2 shake = GameUi.Instance != null ? GameUi.Instance.GetScreenShakeOffset() : Vector2.Zero;
+    Vector2 center = (Size / 2) - shake;
 
     // Define crosshair properties.
     int lineLength = 10;

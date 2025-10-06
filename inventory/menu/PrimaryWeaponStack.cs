@@ -1,9 +1,11 @@
 using Godot;
 using Godot.Collections;
+using System;
 using System.Collections.Generic;
 
 public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
 {
+  private bool _muteCardSignals = false;
   private bool _suppressPopulate = false;
   private bool _populateQueued = false;
   private MarginContainer _content;
@@ -12,6 +14,10 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
   public StackLayoutConfig Layout { get; set; }
   [Export]
   public int SlotCount { get; set; } = 4; // Visible module slot containers
+
+  // Independent vertical padding (top/bottom) inside the framed panel
+  [Export]
+  public float VerticalPadding { get; set; } = 12.0f; // default visual breathing room
 
   [Export]
   public Color SlotFillColor { get; set; } = new Color(0.95f, 0.95f, 0.95f, 0.35f);
@@ -38,9 +44,17 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
   [Export] public float HorizontalThresholdPx { get; set; } = 10f;
   private Array<Card2D> _dragSnapshot;
 
+  private void DoSilently(Action action)
+  {
+    _muteCardSignals = true;
+    try { action(); }
+    finally { _muteCardSignals = false; }
+  }
+
   public override void _Ready()
   {
     base._Ready();
+    DebugLogs = true;
 
     Inventory inventory = Player.Instance.Inventory;
     inventory.InventoryChanged += OnInventoryChanged;
@@ -52,8 +66,8 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     ApplySharedLayout();
     _content.AddThemeConstantOverride("margin_left", (int)Padding);
     _content.AddThemeConstantOverride("margin_right", (int)Padding);
-    _content.AddThemeConstantOverride("margin_top", 0);
-    _content.AddThemeConstantOverride("margin_bottom", 0);
+    _content.AddThemeConstantOverride("margin_top", (int)VerticalPadding);
+    _content.AddThemeConstantOverride("margin_bottom", (int)VerticalPadding);
 
     _slotsBox = new HBoxContainer { Name = "SlotsBox" };
     _content.AddChild(_slotsBox);
@@ -75,6 +89,13 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     AutoSizeToFitSlots();
     UpdateSlotBackgrounds();
     PopulateCards();
+  }
+
+  public override void _ExitTree()
+  {
+    // Avoid duplicate handlers after scene reloads
+    try { if (Player.Instance?.Inventory != null) Player.Instance.Inventory.InventoryChanged -= OnInventoryChanged; } catch { }
+    base._ExitTree();
   }
 
   public override void _Process(double delta)
@@ -149,8 +170,8 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
       _content.AddThemeConstantOverride("margin_left", (int)Padding);
       _content.AddThemeConstantOverride("margin_right", (int)Padding);
       // Apply same padding vertically to keep the slots centered with equal top/bottom spacing
-      _content.AddThemeConstantOverride("margin_top", (int)Padding);
-      _content.AddThemeConstantOverride("margin_bottom", (int)Padding);
+      _content.AddThemeConstantOverride("margin_top", (int)VerticalPadding);
+      _content.AddThemeConstantOverride("margin_bottom", (int)VerticalPadding);
     }
 
     if (DebugLogs && !_populateQueued)
@@ -187,12 +208,14 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     float frameW = cardSize.X + 2.0f * (SlotPadding + SlotNinePatchMargin);
     float separation = Mathf.Max(0, Offset - (cardSize.X + 2.0f * SlotPadding));
     float width = Padding * 2 + (containers > 0 ? (containers - 1) * separation + containers * frameW : 0);
-    float height = Padding * 2 + cardSize.Y + 2.0f * (SlotPadding + SlotNinePatchMargin);
+    float height = VerticalPadding * 2 + cardSize.Y + 2.0f * (SlotPadding + SlotNinePatchMargin);
     CustomMinimumSize = new Vector2(width, height);
     if (_content != null)
     {
       _content.AddThemeConstantOverride("margin_left", (int)Padding);
       _content.AddThemeConstantOverride("margin_right", (int)Padding);
+      _content.AddThemeConstantOverride("margin_top", (int)VerticalPadding);
+      _content.AddThemeConstantOverride("margin_bottom", (int)VerticalPadding);
     }
   }
 
@@ -214,14 +237,17 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
       }
     }
 
-    UpdateSlotBackgrounds();
-    int idx = 0;
-    foreach (Card2D c in newCards)
+    DoSilently(() =>
     {
-      var frame = _slotsBox.GetChild(idx) as SlotFrame;
-      frame?.AdoptCard(c);
-      idx++;
-    }
+      UpdateSlotBackgrounds();
+      int idx = 0;
+      foreach (Card2D c in newCards)
+      {
+        var frame = _slotsBox.GetChild(idx) as SlotFrame;
+        frame?.AdoptCard(c);
+        idx++;
+      }
+    });
   }
 
 
@@ -275,7 +301,8 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
 
   public override void OnCardsChanged(Array<Card2D> newCards)
   {
-    base.OnCardsChanged(newCards);
+    if (_muteCardSignals) return;
+    if (_dragCard != null) return; // ignore visual-only churn during active drag
     if (DebugLogs) GD.Print($"[PrimaryWeaponStack:{Name}] OnCardsChanged count={newCards.Count}");
     // Defensive: ignore empty lists (can occur from legacy CardStack fallback paths)
     // to avoid clearing the weapon modules when a drag is canceled or invalid.
@@ -298,14 +325,17 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
       weapon.Modules = newModules;
     }
     _suppressPopulate = false;
-    UpdateSlotBackgrounds();
-    int idx = 0;
-    foreach (Card2D c in newCards)
+    DoSilently(() =>
     {
-      var frame = _slotsBox.GetChild(idx) as SlotFrame;
-      frame?.AdoptCard(c);
-      idx++;
-    }
+      UpdateSlotBackgrounds();
+      int idx = 0;
+      foreach (Card2D c in newCards)
+      {
+        var frame = _slotsBox.GetChild(idx) as SlotFrame;
+        frame?.AdoptCard(c);
+        idx++;
+      }
+    });
   }
 
   public void HandleDrop(Card2D card, int destIndex)
@@ -323,11 +353,14 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     weapMods.Insert(destIndex, wm.Module);
 
     _suppressPopulate = true;
-    inv.WeaponModules = invMods;
-    weapon.Modules = weapMods;
+    inv.SetModulesBoth(invMods, weapMods);
     _suppressPopulate = false;
-    PopulateCards();
-    UpdateSlotBackgrounds();
+    // Defer UI repopulate to avoid re-entrant scene graph mutation during drop release
+    if (!_populateQueued)
+    {
+      _populateQueued = true;
+      CallDeferred(nameof(DeferredPopulate));
+    }
   }
 
   // IFramedCardStack: Begin drag with placeholder behavior
@@ -360,8 +393,11 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     if (DebugLogs)
       GD.Print($"[PrimaryWeaponStack:{Name}] AfterReparent card={card.Name} gp(after)={card.GlobalPosition} toplevel={card.TopLevel} parent={card.GetParent().GetPath()}");
 
-    _dragFrame.SetPlaceholder(true);
-    PreviewArrange(_lastPlaceholderIndex);
+    DoSilently(() =>
+    {
+      _dragFrame.SetPlaceholder(true);
+      PreviewArrange(_lastPlaceholderIndex);
+    });
   }
 
   private Node GetDragLayer()
@@ -391,12 +427,11 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     Vector2 endLocal = endGlobalMouse - GetGlobalRect().Position;
     int destIndex = ComputeNearestIndexLocal(endLocal);
     destIndex = Mathf.Clamp(destIndex, 0, _slotsBox.GetChildCount() - 1);
-    if (DebugLogs)
-      GD.Print($"[PrimaryWeaponStack:{Name}] EndDrag dx={dx} origin={_originIndex} placeholder={_lastPlaceholderIndex} destIndex(computed)={destIndex}");
+    GD.Print($"[PrimaryWeaponStack:{Name}] EndDrag dx={dx} origin={_originIndex} placeholder={_lastPlaceholderIndex} destIndex(computed)={destIndex} inside={insideThis}");
 
     if (!insideThis)
     {
-      _dragFrame.SetPlaceholder(false);
+      DoSilently(() => _dragFrame.SetPlaceholder(false));
       // Restore layout before exiting; Card2D handles outside drops
       PopulateCards();
       card.TopLevel = false;
@@ -421,27 +456,20 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
            .SetEase(Tween.EaseType.Out);
       tween.Finished += () => {
         card.TopLevel = false;
-        _dragFrame.AdoptCard(card);
+        DoSilently(() => _dragFrame.AdoptCard(card));
       };
-      _dragFrame.SetPlaceholder(false);
+      DoSilently(() => _dragFrame.SetPlaceholder(false));
       // Restore layout
       PopulateCards();
       ClearDragState();
       return true;
     }
 
-    // Ensure the dragged card is attached to the destination slot to prevent any ghost overlay
-    if (_slotsBox != null && destIndex >= 0 && destIndex < _slotsBox.GetChildCount())
-    {
-      if (_slotsBox.GetChild(destIndex) is SlotFrame destFrame)
-      {
-        card.TopLevel = false;
-        destFrame.AdoptCard(card);
-      }
-    }
+    // Avoid reparenting/adopting here while still in release handling; defer to data update + repopulate
+    card.TopLevel = false;
 
     HandleDrop(card, destIndex);
-    _dragFrame.SetPlaceholder(false);
+    DoSilently(() => _dragFrame.SetPlaceholder(false));
     ClearDragState();
     return true;
   }
@@ -489,26 +517,29 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     }
     int k = 0;
     int frameCount = _slotsBox.GetChildCount();
-    for (int i = 0; i < frameCount; i++)
+    DoSilently(() =>
     {
-      if (_slotsBox.GetChild(i) is SlotFrame frame)
+      for (int i = 0; i < frameCount; i++)
       {
-        if (i == placeholderIndex)
+        if (_slotsBox.GetChild(i) is SlotFrame frame)
         {
-          frame.ClearCard();
-          continue;
-        }
-        if (k < others.Count)
-        {
-          frame.AdoptCard(others[k]);
-          k++;
-        }
-        else
-        {
-          frame.ClearCard();
+          if (i == placeholderIndex)
+          {
+            frame.ClearCard();
+            continue;
+          }
+          if (k < others.Count)
+          {
+            frame.AdoptCard(others[k]);
+            k++;
+          }
+          else
+          {
+            frame.ClearCard();
+          }
         }
       }
-    }
+    });
   }
 
   private void PreviewArrangeExternal(int placeholderIndex)
@@ -517,26 +548,29 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     var current = GetAllCardsInFrames();
     int k = 0;
     int frameCount = _slotsBox.GetChildCount();
-    for (int i = 0; i < frameCount; i++)
+    DoSilently(() =>
     {
-      if (_slotsBox.GetChild(i) is SlotFrame frame)
+      for (int i = 0; i < frameCount; i++)
       {
-        if (i == placeholderIndex)
+        if (_slotsBox.GetChild(i) is SlotFrame frame)
         {
-          frame.ClearCard();
-          continue;
-        }
-        if (k < current.Count)
-        {
-          frame.AdoptCard(current[k]);
-          k++;
-        }
-        else
-        {
-          frame.ClearCard();
+          if (i == placeholderIndex)
+          {
+            frame.ClearCard();
+            continue;
+          }
+          if (k < current.Count)
+          {
+            frame.AdoptCard(current[k]);
+            k++;
+          }
+          else
+          {
+            frame.ClearCard();
+          }
         }
       }
-    }
+    });
   }
 
   private void ApplySharedLayout()
@@ -545,6 +579,7 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
       Layout = new StackLayoutConfig();
     Offset = Layout.Offset;
     Padding = Layout.Padding;
+    VerticalPadding = Layout.VerticalPadding;
     SlotPadding = Layout.SlotPadding;
     SlotNinePatchMargin = Layout.SlotNinePatchMargin;
     SlotNinePatchTexture = Layout.SlotNinePatchTexture;
@@ -559,11 +594,7 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     destIndex = Mathf.Clamp(destIndex, 0, _slotsBox.GetChildCount() - 1);
     if (DebugLogs)
       GD.Print($"[PrimaryWeaponStack:{Name}] AcceptExternalDrop destIndex={destIndex}");
-    if (_slotsBox.GetChild(destIndex) is SlotFrame destFrame)
-    {
-      card.TopLevel = false;
-      destFrame.AdoptCard(card);
-    }
+    // Defer all reparent/adopt to HandleDrop->PopulateCards to avoid scene churn here
     HandleDrop(card, destIndex);
     _lastPlaceholderIndex = -1;
     return true;

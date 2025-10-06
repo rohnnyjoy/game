@@ -285,9 +285,8 @@ public partial class Bullet : Node3D
         GlobalEvents.Instance?.EmitDamageDealt(enemy, collision.TotalDamageDealt, dir * Mathf.Max(0.0f, KnockbackStrength));
 
         // Compute UI screen shake based on total damage (pixels).
-        float shakeDuration = 0.05f;
-        float shakeIntensity = Mathf.Clamp(collision.TotalDamageDealt * 0.05f, 0.1f, 0.3f);
-        Player.Instance.CameraShake.TriggerShake(shakeDuration, shakeIntensity);
+        GameUi.Instance?.AddJiggle(Mathf.Clamp(collision.TotalDamageDealt * 0.01f, 0.2f, 2.0f));
+        Player.Instance.CameraShake.TriggerShake(0.05f, Mathf.Clamp(collision.TotalDamageDealt * 0.05f, 0.1f, 0.3f));
 
         // Spawn damage number above the enemy
         DamageNumber3D.Spawn(this, enemy, collision.TotalDamageDealt);

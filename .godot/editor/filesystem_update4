@@ -19,6 +19,8 @@ res://weapons/ol_reliable/OlReliable.tscn
 res://world2.tscn
 res://enemy.tscn
 res://world.tscn
+res://inventory/menu/InventoryStack.cs
+res://inventory/menu/PrimaryWeaponStack.cs
 res://FloatingContainer.cs
 res://inventory/cards/Card2D.cs
 res://pickup/Coin.cs
@@ -29,7 +31,6 @@ res://bullets/modifiers/ScatterBulletModifier.cs
 res://bullets/modifiers/BouncingBulletModifier.cs
 res://modules/unique/MicrogunModule.cs
 res://environment/grass/GrassMultiMesh.cs
-res://inventory/menu/PrimaryWeaponStack.cs
 res://inventory/cards/WeaponModuleCard3D.cs
 res://ui/DynaText.cs
 res://player/PlayerMovement.cs
@@ -91,5 +92,4 @@ res://spawning/EnemySpawner.cs
 res://player/camera/CameraShake.cs
 res://shared/effects/ActionLineParticle.cs
 res://modules/ExplosiveModule.cs
-res://inventory/menu/InventoryStack.cs
 res://bullets/Bullet.cs

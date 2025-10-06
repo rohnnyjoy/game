@@ -52,4 +52,15 @@ public partial class Inventory : Node
   {
     // Coin pickups now handle money awards; no direct grant on enemy death.
   }
+
+  // Atomically update both inventory and primary weapon module lists, then emit a single InventoryChanged.
+  public void SetModulesBoth(Array<WeaponModule> inventoryModules, Array<WeaponModule> primaryWeaponModules)
+  {
+    _weaponModules = inventoryModules ?? new Array<WeaponModule>();
+    if (_primaryWeapon != null)
+    {
+      _primaryWeapon.Modules = primaryWeaponModules ?? new Array<WeaponModule>();
+    }
+    EmitSignal(nameof(InventoryChanged));
+  }
 }

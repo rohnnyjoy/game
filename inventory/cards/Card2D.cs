@@ -67,6 +67,8 @@ public partial class Card2D : Button
     AddThemeStyleboxOverride("hover", empty);
 
     // If a texture is provided, render it via a TextureRect to preserve transparency.
+    // Standardize drawing so icons are centered with even padding across stacks.
+    // Always center and keep aspect; rely on SlotFrame.InnerPadding for the frame gap.
     if (CardCore.CardTexture != null)
     {
       var icon = new TextureRect();
@@ -74,22 +76,7 @@ public partial class Card2D : Button
       icon.Texture = CardCore.CardTexture;
       icon.MouseFilter = MouseFilterEnum.Ignore;
       icon.SetAnchorsPreset(LayoutPreset.FullRect);
-
-      // Use centered square icon for atlases; cover for full-art textures.
-      if (CardCore.CardTexture is AtlasTexture)
-      {
-        icon.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
-        float pad = Mathf.Min(CardCore.CardSize.X, CardCore.CardSize.Y) * 0.1f;
-        icon.OffsetLeft = pad;
-        icon.OffsetTop = pad;
-        icon.OffsetRight = -pad;
-        icon.OffsetBottom = -pad;
-      }
-      else
-      {
-        icon.StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered;
-      }
-
+      icon.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
       AddChild(icon);
     }
 
@@ -100,6 +87,14 @@ public partial class Card2D : Button
   public override void _Process(double delta)
   {
     float dt = (float)delta;
+    // Safety: if dragging but the left mouse button is no longer pressed (release consumed by other UI),
+    // finalize the drag here to avoid getting stuck in a "picked up" state.
+    if (_pickedUp && !Input.IsMouseButtonPressed(MouseButton.Left))
+    {
+      GD.Print($"[Card2D:{Name}] _Process auto-finalize drag (mouse released)");
+      OnDragEnd();
+      // Continue with non-picked-up branch below
+    }
     if (_pickedUp)
     {
       // Ensure dragged card follows the cursor even if GUI input routing changes due to reparenting.
@@ -227,6 +222,7 @@ public partial class Card2D : Button
   {
     if (!_pickedUp)
       return;
+    GD.Print($"[Card2D:{Name}] OnDragEnd at={GetGlobalMousePosition()} parent={(GetParent()!=null?GetParent().GetPath():new NodePath("<null>")).ToString()} topLevel={TopLevel}");
     _pickedUp = false;
     ZIndex = 0;
     Card2D.CurrentlyDragged = null;
@@ -236,6 +232,7 @@ public partial class Card2D : Button
     if (_framedOwner != null)
     {
       handledByFramed = _framedOwner.EndCardDrag(this, GetGlobalMousePosition());
+      GD.Print($"[Card2D:{Name}] EndCardDrag by framedOwner={_framedOwner.GetType().Name} handled={handledByFramed}");
       _framedOwner = null;
     }
     if (!handledByFramed)
@@ -254,7 +251,9 @@ public partial class Card2D : Button
       bool framedHandled = false;
       if (framedTarget is IFramedCardStack fstack)
       {
+        GD.Print($"[Card2D:{Name}] AcceptExternalDrop on target={framedTarget.GetType().Name}");
         framedHandled = fstack.AcceptExternalDrop(this, GetGlobalMousePosition());
+        GD.Print($"[Card2D:{Name}] AcceptExternalDrop handled={framedHandled}");
       }
 
       if (!framedHandled)
@@ -271,12 +270,14 @@ public partial class Card2D : Button
         // Fallback: legacy drop scanning for plain CardStack parents.
         if (framedTarget is CardStack newStack)
         {
+          GD.Print($"[Card2D:{Name}] Legacy OnCardDrop to stack={newStack.Name}");
           Vector2 targetGlobalPos = GetGlobalMousePosition() + _offset;
           Vector2 dropLocalPos = targetGlobalPos - newStack.GetGlobalRect().Position;
           newStack.CallDeferred("OnCardDrop", this, dropLocalPos);
         }
         else if (GetParent() is CardStack parentStack)
         {
+          GD.Print($"[Card2D:{Name}] Dropped outside stacks; calling OnDroppedOutsideStacks");
           OnDroppedOutsideStacks();
         }
       }
@@ -284,6 +285,7 @@ public partial class Card2D : Button
 
     // Return to normal hierarchy mode after drag completes
     TopLevel = false;
+    GD.Print($"[Card2D:{Name}] DragEnd complete; topLevel reset");
 
     ResetScale();
     if (GetGlobalRect().HasPoint(GetGlobalMousePosition()))
@@ -298,6 +300,19 @@ public partial class Card2D : Button
     {
       if (mouseButton.ButtonIndex == MouseButton.Left && !mouseButton.Pressed && _pickedUp)
       {
+        OnDragEnd();
+      }
+    }
+  }
+
+  // Global safety net: capture releases even if GUI consumes the event before it reaches _UnhandledInput
+  public override void _Input(InputEvent @event)
+  {
+    if (@event is InputEventMouseButton mouseButton)
+    {
+      if (mouseButton.ButtonIndex == MouseButton.Left && !mouseButton.Pressed && _pickedUp)
+      {
+        GD.Print($"[Card2D:{Name}] _Input detected release while dragging; finalizing");
         OnDragEnd();
       }
     }

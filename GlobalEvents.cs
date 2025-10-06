@@ -39,6 +39,21 @@ public partial class GlobalEvents : Node
   public void SetMenuOpen(bool open)
   {
     MenuOpen = open;
+    if (open)
+    {
+      // Ensure any ongoing weapon fire is stopped when opening menus/UI
+      var weapons = GetTree()?.GetNodesInGroup("weapons");
+      if (weapons != null)
+      {
+        foreach (var node in weapons)
+        {
+          if (node is Weapon w)
+          {
+            try { w.OnRelease(); } catch { }
+          }
+        }
+      }
+    }
   }
 
   public float ClaimMoneyDrainStartAt(float delaySeconds)
