@@ -145,14 +145,16 @@ public partial class SlotView : Control
   }
 
   /// <summary>
-  /// Inner content rect (local coordinates). This is the basis for all mouse math.
+  /// Inner content rect used for icon drawing (local coordinates).
+  /// Uses the TextureRect's arranged rect provided by the MarginContainer,
+  /// so our math matches the visual area the icon actually occupies.
   /// </summary>
   private Rect2 GetInnerRectLocal()
   {
-    if (_content == null)
+    if (_icon == null)
       return new Rect2(Vector2.Zero, Vector2.Zero);
 
-    Rect2 innerGlobal = _content.GetGlobalRect();
+    Rect2 innerGlobal = _icon.GetGlobalRect();
     Vector2 selfGlobal = GetGlobalRect().Position;
     return new Rect2(innerGlobal.Position - selfGlobal, innerGlobal.Size);
   }
@@ -161,10 +163,11 @@ public partial class SlotView : Control
   /// Calculates the actual draw rect of the icon (size and inset) inside the given inner rect,
   /// respecting KeepAspectCentered. If no texture, returns zero size and zero inset.
   /// </summary>
-  private void GetIconDrawRect(in Vector2 innerSize, out Vector2 drawSize, out Vector2 inset)
+  private void GetIconDrawRect(in Vector2 innerSize, out Vector2 drawSize, out Vector2 inset, out float scale)
   {
     drawSize = Vector2.Zero;
     inset = Vector2.Zero;
+    scale = 0f;
 
     if (_module?.Icon == null)
       return;
@@ -173,7 +176,7 @@ public partial class SlotView : Control
     if (texSize.X <= 0 || texSize.Y <= 0)
       return;
 
-    float scale = Mathf.Min(innerSize.X / texSize.X, innerSize.Y / texSize.Y);
+    scale = Mathf.Min(innerSize.X / texSize.X, innerSize.Y / texSize.Y);
     drawSize = texSize * scale;
     inset = (innerSize - drawSize) * 0.5f; // centered letterbox inset within inner rect
   }
@@ -200,20 +203,20 @@ public partial class SlotView : Control
     _grabOffsetInInner.Y = Mathf.Clamp(_grabOffsetInInner.Y, 0, innerSize.Y);
 
     // 2) Compute the actual drawn region of the icon inside the inner rect.
-    GetIconDrawRect(innerSize, out Vector2 drawSize, out Vector2 inset);
+    GetIconDrawRect(innerSize, out Vector2 drawSize, out Vector2 inset, out float scale);
 
     // If for any reason drawSize is zero (e.g., bad texture), bail out gracefully.
     if (drawSize.X <= 0 || drawSize.Y <= 0)
       return new Variant();
 
-    // 3) Build a preview that is EXACTLY the draw region size (no scaling/enlargement).
-    // Using Scale here is fine because preview.Size == drawSize, so it renders 1:1
-    // with what the player saw in the slot.
+    // 3) Build a preview that is EXACTLY the draw region size (no extra scaling),
+    // while using Nearest filtering to keep pixels crisp.
     var preview = new TextureRect
     {
       Texture = _module.Icon,
       StretchMode = TextureRect.StretchModeEnum.Scale,
       MouseFilter = MouseFilterEnum.Ignore,
+      TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
       CustomMinimumSize = drawSize,
       Size = drawSize
     };

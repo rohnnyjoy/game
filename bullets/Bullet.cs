@@ -286,7 +286,6 @@ public partial class Bullet : Node3D
 
         // Compute UI screen shake based on total damage (pixels).
         GameUi.Instance?.AddJiggle(Mathf.Clamp(collision.TotalDamageDealt * 0.01f, 0.2f, 2.0f));
-        Player.Instance.CameraShake.TriggerShake(0.05f, Mathf.Clamp(collision.TotalDamageDealt * 0.05f, 0.1f, 0.3f));
 
         // Spawn damage number above the enemy
         DamageNumber3D.Spawn(this, enemy, collision.TotalDamageDealt);

@@ -35,6 +35,24 @@ public partial class CameraShake : Node3D
 
   public override void _PhysicsProcess(double delta)
   {
+    // If full-frame overlay is active, let it own the shake. Keep camera steady.
+    if (GameUi.Instance != null && GameUi.Instance.UseFullFrameShake)
+    {
+      currentShakeOffset = currentShakeOffset.Lerp(Vector3.Zero, 0.8f);
+      if (currentShakeOffset.LengthSquared() > 1e-8f)
+      {
+        Transform3D t0 = Transform;
+        t0.Origin = originalPosition + currentShakeOffset;
+        Transform = t0;
+      }
+      else
+      {
+        Transform3D t0 = Transform;
+        t0.Origin = originalPosition;
+        Transform = t0;
+      }
+      return;
+    }
     // Prefer following GameUi's shared shake so world and UI move together
     bool appliedShared = false;
     if (FollowGameUi && GameUi.Instance != null)

@@ -185,7 +185,6 @@ public partial class BulletWeapon : Weapon
 
       // Camera-based shake (reverted to original)
       GameUi.Instance?.AddJiggle(0.7f);
-      Player.Instance.CameraShake.TriggerShake(0.04f, Mathf.Lerp(0.03f, 0.15f, GetDamage() / 100f));
       PlayGunshot();
       currentRecoil = 1.0f;
       return;
@@ -239,7 +238,6 @@ public partial class BulletWeapon : Weapon
       }
 
       GameUi.Instance?.AddJiggle(0.7f);
-      Player.Instance.CameraShake.TriggerShake(0.04f, Mathf.Lerp(0.03f, 0.15f, GetDamage() / 100f));
 
       // Apply recoil effect.
       currentRecoil = 1.0f;
