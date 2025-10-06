@@ -6,7 +6,7 @@ using Godot.Collections;
 public partial class AimbotBulletModifier : BulletModifier
 {
   [Export]
-  public float aim_cone_angle { get; set; } = (float)(45 * Math.PI / 180.0); // 45° in radians
+  public float aim_cone_angle { get; set; } = (float)(120 * Math.PI / 180.0); // 120° in radians
 
   [Export]
   public float vertical_offset { get; set; } = 0.0f;
@@ -59,13 +59,9 @@ public partial class AimbotBulletModifier : BulletModifier
     }
     Node lastLockedEnemy = storedEnemy;
 
-    // Choose the best enemy (prefer one not equal to last_locked_enemy).
+    // Choose the best enemy strictly excluding the last_locked_enemy.
     Enemy best_enemy = null;
     float best_angle = aim_cone_angle;
-
-    // Also track a fallback candidate.
-    Enemy fallback_enemy = null;
-    float fallback_angle = aim_cone_angle;
 
     var spaceState = bullet.GetWorld3D().DirectSpaceState;
 
@@ -80,8 +76,8 @@ public partial class AimbotBulletModifier : BulletModifier
         Vector3 enemy_origin = enemy.GlobalTransform.Origin;
         Vector3 to_enemy = (enemy_origin - origin).Normalized();
         float angle = Mathf.Acos(base_direction.Dot(to_enemy));
-        // Check if enemy falls within the allowed cone.
-        if (angle < aim_cone_angle)
+        // Check if enemy falls within the allowed cone, and is not the last-locked target.
+        if (angle < aim_cone_angle && enemy != lastLockedEnemy)
         {
           // Determine the aim point: simply use the enemy's origin.
           Vector3 aim_point = enemy_origin;
@@ -112,29 +108,18 @@ public partial class AimbotBulletModifier : BulletModifier
               (rayResult.ContainsKey("collider") &&
                (Node)rayResult["collider"] == enemy))
           {
-            // If enemy is not the last locked, check if it's the best candidate.
-            if (enemy != lastLockedEnemy)
+            // Update best candidate by smallest angle.
+            if (angle < best_angle)
             {
-              if (angle < best_angle)
-              {
-                best_angle = angle;
-                best_enemy = enemy;
-              }
-            }
-            // Regardless, track a fallback candidate.
-            if (angle < fallback_angle)
-            {
-              fallback_angle = angle;
-              fallback_enemy = enemy;
+              best_angle = angle;
+              best_enemy = enemy;
             }
           }
         }
       }
     }
 
-    // Use best_enemy if found, otherwise fallback.
-    if (best_enemy == null && fallback_enemy != null)
-      best_enemy = fallback_enemy;
+    // Strictly avoid retargeting to the same enemy consecutively; no fallback to last target.
 
     // If an enemy was found, adjust the bullet's velocity and flash a red line.
     if (best_enemy != null && IsInstanceValid(best_enemy))

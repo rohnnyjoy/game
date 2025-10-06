@@ -19,6 +19,7 @@ public partial class CameraShake : Node3D
   {
     originalPosition = Transform.Origin;
     rng.Randomize();
+    SetPhysicsProcess(true);
   }
 
   // Trigger the shake by setting the duration and intensity.
@@ -28,7 +29,7 @@ public partial class CameraShake : Node3D
     shakeIntensity = intensity;
   }
 
-  public override void _Process(double delta)
+  public override void _PhysicsProcess(double delta)
   {
     if (shakeDuration > 0)
     {
@@ -51,6 +52,12 @@ public partial class CameraShake : Node3D
     {
       // When shaking is done, ease the offset back to zero.
       currentShakeOffset = currentShakeOffset.Lerp(Vector3.Zero, 0.8f);
+    }
+
+    // If there is effectively no offset and no active shake, avoid rewriting the transform.
+    if (shakeDuration <= 0 && currentShakeOffset.LengthSquared() < 1e-8f)
+    {
+      return;
     }
 
     // Apply the offset to the stored original position,

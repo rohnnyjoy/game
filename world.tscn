@@ -1,6 +1,5 @@
-[gd_scene load_steps=26 format=4 uid="uid://c8oqxmm2w2wvv"]
+[gd_scene load_steps=29 format=4 uid="uid://dp7h683hqwr76"]
 
-[ext_resource type="Script" uid="uid://ddsbsdyq56vkc" path="res://world.gd" id="1_6tkge"]
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
 [ext_resource type="PackedScene" uid="uid://cymxvi3bjj71b" path="res://enemy.tscn" id="4_xr0ro"]
 [ext_resource type="PackedScene" uid="uid://kadcr801fqcm" path="res://player/Player.tscn" id="5_taioi"]
@@ -11,7 +10,34 @@
 [ext_resource type="Script" uid="uid://ckhbaxtaa30xu" path="res://Crosshair.cs" id="8_ioo17"]
 [ext_resource type="PackedScene" uid="uid://dglv3r42ustwg" path="res://environment/scenes/islands.tscn" id="11_ic0uy"]
 [ext_resource type="PackedScene" uid="uid://d07f71yhlond8" path="res://environment/grass/grass_multi.tscn" id="11_k3n1d"]
+[ext_resource type="Script" uid="uid://bhxrowu6uq8vq" path="res://bullets/manager/BulletManager.cs" id="12_bmngr"]
 [ext_resource type="Texture2D" uid="uid://d038lo6vi57t5" path="res://models/linen_with_flowers_2.png" id="13_2o6r5"]
+[ext_resource type="Texture2D" uid="uid://dl2exy6bsks5w" path="res://assets/ui/3x/ninepatch.png" id="14_nptex"]
+[ext_resource type="Script" uid="uid://cogtw56d6pcwk" path="res://inventory/menu/PrimaryWeaponInfo.cs" id="16_wpnfo"]
+[ext_resource type="Script" uid="uid://cugk52p23i4y" path="res://spawning/EnemySpawner.cs" id="17_spwnr"]
+
+[sub_resource type="GDScript" id="GDScript_ic0uy"]
+script/source = "extends Node
+
+@onready var main_menu = get_node_or_null(\"CanvasLayer/MainMenu\")
+@onready var address_entry = get_node_or_null(\"CanvasLayer/MainMenu/MarginContainer/VBoxContainer/AddressEntry\")
+@onready var hud = get_node_or_null(\"CanvasLayer/HUD\")
+@onready var health_bar = get_node_or_null(\"CanvasLayer/HUD/HealthBar\")
+
+func _unhandled_input(_event):
+	if Input.is_action_just_pressed(\"quit\"):
+		get_tree().quit()
+
+func _on_host_button_pressed():
+	if main_menu:
+		main_menu.hide()
+	if hud:
+		hud.show()
+
+func update_health_bar(health_value):
+	if health_bar:
+		health_bar.value = health_value
+"
 
 [sub_resource type="PhysicalSkyMaterial" id="PhysicalSkyMaterial_k3n1d"]
 rayleigh_color = Color(0.180857, 0.256698, 0.398178, 1)
@@ -46,11 +72,18 @@ volumetric_fog_emission = Color(0.298608, 0.357493, 0.507151, 1)
 volumetric_fog_anisotropy = 0.9
 volumetric_fog_ambient_inject = 1.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l8uhh"]
-bg_color = Color(0.6, 0.6, 0.6, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_w1h00"]
-bg_color = Color(0.6, 0.6, 0.6, 0)
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_inv"]
+content_margin_left = 16.0
+content_margin_top = 16.0
+content_margin_right = 16.0
+content_margin_bottom = 16.0
+texture = ExtResource("14_nptex")
+texture_margin_left = 18.0
+texture_margin_top = 18.0
+texture_margin_right = 18.0
+texture_margin_bottom = 18.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_k3n1d"]
 noise_type = 0
@@ -116,8 +149,11 @@ noise = SubResource("FastNoiseLite_2o6r5")
 [sub_resource type="FogMaterial" id="FogMaterial_2o6r5"]
 density_texture = SubResource("NoiseTexture3D_70uel")
 
-[node name="World" type="Node"]
-script = ExtResource("1_6tkge")
+[node name="World2" type="Node"]
+script = SubResource("GDScript_ic0uy")
+
+[node name="BulletManager" type="Node3D" parent="."]
+script = ExtResource("12_bmngr")
 
 [node name="Player" parent="." instance=ExtResource("5_taioi")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.12916, 3.88055, -7.5407)
@@ -133,144 +169,47 @@ sky_mode = 1
 environment = SubResource("Environment_6knbf")
 
 [node name="MenuCanvas" type="CanvasLayer" parent="."]
+layer = 2
 script = ExtResource("3_nmfmg")
 
-[node name="Panel" type="Panel" parent="MenuCanvas"]
-offset_left = 55.0
-offset_top = 8.0
-offset_right = 1883.0
-offset_bottom = 1080.0
-scale = Vector2(0.953259, 1.00551)
+[node name="MenuRoot" type="MarginContainer" parent="MenuCanvas"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
 
-[node name="WeaponInventoryDisplay" type="Panel" parent="MenuCanvas/Panel"]
-layout_mode = 0
-offset_left = 179.0
-offset_top = 97.0
-offset_right = 874.0
-offset_bottom = 320.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_l8uhh")
+[node name="VBox" type="VBoxContainer" parent="MenuCanvas/MenuRoot"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PrimaryWeaponInfo" type="PanelContainer" parent="MenuCanvas/MenuRoot/VBox"]
+texture_filter = 1
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
+script = ExtResource("16_wpnfo")
+
+[node name="WeaponInventoryDisplay" type="Panel" parent="MenuCanvas/MenuRoot/VBox"]
+texture_filter = 1
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
 script = ExtResource("5_vq0ba")
 
-[node name="InventoryStack" type="Panel" parent="MenuCanvas/Panel"]
-layout_mode = 0
-offset_left = 180.434
-offset_top = 315.263
-offset_right = 875.434
-offset_bottom = 551.263
-theme_override_styles/panel = SubResource("StyleBoxFlat_w1h00")
+[node name="InventoryStack" type="Panel" parent="MenuCanvas/MenuRoot/VBox"]
+texture_filter = 1
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
 script = ExtResource("6_6wwjs")
 
-[node name="Enemy" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.33654, 2.67685, 7.20841)
-PistolScene = null
-
-[node name="Enemy3" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.63554, 2.67685, -4.15179)
-PistolScene = null
-
-[node name="Enemy2" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.33654, 2.67685, 2.69261)
-PistolScene = null
-
-[node name="Enemy4" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.64436, 2.67685, -4.15179)
-PistolScene = null
-
-[node name="Enemy5" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.83774, 2.62135, 6.7854)
-PistolScene = null
-
-[node name="Enemy6" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.736561, 4.28605, 1.7872)
-PistolScene = null
-
-[node name="Enemy7" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.16986, 2.67685, 2.69261)
-PistolScene = null
-
-[node name="Enemy8" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.2537, 10.6704, -4.15179)
-PistolScene = null
-
-[node name="Enemy9" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, 7.20841)
-PistolScene = null
-
-[node name="Enemy10" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 170.807, 5.41359, 10.2714)
-PistolScene = null
-
-[node name="Enemy25" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 217.258, 5.41359, 10.2714)
-PistolScene = null
-
-[node name="Enemy26" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 217.258, 5.41359, 34.2559)
-PistolScene = null
-
-[node name="Enemy27" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(-0.981932, -0.189233, 0, 0.189233, -0.981932, 0, 0, 0, 1, 217.258, 5.41359, -6.12304)
-PistolScene = null
-
-[node name="Enemy28" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(-0.981932, -0.189233, 0, 0.189233, -0.981932, 0, 0, 0, 1, 217.258, 5.41359, -6.12304)
-PistolScene = null
-
-[node name="Enemy11" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, 2.69261)
-PistolScene = null
-
-[node name="Enemy12" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.88966, 2.67685, -4.15179)
-PistolScene = null
-
-[node name="Enemy13" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.40756, 2.62135, 6.7854)
-PistolScene = null
-
-[node name="Enemy14" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.98196, 4.28605, 1.7872)
-PistolScene = null
-
-[node name="Enemy15" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.4152, 2.67685, 2.69261)
-PistolScene = null
-
-[node name="Enemy16" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.00844, 10.6704, -4.15179)
-PistolScene = null
-
-[node name="Enemy17" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, -1.3546)
-PistolScene = null
-
-[node name="Enemy18" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.60976, 2.67685, -12.7148)
-PistolScene = null
-
-[node name="Enemy19" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.09124, 2.67685, -5.87039)
-PistolScene = null
-
-[node name="Enemy20" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.88966, 2.67685, -12.7148)
-PistolScene = null
-
-[node name="Enemy21" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.40756, 2.62135, -1.77759)
-PistolScene = null
-
-[node name="Enemy22" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.98196, 4.28605, -6.77579)
-PistolScene = null
-
-[node name="Enemy23" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.4152, 2.67685, -5.87039)
-PistolScene = null
-
-[node name="Enemy24" parent="." instance=ExtResource("4_xr0ro")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.00844, 10.6704, -12.7148)
-PistolScene = null
+[node name="EnemySpawner" type="Node3D" parent="."]
+script = ExtResource("17_spwnr")
+EnemyScene = ExtResource("4_xr0ro")
 
 [node name="Islands" parent="." instance=ExtResource("11_ic0uy")]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -0.168314, 0.28594, -2.15489)
@@ -302,46 +241,95 @@ LightRange = 8.0
 
 [node name="GameUI" type="CanvasLayer" parent="." node_paths=PackedStringArray("InteractionLabel", "ComboLabel", "MoneyCounter")]
 script = ExtResource("7_gbfbk")
-InteractionLabel = NodePath("InteractionLabel")
-ComboLabel = NodePath("ComboLabel")
-MoneyCounter = NodePath("MoneyCounter")
+InteractionLabel = NodePath("UIRoot/BottomCenter/Center/InteractionLabel")
+ComboLabel = NodePath("UIRoot/TopCenter/Center/ComboWrapper/ComboLabel")
+MoneyCounter = NodePath("UIRoot/BottomRight/MoneyCounter")
 
-[node name="InteractionLabel" type="RichTextLabel" parent="GameUI"]
-anchors_preset = -1
-anchor_left = 0.284
-anchor_top = 0.392
-anchor_right = 0.687
-anchor_bottom = 0.801
-offset_left = 256.72
-offset_top = 200.64
-offset_right = 93.96
-offset_bottom = -124.08
-theme_override_fonts/normal_font = ExtResource("8_ic0uy")
-
-[node name="Crosshair" type="Control" parent="GameUI"]
+[node name="UIRoot" type="Control" parent="GameUI"]
 layout_mode = 3
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Center" type="CenterContainer" parent="GameUI/UIRoot"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Crosshair" type="Control" parent="GameUI/UIRoot/Center"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+mouse_filter = 2
 script = ExtResource("8_ioo17")
 
-[node name="ComboLabel" type="RichTextLabel" parent="GameUI"]
-offset_left = 704.0
-offset_top = 136.0
-offset_right = 1104.0
-offset_bottom = 336.0
-scale = Vector2(1.08, 1)
-pivot_offset = Vector2(200, 100)
+[node name="TopCenter" type="MarginContainer" parent="GameUI/UIRoot"]
+layout_mode = 0
+anchor_right = 1.0
+offset_top = 10.0
+offset_bottom = 90.0
+mouse_filter = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 0
+
+[node name="Center" type="CenterContainer" parent="GameUI/UIRoot/TopCenter"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ComboWrapper" type="Control" parent="GameUI/UIRoot/TopCenter/Center"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ComboLabel" type="RichTextLabel" parent="GameUI/UIRoot/TopCenter/Center/ComboWrapper"]
+layout_mode = 0
+mouse_filter = 2
 theme_override_fonts/normal_font = ExtResource("8_ic0uy")
 theme_override_font_sizes/normal_font_size = 40
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="MoneyCounter" type="RichTextLabel" parent="GameUI"]
-offset_left = 1505.0
-offset_top = 890.0
-offset_right = 1719.0
-offset_bottom = 987.0
+[node name="BottomCenter" type="MarginContainer" parent="GameUI/UIRoot"]
+layout_mode = 0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -100.0
+offset_bottom = -20.0
+mouse_filter = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 0
+
+[node name="Center" type="CenterContainer" parent="GameUI/UIRoot/BottomCenter"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="InteractionLabel" type="RichTextLabel" parent="GameUI/UIRoot/BottomCenter/Center"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_fonts/normal_font = ExtResource("8_ic0uy")
+
+[node name="BottomRight" type="MarginContainer" parent="GameUI/UIRoot"]
+layout_mode = 0
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -110.0
+offset_right = -20.0
+offset_bottom = -20.0
+mouse_filter = 2
+
+[node name="MoneyCounter" type="RichTextLabel" parent="GameUI/UIRoot/BottomRight"]
+layout_mode = 2
+mouse_filter = 2
 theme_override_fonts/normal_font = ExtResource("8_ic0uy")
 theme_override_font_sizes/normal_font_size = 40
 text = "0"

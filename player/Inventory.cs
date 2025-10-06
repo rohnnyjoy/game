@@ -6,7 +6,7 @@ public partial class Inventory : Node
   [Signal]
   public delegate void InventoryChangedEventHandler();
 
-  private Weapon _primaryWeapon = GD.Load<PackedScene>("res://weapons/shotgun/Shotgun.tscn").Instantiate<Weapon>();
+  private Weapon _primaryWeapon = GD.Load<PackedScene>("res://weapons/ol_reliable/OlReliable.tscn").Instantiate<Weapon>();
   private Array<WeaponModule> _weaponModules = new()
     {
         new ScatterModule(),
@@ -50,8 +50,6 @@ public partial class Inventory : Node
 
   public void OnEnemyDied()
   {
-    GD.Print("Enemy died");
-    GlobalEvents.Instance.EmitMoneyUpdated(Money, Money + 50);
-    Money += 50;
+    // Coin pickups now handle money awards; no direct grant on enemy death.
   }
 }

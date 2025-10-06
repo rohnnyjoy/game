@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="game"
-run/main_scene="res://world.tscn"
+run/main_scene="uid://c1hm21emmpq"
 config/features=PackedStringArray("4.4", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -93,7 +93,6 @@ jump={
 
 [physics]
 
-common/max_physics_steps_per_frame=32
 3d/physics_engine="Jolt Physics"
 jolt_physics_3d/simulation/penetration_slop=0.00105
 3d/solver/solver_iterations=32

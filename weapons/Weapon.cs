@@ -7,7 +7,20 @@ using System.Linq;
 public partial class Weapon : Node3D
 {
   [Export] public Array<WeaponModule> ImmutableModules { get; set; }
-  [Export] public Array<WeaponModule> Modules { get; set; } = new();
+
+  private Array<WeaponModule> _modules = new();
+  public event Action ModulesChanged;
+
+  [Export]
+  public Array<WeaponModule> Modules
+  {
+    get => _modules;
+    set
+    {
+      _modules = value ?? new Array<WeaponModule>();
+      ModulesChanged?.Invoke();
+    }
+  }
   [Export] public float FireRate { get; set; } = 0.5f;
   [Export] public float ReloadSpeed { get; set; } = 2f;
   [Export] public int Ammo { get; set; } = 10;
@@ -21,6 +34,8 @@ public partial class Weapon : Node3D
   public override void _Ready()
   {
     CurrentAmmo = GetAmmo();
+    // Allow managers to discover weapons generically
+    AddToGroup("weapons");
   }
 
   public virtual void OnPress()

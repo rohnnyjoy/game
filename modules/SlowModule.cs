@@ -8,7 +8,7 @@ public partial class SlowModule : WeaponModule
   public SlowModule()
   {
     // Initialize the module description when the node is ready.
-    CardTexture = GD.Load<Texture2D>("res://icons/slow.png");
+    CardTexture = IconAtlas.MakeItemsIcon(8); // slow
     Rarity = Rarity.Common;
     ModuleDescription = "Bullets move slower, but do more damage.";
   }

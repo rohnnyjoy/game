@@ -11,9 +11,9 @@ public partial class HomingModule : WeaponModule
 
   public HomingModule()
   {
-    CardTexture = GD.Load<Texture2D>("res://icons/homing.png");
+    CardTexture = IconAtlas.MakeItemsIcon(6); // homing
     ModuleDescription = "Attacks home in on the nearest enemy within 10m.";
-    Rarity = Rarity.Epic;
+    Rarity = Rarity.Legendary;
     BulletModifiers.Add(new HomingBulletModifier());
   }
 }

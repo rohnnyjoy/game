@@ -14,7 +14,7 @@ public partial class ExplosiveModule : WeaponModule
   public ExplosiveModule()
   {
     // Set the module’s card texture and description.
-    CardTexture = GD.Load<Texture2D>("res://icons/explosive.png");
+    CardTexture = IconAtlas.MakeItemsIcon(5); // explosive
     ModuleDescription = "Attacks explode on impact, dealing 25% damage in a 2-meter radius.";
     Rarity = Rarity.Uncommon;
     BulletModifiers.Add(new ExplosiveBulletModifier());

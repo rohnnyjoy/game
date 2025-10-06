@@ -5,8 +5,19 @@ using System.Linq;
 
 public partial class WeaponModuleCard2D : Card2D
 {
+  private static System.Collections.Generic.Dictionary<WeaponModule, WeaponModuleCard2D> _registry = new System.Collections.Generic.Dictionary<WeaponModule, WeaponModuleCard2D>();
+
   [Export]
   public WeaponModule Module { get; set; }
+
+  public override void _EnterTree()
+  {
+    base._EnterTree();
+    if (Module != null)
+    {
+      _registry[Module] = this;
+    }
+  }
 
   public override void _Ready()
   {
@@ -14,8 +25,27 @@ public partial class WeaponModuleCard2D : Card2D
     CardCore = new CardCore();
     CardCore.CardTexture = Module.CardTexture;
     CardCore.CardDescription = Module.ModuleDescription;
-    GD.Print(Module.CardTexture);
+    // Use manual drag for Balatro-style reordering inside stacks.
+    UseDnD = false;
     base._Ready();
+  }
+
+  public override void _ExitTree()
+  {
+    if (Module != null && _registry.TryGetValue(Module, out var existing) && existing == this)
+      _registry.Remove(Module);
+    base._ExitTree();
+  }
+
+  public static bool TryGetForModule(WeaponModule module, out WeaponModuleCard2D card)
+  {
+    if (module != null && _registry.TryGetValue(module, out var c))
+    {
+      card = c;
+      return true;
+    }
+    card = null;
+    return false;
   }
 
   protected override void OnDroppedOutsideStacks()
@@ -36,10 +66,7 @@ public partial class WeaponModuleCard2D : Card2D
       newPrimaryWeapon.Modules = newModules;
       Player.Instance.Inventory.PrimaryWeapon = newPrimaryWeapon;
     }
-    else
-    {
-      GD.PrintErr("Dropped outside of stacks, but parent is not a stack, it is: " + parent);
-    }
+    else { }
   }
 
   private void ConvertTo3D()

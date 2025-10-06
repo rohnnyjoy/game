@@ -8,11 +8,12 @@ public partial class Crosshair : Control
     QueueRedraw();
   }
 
+  // No per-frame logic needed
+
   public override void _Draw()
   {
-    // Get the viewport's visible rectangle to determine the center.
-    Rect2 viewportRect = GetViewport().GetVisibleRect();
-    Vector2 center = viewportRect.Size / 2;
+    // Draw centered relative to this control's rect.
+    Vector2 center = Size / 2;
 
     // Define crosshair properties.
     int lineLength = 10;

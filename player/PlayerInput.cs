@@ -31,9 +31,16 @@ public class PlayerInput
 
   public void HandleInput(InputEvent @event)
   {
+    // Guard: When the inventory/menu is open we shouldn't process combat inputs.
+    // Without this, left-click drags in the UI still trigger the global "shoot"
+    // action, causing very high fire rates (e.g., Microgun) to flood updates
+    // and stall frames during drag-and-drop. Blocking here keeps gameplay input
+    // decoupled from UI interactions.
+    if (GlobalEvents.Instance != null && GlobalEvents.Instance.MenuOpen)
+      return;
+
     if (Input.IsActionJustPressed("shoot"))
     {
-      GD.Print("Shooting");
       player.CurrentWeapon?.OnPress();
     }
     else if (Input.IsActionJustReleased("shoot"))

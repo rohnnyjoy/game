@@ -14,11 +14,6 @@ public partial class OlReliableModule : WeaponModule
     return 40;
   }
 
-  public override float GetModifiedFireRate(float fireRate)
-  {
-    return 0.2f;
-  }
-
   public override float GetModifiedAccuracy(float accuracy)
   {
     return 1;

@@ -13,7 +13,7 @@ public partial class BouncingModule : WeaponModule
 
   public BouncingModule()
   {
-    CardTexture = GD.Load<Texture2D>("res://icons/bouncing.png");
+    CardTexture = IconAtlas.MakeItemsIcon(0); // bounce
     ModuleDescription = "Bullets bounce off surfaces, reducing damage with each bounce.";
     Rarity = Rarity.Rare;
     BulletModifiers.Add(new BouncingBulletModifier());

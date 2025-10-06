@@ -35,8 +35,6 @@ public partial class WeaponModuleCard3D : Card3D
     {
         Module
     };
-    GD.Print("Old modules: ", Player.Instance.Inventory.WeaponModules,
-        "New modules: ", newModules);
     Player.Instance.Inventory.WeaponModules = newModules;
     QueueFree();
   }

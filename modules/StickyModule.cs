@@ -15,7 +15,7 @@ public partial class StickyModule : WeaponModule
 
   public StickyModule()
   {
-    CardTexture = GD.Load<Texture2D>("res://icons/sticky.png");
+    CardTexture = IconAtlas.MakeItemsIcon(4); // sticky
     ModuleDescription = "Bullets stick to surfaces and enemies, detonating after a short delay.";
     Rarity = Rarity.Common;
     BulletModifiers.Add(new StickyBulletModifier());

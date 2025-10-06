@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://dpjwh5s4b4die"]
 
 [ext_resource type="Script" uid="uid://db4e34p0p1tgn" path="res://weapons/BulletWeapon.cs" id="1_1fapk"]
-[ext_resource type="PackedScene" uid="uid://7des0y8vwq0i" path="res://bullets/modifiers/BasicBullet.tscn" id="2_umqxk"]
+[ext_resource type="PackedScene" uid="uid://7des0y8vwq0i" path="res://bullets/basic_bullet/BasicBullet.tscn" id="2_umqxk"]
 [ext_resource type="PackedScene" uid="uid://bw5igtpk11dw5" path="res://weapons/shared/muzzle_flashes/basic_muzzle_flash/BasicMuzzleFlash.tscn" id="3_7or8t"]
 [ext_resource type="Resource" uid="uid://b5e0wnjpf3i4l" path="res://weapons/shotgun/shotgun_scatter_module.tres" id="3_oy8te"]
 [ext_resource type="PackedScene" uid="uid://dgf7rmt4wy7ve" path="res://weapons/shotgun/shotgun.glb" id="4_oy8te"]
@@ -13,7 +13,8 @@ MuzzleFlash = ExtResource("3_7or8t")
 GunRecoilRotation = 5.0
 GunRecoilKickback = 0.4
 ImmutableModules = Array[Resource]([ExtResource("3_oy8te")])
-Ammo = 4
+FireRate = 0.02
+Ammo = 100
 BulletSpeed = 60.0
 
 [node name="Sketchfab_Scene" parent="." instance=ExtResource("4_oy8te")]

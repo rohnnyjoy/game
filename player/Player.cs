@@ -15,7 +15,7 @@ public partial class Player : CharacterBody3D
   public float JumpBufferTimer { get; set; }
   public int JumpsRemaining { get; set; }
   public bool IsSliding { get; set; }
-  public Vector3 Velocity
+  public new Vector3 Velocity
   {
     get => base.Velocity;
     set => base.Velocity = value;
@@ -29,7 +29,6 @@ public partial class Player : CharacterBody3D
 
   public override void _Ready()
   {
-    GD.Print("Player ready");
     Instance = this;
     WeaponHolder = GetNode<WeaponHolder>(WeaponHolderPath);
     CameraShake = GetNode<CameraShake>(CameraShakePath);
@@ -55,7 +54,6 @@ public partial class Player : CharacterBody3D
 
   private void EquipDefaultWeapon()
   {
-    GD.Print("Equipping default weapon");
     if (Inventory?.PrimaryWeapon != null)
     {
       CurrentWeapon = Inventory.PrimaryWeapon;

@@ -115,7 +115,7 @@ public partial class RibbonTrailEmitter : Node3D
     UpdateMesh();
   }
 
-  private void AddPoint(Transform3D transform)
+  public void AddPoint(Transform3D transform)
   {
     _points.Add(new TrailPoint(transform, Lifetime));
   }
@@ -265,5 +265,10 @@ public partial class RibbonTrailEmitter : Node3D
     Mesh mesh = st.Commit();
     if (mesh != null)
       _meshInstance.Mesh = mesh;
+  }
+
+  public void Reset()
+  {
+    _points.Clear();
   }
 }

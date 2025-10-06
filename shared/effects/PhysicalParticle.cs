@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using Godot.Collections; // For Godot.Collections.Array
+#nullable enable
 
 public partial class PhysicalParticle : RigidBody3D
 {
@@ -144,7 +145,7 @@ public partial class PhysicalParticle : RigidBody3D
     AddChild(particleTrail);
 
     // Set up a timer to remove this particle after its lifetime expires.
-    var timer = new Timer();
+    var timer = new Godot.Timer();
     timer.WaitTime = LifeTime;
     timer.OneShot = true;
     timer.Autostart = true;

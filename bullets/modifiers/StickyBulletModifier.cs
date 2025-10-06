@@ -66,11 +66,17 @@ public partial class StickyBulletModifier : BulletModifier
 
     try
     {
-      // If the collider is an enemy, apply damage.
+      // If the collider is an enemy, apply damage and emit global events
       if (collision.Collider != null && collision.Collider.IsInGroup("enemies"))
       {
         if (IsInstanceValid(collision.Collider))
+        {
           collision.Collider.Call("take_damage", CollisionDamage);
+          Vector3 impactDir = bullet.Velocity.LengthSquared() > 0.000001f ? bullet.Velocity.Normalized() : (collision.Normal != Vector3.Zero ? -collision.Normal.Normalized() : Vector3.Forward);
+          impactDir = new Vector3(impactDir.X, 0.15f * impactDir.Y, impactDir.Z).Normalized();
+          GlobalEvents.Instance?.EmitDamageDealt(collision.Collider, CollisionDamage, impactDir * MathF.Max(0.0f, bullet.KnockbackStrength));
+          GlobalEvents.Instance?.EmitImpactOccurred(collision.Position, collision.Normal, impactDir);
+        }
       }
 
       // Save the bullet's original velocity.

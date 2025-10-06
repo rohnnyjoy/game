@@ -21,12 +21,17 @@ public partial class Card2D : Button
   public float MaxAngle { get; set; } = 15.0f;
   [Export]
   public float DragSpeed { get; set; } = 0.3f;
+  [Export]
+  public bool UseDnD { get; set; } = true;
 
   // Internal variables.
   protected bool _pickedUp = false;
   private Vector2 _offset = Vector2.Zero;
   private Vector2 _lastPos;
   private float _targetRotation = 0.0f;
+  private IFramedCardStack _framedOwner; // Optional: owning framed stack managing placeholder logic
+  private Vector2 _localDragOffset = Vector2.Zero;
+  private bool _hasLocalDragOffset = false;
 
   // Oscillator variables.
   private float _oscillatorVelocity = 0.0f;
@@ -55,21 +60,37 @@ public partial class Card2D : Button
     MouseFilter = MouseFilterEnum.Stop;
     _lastPos = Position;
 
+    // Make the card background fully transparent for all states.
+    var empty = new StyleBoxEmpty();
+    AddThemeStyleboxOverride("normal", empty);
+    AddThemeStyleboxOverride("pressed", empty);
+    AddThemeStyleboxOverride("hover", empty);
+
+    // If a texture is provided, render it via a TextureRect to preserve transparency.
     if (CardCore.CardTexture != null)
     {
-      var styleBox = new StyleBoxTexture();
-      styleBox.Texture = CardCore.CardTexture;
-      AddThemeStyleboxOverride("normal", styleBox);
-      AddThemeStyleboxOverride("pressed", styleBox);
-      AddThemeStyleboxOverride("hover", styleBox);
-    }
-    else
-    {
-      var styleBox = new StyleBoxFlat();
-      styleBox.BgColor = CardCore.CardColor;
-      AddThemeStyleboxOverride("normal", styleBox);
-      AddThemeStyleboxOverride("pressed", styleBox);
-      AddThemeStyleboxOverride("hover", styleBox);
+      var icon = new TextureRect();
+      icon.Name = "CardIcon";
+      icon.Texture = CardCore.CardTexture;
+      icon.MouseFilter = MouseFilterEnum.Ignore;
+      icon.SetAnchorsPreset(LayoutPreset.FullRect);
+
+      // Use centered square icon for atlases; cover for full-art textures.
+      if (CardCore.CardTexture is AtlasTexture)
+      {
+        icon.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
+        float pad = Mathf.Min(CardCore.CardSize.X, CardCore.CardSize.Y) * 0.1f;
+        icon.OffsetLeft = pad;
+        icon.OffsetTop = pad;
+        icon.OffsetRight = -pad;
+        icon.OffsetBottom = -pad;
+      }
+      else
+      {
+        icon.StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered;
+      }
+
+      AddChild(icon);
     }
 
     MouseEntered += OnMouseEntered;
@@ -81,6 +102,22 @@ public partial class Card2D : Button
     float dt = (float)delta;
     if (_pickedUp)
     {
+      // Ensure dragged card follows the cursor even if GUI input routing changes due to reparenting.
+      if (TopLevel)
+      {
+        Vector2 targetPos = GetGlobalMousePosition() + _offset;
+        GlobalPosition = GlobalPosition.Lerp(targetPos, DragSpeed);
+      }
+      else if (_hasLocalDragOffset && GetParent() is Control pc)
+      {
+        Vector2 targetPosLocal = pc.GetLocalMousePosition() + _localDragOffset;
+        Position = Position.Lerp(targetPosLocal, DragSpeed);
+      }
+      else
+      {
+        Vector2 targetPos = GetGlobalMousePosition() + _offset;
+        GlobalPosition = GlobalPosition.Lerp(targetPos, DragSpeed);
+      }
       UpdateOscillator(dt);
       RotationDegrees = Mathf.Lerp(RotationDegrees, _displacement, RotationFollowSpeed * dt);
     }
@@ -105,6 +142,19 @@ public partial class Card2D : Button
 
   public override void _GuiInput(InputEvent @event)
   {
+    if (UseDnD)
+    {
+      // With DnD enabled, let Godot handle drag; keep hover rotation only
+      if (@event is InputEventMouseMotion mouseMotion)
+      {
+        Vector2 localMouse = GetLocalMousePosition();
+        _targetRotation = Remap(localMouse.X, 0.0f, CardCore.CardSize.X, -MaxAngle, MaxAngle);
+        _targetRotation = Mathf.Lerp(_targetRotation, mouseMotion.Relative.X * RotationSensitivity, RotationLerpFactor);
+        _targetRotation = Mathf.Clamp(_targetRotation, -MaxAngle, MaxAngle);
+      }
+      return;
+    }
+
     if (@event is InputEventMouseButton mouseButton)
     {
       if (mouseButton.ButtonIndex == MouseButton.Left)
@@ -119,8 +169,21 @@ public partial class Card2D : Button
     {
       if (_pickedUp)
       {
-        Vector2 targetPos = GetGlobalMousePosition() + _offset;
-        GlobalPosition = GlobalPosition.Lerp(targetPos, DragSpeed);
+        if (TopLevel)
+        {
+          Vector2 targetPos = GetGlobalMousePosition() + _offset;
+          GlobalPosition = GlobalPosition.Lerp(targetPos, DragSpeed);
+        }
+        else if (_hasLocalDragOffset && GetParent() is Control pc)
+        {
+          Vector2 targetPosLocal = pc.GetLocalMousePosition() + _localDragOffset;
+          Position = Position.Lerp(targetPosLocal, DragSpeed);
+        }
+        else
+        {
+          Vector2 targetPos = GetGlobalMousePosition() + _offset;
+          GlobalPosition = GlobalPosition.Lerp(targetPos, DragSpeed);
+        }
       }
       else
       {
@@ -145,44 +208,99 @@ public partial class Card2D : Button
     Tween tween = CreateTween();
     tween.TweenProperty(this, "scale", new Vector2(1.1f, 1.1f), 0.1f);
     TooltipText = "";
+
+    // Notify containing framed stack (if any) to begin placeholder-based drag handling.
+    _framedOwner = FindFramedOwner();
+    if (_framedOwner != null)
+    {
+      var fromFrame = FindParentSlotFrame();
+      if (fromFrame != null)
+      {
+        _framedOwner.BeginCardDrag(this, fromFrame, GetGlobalMousePosition());
+        // After the stack has reparented/top-leveled us, recompute drag offset
+        RecomputeDragOffset();
+      }
+    }
   }
 
-  protected async void OnDragEnd()
+  protected void OnDragEnd()
   {
-    GD.Print("Card dropped.");
+    if (!_pickedUp)
+      return;
     _pickedUp = false;
     ZIndex = 0;
     Card2D.CurrentlyDragged = null;
 
-    Node targetStack = null;
-    foreach (Node stack in GetTree().GetNodesInGroup("CardStacks"))
+    // If a framed owner is managing this drag, let it finalize the drop logic.
+    bool handledByFramed = false;
+    if (_framedOwner != null)
     {
-      if (stack is Control control && control.GetGlobalRect().HasPoint(GetGlobalMousePosition()))
+      handledByFramed = _framedOwner.EndCardDrag(this, GetGlobalMousePosition());
+      _framedOwner = null;
+    }
+    if (!handledByFramed)
+    {
+      // Try framed stacks first for cross-stack drops
+      Node framedTarget = null;
+      foreach (Node stack in GetTree().GetNodesInGroup("CardStacks"))
       {
-        targetStack = stack;
-        break;
+        if (stack is Control control && control.GetGlobalRect().HasPoint(GetGlobalMousePosition()))
+        {
+          framedTarget = stack;
+          break;
+        }
+      }
+
+      bool framedHandled = false;
+      if (framedTarget is IFramedCardStack fstack)
+      {
+        framedHandled = fstack.AcceptExternalDrop(this, GetGlobalMousePosition());
+      }
+
+      if (!framedHandled)
+      {
+        // If a framed stack has already restored/adopted this card during its
+        // EndCardDrag (e.g., cancel/snap-back), avoid treating this as an outside
+        // drop. In that case, we are already back under a framed owner and should
+        // not convert to 3D.
+        if (FindFramedOwner() is IFramedCardStack)
+        {
+          return;
+        }
+
+        // Fallback: legacy drop scanning for plain CardStack parents.
+        if (framedTarget is CardStack newStack)
+        {
+          Vector2 targetGlobalPos = GetGlobalMousePosition() + _offset;
+          Vector2 dropLocalPos = targetGlobalPos - newStack.GetGlobalRect().Position;
+          newStack.CallDeferred("OnCardDrop", this, dropLocalPos);
+        }
+        else if (GetParent() is CardStack parentStack)
+        {
+          OnDroppedOutsideStacks();
+        }
       }
     }
 
-    if (targetStack != null)
-    {
-      if (targetStack is CardStack newStack)
-      {
-        Vector2 targetGlobalPos = GetGlobalMousePosition() + _offset;
-        Vector2 dropLocalPos = targetGlobalPos - newStack.GetGlobalRect().Position;
-        newStack.OnCardDrop(this, dropLocalPos);
-      }
-    }
-    else
-    {
-      if (GetParent() is CardStack parentStack)
-        OnDroppedOutsideStacks();
-    }
+    // Return to normal hierarchy mode after drag completes
+    TopLevel = false;
 
-    await ToSignal(GetTree().CreateTimer(0.05f), "timeout");
     ResetScale();
     if (GetGlobalRect().HasPoint(GetGlobalMousePosition()))
       OnMouseEntered();
+  }
+
+  public override void _UnhandledInput(InputEvent @event)
+  {
+    // Safety net: if the release doesn't reach _GuiInput due to reparenting/top-level changes,
+    // capture it here and end the drag cleanly.
+    if (@event is InputEventMouseButton mouseButton)
+    {
+      if (mouseButton.ButtonIndex == MouseButton.Left && !mouseButton.Pressed && _pickedUp)
+      {
+        OnDragEnd();
+      }
+    }
   }
 
   protected virtual void OnDroppedOutsideStacks() { }
@@ -220,5 +338,66 @@ public partial class Card2D : Button
   private float Remap(float value, float from1, float to1, float from2, float to2)
   {
     return from2 + (value - from1) * (to2 - from2) / (to1 - from1);
+  }
+
+  public override Variant _GetDragData(Vector2 atPosition)
+  {
+    if (!UseDnD) return new Variant();
+
+    var data = new Godot.Collections.Dictionary
+    {
+      { "card", this }
+    };
+
+    // Simple preview using the card's texture if present
+    Control preview = new Control();
+    preview.CustomMinimumSize = CardCore != null ? CardCore.CardSize : new Vector2(100, 100);
+    if (CardCore?.CardTexture != null)
+    {
+      var tex = new TextureRect
+      {
+        Texture = CardCore.CardTexture,
+        StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered
+      };
+      tex.SetAnchorsPreset(LayoutPreset.FullRect);
+      preview.AddChild(tex);
+    }
+    SetDragPreview(preview);
+    return data;
+  }
+
+  private IFramedCardStack FindFramedOwner()
+  {
+    Node n = this;
+    while (n != null)
+    {
+      if (n is IFramedCardStack fcs)
+        return fcs;
+      n = n.GetParent();
+    }
+    return null;
+  }
+
+  private SlotFrame FindParentSlotFrame()
+  {
+    Node n = this;
+    while (n != null)
+    {
+      if (n is SlotFrame sf)
+        return sf;
+      n = n.GetParent();
+    }
+    return null;
+  }
+
+  public void RecomputeDragOffset()
+  {
+    _offset = GlobalPosition - GetGlobalMousePosition();
+    _hasLocalDragOffset = false;
+    if (!TopLevel && GetParent() is Control pc)
+    {
+      _localDragOffset = Position - pc.GetLocalMousePosition();
+      _hasLocalDragOffset = true;
+    }
   }
 }

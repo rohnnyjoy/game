@@ -16,7 +16,7 @@ public partial class HomingBulletModifier : BulletModifier
       return;
     }
 
-    if ((bool)bullet.GetMeta("is_sticky"))
+    if (bullet.HasMeta("is_sticky") && (bool)bullet.GetMeta("is_sticky"))
     {
       return;
     }

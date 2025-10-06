@@ -15,6 +15,9 @@ public partial class ShopItem : WeaponModuleCard3D
     // Create a Label3D to display the price and configure it.
     priceLabel = new Label3D();
     priceLabel.Text = "$" + Price.ToString();
+    // Ensure shop price uses the global UI font
+    var uiFont = GD.Load<FontFile>("res://assets/fonts/Born2bSportyV2.ttf");
+    if (uiFont != null) priceLabel.Font = uiFont;
     // Adjust the position so it appears to hover above the card.
     priceLabel.Position = new Vector3(0, 2, 0); // tweak as needed for your scene
     AddChild(priceLabel);
@@ -37,21 +40,12 @@ public partial class ShopItem : WeaponModuleCard3D
                     Module
                 };
         Player.Instance.Inventory.WeaponModules = newModules;
-        GD.Print("Purchased module: " + Module.ToString());
       }
-      else
-      {
-        GD.Print("No module available for purchase.");
-      }
+      else { }
 
       // Remove the shop item from the scene after purchase.
       QueueFree();
     }
-    else
-    {
-      // Not enough funds; provide feedback.
-      GD.Print("Insufficient funds to purchase this item. Price: $" + Price + " | Current Money: $" + Player.Instance.Inventory.Money);
-      // Optionally, you could play an error sound or display a visual message here.
-    }
+    else { }
   }
 }

@@ -8,7 +8,7 @@ public partial class FastModule : WeaponModule
   public FastModule()
   {
     // Initialize the module description when the node is ready.
-    CardTexture = GD.Load<Texture2D>("res://icons/fast.png");
+    CardTexture = IconAtlas.MakeItemsIcon(7); // speed
     Rarity = Rarity.Common;
     ModuleDescription = "Bullets move faster";
   }

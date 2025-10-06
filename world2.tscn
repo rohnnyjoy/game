@@ -1,0 +1,266 @@
+[gd_scene load_steps=23 format=3 uid="uid://c1hm21emmpq"]
+
+[ext_resource type="PackedScene" uid="uid://kadcr801fqcm" path="res://player/Player.tscn" id="2_hg5vs"]
+[ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_7r24r"]
+[ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://inventory/menu/PrimaryWeaponStack.cs" id="4_fcnjm"]
+[ext_resource type="Script" uid="uid://br7vpr5hwlegd" path="res://inventory/menu/InventoryStack.cs" id="5_7gfau"]
+[ext_resource type="PackedScene" uid="uid://cymxvi3bjj71b" path="res://enemy.tscn" id="6_jaerl"]
+[ext_resource type="Texture2D" uid="uid://b0lwunf48w7gn" path="res://assets/textures/grid.png" id="9_xjnkp"]
+[ext_resource type="Script" uid="uid://cdlg2dks84qds" path="res://GameUi.cs" id="10_08qns"]
+[ext_resource type="FontFile" uid="uid://cpuwdglpinmhy" path="res://shared/fonts/Pixel.ttf" id="11_ryt4s"]
+[ext_resource type="Script" uid="uid://ckhbaxtaa30xu" path="res://Crosshair.cs" id="12_kamru"]
+[ext_resource type="Texture2D" uid="uid://psp3y7idkr4q" path="res://assets/textures/grass.png" id="13_7r24r"]
+[ext_resource type="Script" uid="uid://bhxrowu6uq8vq" path="res://bullets/manager/BulletManager.cs" id="13_bmngr"]
+[ext_resource type="Texture2D" uid="uid://dl2exy6bsks5w" path="res://assets/ui/3x/ninepatch.png" id="14_nptex"]
+[ext_resource type="Script" uid="uid://cogtw56d6pcwk" path="res://inventory/menu/PrimaryWeaponInfo.cs" id="16_wpnfo"]
+[ext_resource type="Script" uid="uid://cugk52p23i4y" path="res://spawning/EnemySpawner.cs" id="17_spwnr"]
+
+[sub_resource type="GDScript" id="GDScript_ic0uy"]
+script/source = "extends Node
+
+@onready var main_menu = get_node_or_null(\"CanvasLayer/MainMenu\")
+@onready var address_entry = get_node_or_null(\"CanvasLayer/MainMenu/MarginContainer/VBoxContainer/AddressEntry\")
+@onready var hud = get_node_or_null(\"CanvasLayer/HUD\")
+@onready var health_bar = get_node_or_null(\"CanvasLayer/HUD/HealthBar\")
+
+func _unhandled_input(_event):
+	if Input.is_action_just_pressed(\"quit\"):
+		get_tree().quit()
+
+func _on_host_button_pressed():
+	if main_menu:
+		main_menu.hide()
+	if hud:
+		hud.show()
+
+func update_health_bar(health_value):
+	if health_bar:
+		health_bar.value = health_value
+"
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_inv"]
+content_margin_left = 16.0
+content_margin_top = 16.0
+content_margin_right = 16.0
+content_margin_bottom = 16.0
+texture = ExtResource("14_nptex")
+texture_margin_left = 18.0
+texture_margin_top = 18.0
+texture_margin_right = 18.0
+texture_margin_bottom = 18.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fcnjm"]
+albedo_texture = ExtResource("13_7r24r")
+uv1_scale = Vector3(20, 20, 20)
+texture_filter = 0
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_xjnkp"]
+size = Vector2(500, 500)
+
+[sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_f5bfu"]
+data = PackedVector3Array(2500, 0, 2500, -2500, 0, 2500, 2500, 0, -2500, -2500, 0, 2500, -2500, 0, -2500, 2500, 0, -2500)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_k023l"]
+albedo_texture = ExtResource("9_xjnkp")
+
+[sub_resource type="BoxMesh" id="BoxMesh_f5bfu"]
+size = Vector3(5, 50, 5)
+
+[sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_7r24r"]
+data = PackedVector3Array(-2.5, 25, 2.5, 2.5, 25, 2.5, -2.5, -25, 2.5, 2.5, 25, 2.5, 2.5, -25, 2.5, -2.5, -25, 2.5, 2.5, 25, -2.5, -2.5, 25, -2.5, 2.5, -25, -2.5, -2.5, 25, -2.5, -2.5, -25, -2.5, 2.5, -25, -2.5, 2.5, 25, 2.5, 2.5, 25, -2.5, 2.5, -25, 2.5, 2.5, 25, -2.5, 2.5, -25, -2.5, 2.5, -25, 2.5, -2.5, 25, -2.5, -2.5, 25, 2.5, -2.5, -25, -2.5, -2.5, 25, 2.5, -2.5, -25, 2.5, -2.5, -25, -2.5, 2.5, 25, 2.5, -2.5, 25, 2.5, 2.5, 25, -2.5, -2.5, 25, 2.5, -2.5, 25, -2.5, 2.5, 25, -2.5, -2.5, -25, 2.5, 2.5, -25, 2.5, -2.5, -25, -2.5, 2.5, -25, 2.5, 2.5, -25, -2.5, -2.5, -25, -2.5)
+
+[node name="World" type="Node"]
+script = SubResource("GDScript_ic0uy")
+
+[node name="BulletManager" type="Node3D" parent="."]
+script = ExtResource("13_bmngr")
+
+[node name="LightmapGI" type="LightmapGI" parent="."]
+bounces = 2
+directional = true
+texel_scale = 0.2
+
+[node name="Player" parent="." instance=ExtResource("2_hg5vs")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.12916, 3.88055, -7.5407)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.866025, -0.433013, 0.25, 0.032571, 0.450081, 0.892394, -0.498938, 0.780978, -0.375678, 133.654, 359.376, -145.03)
+light_intensity_lux = 5.0
+light_energy = 0.05
+light_angular_distance = 0.5
+light_bake_mode = 1
+shadow_enabled = true
+shadow_blur = 4.0
+sky_mode = 1
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="MenuCanvas" type="CanvasLayer" parent="."]
+layer = 2
+script = ExtResource("3_7r24r")
+
+[node name="MenuRoot" type="MarginContainer" parent="MenuCanvas"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="VBox" type="VBoxContainer" parent="MenuCanvas/MenuRoot"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PrimaryWeaponInfo" type="PanelContainer" parent="MenuCanvas/MenuRoot/VBox"]
+texture_filter = 1
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
+script = ExtResource("16_wpnfo")
+
+[node name="WeaponInventoryDisplay" type="Panel" parent="MenuCanvas/MenuRoot/VBox"]
+texture_filter = 1
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
+script = ExtResource("4_fcnjm")
+
+[node name="InventoryStack" type="Panel" parent="MenuCanvas/MenuRoot/VBox"]
+texture_filter = 1
+custom_minimum_size = Vector2(0, 220)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxTexture_inv")
+script = ExtResource("5_7gfau")
+
+[node name="EnemySpawner" type="Node3D" parent="."]
+script = ExtResource("17_spwnr")
+EnemyScene = ExtResource("6_jaerl")
+
+[node name="GameUI" type="CanvasLayer" parent="." node_paths=PackedStringArray("InteractionLabel", "ComboLabel", "MoneyCounter")]
+script = ExtResource("10_08qns")
+InteractionLabel = NodePath("UIRoot/BottomCenter/Center/InteractionLabel")
+ComboLabel = NodePath("UIRoot/TopCenter/Center/ComboWrapper/ComboLabel")
+MoneyCounter = NodePath("UIRoot/BottomRight/MoneyCounter")
+
+[node name="UIRoot" type="Control" parent="GameUI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Center" type="CenterContainer" parent="GameUI/UIRoot"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Crosshair" type="Control" parent="GameUI/UIRoot/Center"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("12_kamru")
+
+[node name="TopCenter" type="MarginContainer" parent="GameUI/UIRoot"]
+layout_mode = 0
+anchor_right = 1.0
+offset_top = 10.0
+offset_bottom = 90.0
+mouse_filter = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 0
+
+[node name="Center" type="CenterContainer" parent="GameUI/UIRoot/TopCenter"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ComboWrapper" type="Control" parent="GameUI/UIRoot/TopCenter/Center"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ComboLabel" type="RichTextLabel" parent="GameUI/UIRoot/TopCenter/Center/ComboWrapper"]
+layout_mode = 0
+mouse_filter = 2
+theme_override_fonts/normal_font = ExtResource("11_ryt4s")
+theme_override_font_sizes/normal_font_size = 40
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BottomCenter" type="MarginContainer" parent="GameUI/UIRoot"]
+layout_mode = 0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -100.0
+offset_bottom = -20.0
+mouse_filter = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 0
+
+[node name="Center" type="CenterContainer" parent="GameUI/UIRoot/BottomCenter"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="InteractionLabel" type="RichTextLabel" parent="GameUI/UIRoot/BottomCenter/Center"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_fonts/normal_font = ExtResource("11_ryt4s")
+
+[node name="BottomRight" type="MarginContainer" parent="GameUI/UIRoot"]
+layout_mode = 0
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -110.0
+offset_right = -20.0
+offset_bottom = -20.0
+mouse_filter = 2
+
+[node name="MoneyCounter" type="RichTextLabel" parent="GameUI/UIRoot/BottomRight"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_fonts/normal_font = ExtResource("11_ryt4s")
+theme_override_font_sizes/normal_font_size = 40
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0399475, -0.152548, 0.0731354)
+material_override = SubResource("StandardMaterial3D_fcnjm")
+mesh = SubResource("PlaneMesh_xjnkp")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+shape = SubResource("ConcavePolygonShape3D_f5bfu")
+
+[node name="StaticBody3D2" type="StaticBody3D" parent="."]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.088974, -1.4682, 13.9519)
+material_override = SubResource("StandardMaterial3D_k023l")
+mesh = SubResource("BoxMesh_f5bfu")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.088974, -1.4682, 13.9519)
+shape = SubResource("ConcavePolygonShape3D_7r24r")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.20799, 17.0257)
+
+[node name="Node" type="Node" parent="."]

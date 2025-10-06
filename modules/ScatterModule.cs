@@ -31,5 +31,10 @@ public partial class ScatterModule : WeaponModule
   public override string ModuleDescription { get; set; } = "Duplicates bullet in a scatter pattern with configurable horizontal and vertical spread.";
 
   [Export]
-  public override Rarity Rarity { get; set; } = Rarity.Common;
+  public override Rarity Rarity { get; set; } = Rarity.Epic;
+
+  public ScatterModule()
+  {
+    CardTexture = IconAtlas.MakeItemsIcon(3); // scatter
+  }
 }

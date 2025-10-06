@@ -45,7 +45,7 @@ public partial class FloatingContainer : Node3D
         else if (metaValue is double d)
           baseY = (float)d;
         else
-          GD.Print("Unexpected meta type: ", metaValue.GetType());
+          baseY = 0f;
 
         // Calculate the sine wave offset for the floating effect.
         float offset = (float)Math.Sin(Time.GetTicksMsec() * FloatSpeed) * FloatAmplitude;

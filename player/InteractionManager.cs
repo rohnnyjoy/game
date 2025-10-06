@@ -23,7 +23,6 @@ public partial class InteractionManager : Node
   {
     if (@event is InputEventKey keyEvent && !keyEvent.Echo && Input.IsActionJustPressed("interact"))
     {
-      GD.Print("Interacting with: ", DetectInteractable());
       ProcessInteraction();
     }
   }
@@ -38,10 +37,7 @@ public partial class InteractionManager : Node
   public IInteractable DetectInteractable()
   {
     if (_player == null)
-    {
-      GD.PrintErr("Player is not set!");
       return null;
-    }
 
     Vector3 origin = _player.GlobalPosition;
 
@@ -54,10 +50,7 @@ public partial class InteractionManager : Node
 
     World3D world3d = _player.GetWorld3D();
     if (world3d == null)
-    {
-      GD.PrintErr("World3D not found!");
       return null;
-    }
 
     PhysicsDirectSpaceState3D spaceState = world3d.DirectSpaceState;
     Array<Dictionary> results = (Array<Dictionary>)spaceState.IntersectShape(query, MaxResults);
@@ -80,11 +73,13 @@ public partial class InteractionManager : Node
       }
     }
 
-    GameUi.Instance.InteractionLabel.Visible = bestInteractable != null;
-    if (bestInteractable != null)
+    // UI may not be ready yet at startup; guard the singleton.
+    if (GameUi.Instance != null)
     {
-      GameUi.Instance.InteractionLabel.Text = bestInteractable.GetInteractionText();
-      GameUi.Instance.InteractionLabel.QueueRedraw();
+      if (bestInteractable != null)
+        GameUi.Instance.ShowInteractionText(bestInteractable.GetInteractionText());
+      else
+        GameUi.Instance.HideInteractionText();
     }
 
     return bestInteractable;
@@ -95,14 +90,14 @@ public partial class InteractionManager : Node
     IInteractable interactable = DetectInteractable();
     if (interactable != null)
     {
-      GameUi.Instance.InteractionLabel.Text = interactable.GetInteractionText();
-      GameUi.Instance.InteractionLabel.Visible = true;
-      GameUi.Instance.InteractionLabel.QueueRedraw();
+      if (GameUi.Instance != null)
+        GameUi.Instance.ShowInteractionText(interactable.GetInteractionText());
       interactable.OnInteract();
     }
     else
     {
-      GameUi.Instance.InteractionLabel.Visible = false;
+      if (GameUi.Instance != null)
+        GameUi.Instance.HideInteractionText();
     }
   }
 }

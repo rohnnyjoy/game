@@ -7,6 +7,12 @@ public partial class GameUi : CanvasLayer
   [Export] public RichTextLabel InteractionLabel;
   [Export] public RichTextLabel ComboLabel;
   [Export] public RichTextLabel MoneyCounter;  // Label for the banked money
+  private MoneyComboUi _comboUi;
+  private Control _bottomRight;
+  private Control _crosshair;
+  private MoneyTotalUi _totalUi;
+  private InteractionPromptUi _interactionUi;
+  private Container _bottomCenterContainer;
 
   // Running values.
   private int moneyBank = 0;           // Finalized banked money.
@@ -26,30 +32,121 @@ public partial class GameUi : CanvasLayer
   // Maximum scaling cap for the text label.
   private const float maxScaleFactor = 2.0f;
 
+  // No screen shake state here; screen shake handled elsewhere
+
   public override void _Ready()
   {
-    GlobalEvents.Instance.Connect("MoneyUpdated", new Callable(this, nameof(OnMoneyUpdated)));
+    // Prefer a maximized window (fills screen without true fullscreen)
+    GetWindow().Mode = Window.ModeEnum.Maximized;
+
+    GlobalEvents.Instance.Connect(nameof(GlobalEvents.MoneyUpdated), new Callable(this, nameof(OnMoneyUpdated)));
     Instance = this;
+    SetupUi();
+
+    // Hide old labels if present
+    if (ComboLabel != null) ComboLabel.Visible = false;
+    if (MoneyCounter != null) MoneyCounter.Visible = false;
+    if (InteractionLabel != null) InteractionLabel.Visible = false;
+
+    // Create DynaText-based money combo counter anchored to BottomRight
+    _bottomRight = GetNodeOrNull<Control>("UIRoot/BottomRight");
+    _crosshair = GetNodeOrNull<Control>("UIRoot/Center/Crosshair");
+    _bottomCenterContainer = GetNodeOrNull<Container>("UIRoot/BottomCenter/Center");
+    _comboUi = new MoneyComboUi();
+    _totalUi = new MoneyTotalUi();
+    _interactionUi = new InteractionPromptUi();
+    AddChild(_comboUi);
+    AddChild(_totalUi);
+    AddChild(_interactionUi);
+    // Defer attach to after layout so rects are valid
+    CallDeferred(nameof(DeferredAttach));
+    if (_bottomRight != null)
+      _bottomRight.Connect("resized", new Callable(this, nameof(OnBottomRightResized)));
+    if (_crosshair != null)
+      _crosshair.Connect("resized", new Callable(this, nameof(OnCrosshairResized)));
+
+  }
+
+  private void DeferredAttach()
+  {
+    if (_crosshair != null && _comboUi != null)
+      _comboUi.AttachToCrosshair(_crosshair);
+    else if (_bottomRight != null && _comboUi != null)
+      _comboUi.AttachToBottomRight(_bottomRight);
+    if (_bottomRight != null && _totalUi != null)
+      _totalUi.AttachToBottomRight(_bottomRight);
+    if (_bottomCenterContainer != null && _interactionUi != null)
+      _interactionUi.AttachTo(_bottomCenterContainer);
+    if (_comboUi != null)
+    {
+      // CanvasItem z_index has an engine-defined max; use a safe high value.
+      // The CanvasLayer already controls draw order; a modestly high ZIndex suffices.
+      _comboUi.ZIndex = 4095;
+    }
+    if (_totalUi != null)
+    {
+      _totalUi.ZIndex = 4094;
+    }
+    if (_interactionUi != null)
+    {
+      _interactionUi.ZIndex = 4096;
+    }
+  }
+
+  private void OnBottomRightResized()
+  {
+    if (_bottomRight != null && _comboUi != null)
+      _comboUi.AttachToBottomRight(_bottomRight);
+    if (_bottomRight != null && _totalUi != null)
+      _totalUi.AttachToBottomRight(_bottomRight);
+  }
+
+  private void OnCrosshairResized()
+  {
+    if (_crosshair != null && _comboUi != null)
+      _comboUi.AttachToCrosshair(_crosshair);
+  }
+
+  public void ShowInteractionText(string text)
+  {
+    if (_interactionUi == null) return;
+    _interactionUi.SetText(text);
+    _interactionUi.ShowPrompt();
+  }
+
+  public void HideInteractionText()
+  {
+    if (_interactionUi == null) return;
+    _interactionUi.HidePrompt();
   }
 
   private void SetupUi()
   {
-    originalPosition = ComboLabel.Position;
-    originalScale = ComboLabel.Scale;
-    MoneyCounter.Text = moneyBank.ToString();
+    if (ComboLabel != null)
+    {
+      originalPosition = ComboLabel.Position;
+      originalScale = ComboLabel.Scale;
+    }
+    if (MoneyCounter != null)
+    {
+      MoneyCounter.Text = moneyBank.ToString();
+    }
   }
 
   public async void OnMoneyUpdated(int oldAmount, int newAmount)
   {
+    // Let MoneyComboUi drive visuals; keep legacy logic if desired
     int delta = newAmount - oldAmount;
-    GD.Print($"Money updated: delta = {delta}");
 
     if (draining)
     {
       // Drain is in progress. Immediately finish the drain:
       // Bank the entire current combo.
       moneyBank += comboValue;
-      MoneyCounter.Text = moneyBank.ToString();
+      if (MoneyCounter != null)
+      {
+        MoneyCounter.Text = moneyBank.ToString();
+      }
 
       // Cancel the drain and wait for it to finish.
       draining = false;
@@ -67,42 +164,12 @@ public partial class GameUi : CanvasLayer
       currentDisplayedCombo = comboValue;
     }
 
-    GD.Print($"New comboValue = {comboValue}");
-    ComboLabel.Text = $"+{comboValue}";
-    ComboLabel.Visible = true;
-
-    // Pop & shake effects using tweens:
-    Tween scaleTween = CreateTween();
-
-    // Calculate the target scale and cap it using maxScaleFactor.
-    Vector2 targetScale = originalScale * 1.5f;
-    targetScale.X = Mathf.Min(targetScale.X, originalScale.X * maxScaleFactor);
-    targetScale.Y = Mathf.Min(targetScale.Y, originalScale.Y * maxScaleFactor);
-
-    scaleTween.TweenProperty(ComboLabel, "scale", targetScale, 0.2f)
-              .SetTrans(Tween.TransitionType.Back)
-              .SetEase(Tween.EaseType.Out);
-    scaleTween.TweenProperty(ComboLabel, "scale", originalScale, 0.2f)
-              .SetTrans(Tween.TransitionType.Back)
-              .SetEase(Tween.EaseType.In);
-
-    Tween shakeTween = CreateTween();
-    shakeTween.TweenProperty(ComboLabel, "position", originalPosition + new Vector2(5, 0), 0.1f)
-              .SetTrans(Tween.TransitionType.Linear)
-              .SetEase(Tween.EaseType.InOut);
-    shakeTween.TweenProperty(ComboLabel, "position", originalPosition, 0.1f)
-              .SetTrans(Tween.TransitionType.Linear)
-              .SetEase(Tween.EaseType.InOut);
-
-    await scaleTween.ToSignal(scaleTween, "finished");
+    // Old label tweens removed; handled by DynaText pulses
 
     // Only start the drain delay if we're not in drain already.
     if (!draining)
     {
-      // Wait for a brief delay (allowing accumulation if new updates come in quickly).
       await ToSignal(GetTree().CreateTimer(drainDelay), "timeout");
-
-      // If still not interrupted, then start draining.
       if (!draining)
       {
         drainTask = DrainCombo();
@@ -134,7 +201,10 @@ public partial class GameUi : CanvasLayer
       moneyBank += startValue;
       draining = false;
       ResetComboMeterVisuals();
-      MoneyCounter.Text = moneyBank.ToString();
+      if (MoneyCounter != null)
+      {
+        MoneyCounter.Text = moneyBank.ToString();
+      }
     }
   }
 
@@ -143,9 +213,15 @@ public partial class GameUi : CanvasLayer
   {
     int remaining = Mathf.RoundToInt(currentDisplayedCombo);
     int drained = comboValue - remaining;
-    ComboLabel.Text = remaining > 0 ? $"+{remaining}" : "0";
+    if (ComboLabel != null)
+    {
+      ComboLabel.Text = remaining > 0 ? $"+{remaining}" : "0";
+    }
     // While draining, MoneyCounter shows banked money plus what's been drained so far.
-    MoneyCounter.Text = (moneyBank + drained).ToString();
+    if (MoneyCounter != null)
+    {
+      MoneyCounter.Text = (moneyBank + drained).ToString();
+    }
   }
 
   // Reset the combo meter's visuals.
@@ -153,9 +229,14 @@ public partial class GameUi : CanvasLayer
   {
     comboValue = 0;
     currentDisplayedCombo = 0;
-    ComboLabel.Text = "0";
-    ComboLabel.Scale = originalScale;
-    ComboLabel.Position = originalPosition;
-    ComboLabel.Visible = false;
+    if (ComboLabel != null)
+    {
+      ComboLabel.Text = "0";
+      ComboLabel.Scale = originalScale;
+      ComboLabel.Position = originalPosition;
+      ComboLabel.Visible = false;
+    }
   }
+
+  
 }

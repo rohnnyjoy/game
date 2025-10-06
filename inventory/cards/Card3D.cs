@@ -44,7 +44,7 @@ public partial class Card3D : RigidBody3D, IInteractable
   public float OutlineWidth { get; set; } = 2f;  // How much the outline expands.
 
   // Preload the outline shader from an external file.
-  private Shader outlineShader = GD.Load<Shader>("res://shaders/outline_shader.gdshader");
+  private Shader outlineShader = GD.Load<Shader>("res://shared/shaders/outline_shader.gdshader");
 
   private RayCast3D _raycast;
 
@@ -167,6 +167,16 @@ public partial class Card3D : RigidBody3D, IInteractable
     // Create a MeshInstance3D for the main card visuals.
     MeshInstance3D meshInstance = new MeshInstance3D();
     Vector2 meshSize = CardCore.CardSize * ScaleFactor;
+    // If the texture is an atlas icon and square, use a square mesh to avoid stretching.
+    if (CardCore.CardTexture is AtlasTexture atlasTex)
+    {
+      var regionSize = atlasTex.Region.Size;
+      if (Mathf.IsEqualApprox(regionSize.X, regionSize.Y))
+      {
+        float s = Mathf.Min(CardCore.CardSize.X, CardCore.CardSize.Y) * ScaleFactor;
+        meshSize = new Vector2(s, s);
+      }
+    }
 
     // Create and assign a QuadMesh.
     QuadMesh quadMesh = new QuadMesh();
@@ -178,6 +188,8 @@ public partial class Card3D : RigidBody3D, IInteractable
     material.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
     material.TextureFilter = BaseMaterial3D.TextureFilterEnum.Nearest;
     material.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
+    // Enable alpha transparency so icon textures with transparency render correctly.
+    material.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
     if (CardCore.CardTexture != null)
     {
       material.AlbedoTexture = CardCore.CardTexture;
@@ -217,7 +229,6 @@ public partial class Card3D : RigidBody3D, IInteractable
   // Implementation of the IInteractable interface.
   public virtual void OnInteract()
   {
-    GD.Print("Card picked up!");
     QueueFree();
   }
 

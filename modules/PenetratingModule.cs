@@ -7,7 +7,7 @@ public partial class PiercingModule : WeaponModule
 {
   public PiercingModule()
   {
-    CardTexture = GD.Load<Texture2D>("res://icons/penetrating.png");
+    CardTexture = IconAtlas.MakeItemsIcon(2); // penetrating
     Rarity = Rarity.Uncommon;
     ModuleDescription = "Bullets can penetrate multiple enemies, reducing damage with each hit.";
     BulletModifiers.Add(new PiercingBulletModifier());

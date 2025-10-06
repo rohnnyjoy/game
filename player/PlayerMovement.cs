@@ -23,6 +23,8 @@ public partial class PlayerMovement : Node
 
   private Player player;
 
+  
+
   public override void _Ready()
   {
     player = GetNode<Player>(PlayerPath);
@@ -55,6 +57,8 @@ public partial class PlayerMovement : Node
     player.PreSlideHorizontalVelocity = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
     player.MoveAndSlide();
 
+    
+
     ProcessBufferedJump(delta);
   }
 
@@ -68,6 +72,25 @@ public partial class PlayerMovement : Node
       player.Velocity = new Vector3(player.Velocity.X, JumpVelocity, player.Velocity.Z);
       player.JumpBufferTimer = 0;
       player.JumpsRemaining--;
+
+      // Spawn the same sprite used for wall hops near the player's feet, oriented up (non-billboard).
+      var spawnPos = player.GlobalPosition + Vector3.Down * 0.6f;
+      SpriteSheetFx.Spawn(
+        player,
+        sheetPath: "res://assets/sprites/impact_2_dust_48x48.png",
+        frameW: 48,
+        frameH: 48,
+        position: spawnPos,
+        surfaceNormal: Vector3.Up,
+        pixelSize: 0.06f,
+        fps: 18f,
+        loop: false,
+        billboard: false,
+        normalOffset: 0.08f,
+        randomRoll: true,
+        doubleSided: true,
+        depthTest: true
+      );
     }
 
     if (!player.IsOnFloor())
@@ -126,6 +149,15 @@ public partial class PlayerMovement : Node
       );
       // player.AnimPlayer.Play("idle");
     }
+
+    // Robust clamp: cap world horizontal speed while grounded.
+    Vector3 hv = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
+    float hvLen = hv.Length();
+    if (hvLen > Speed && hvLen > 0.0001f)
+    {
+      hv = hv / hvLen * Speed;
+      player.Velocity = new Vector3(hv.X, player.Velocity.Y, hv.Z);
+    }
   }
 
   private void ProcessSlide(float delta)
@@ -150,6 +182,8 @@ public partial class PlayerMovement : Node
     );
   }
 
+  
+
   private void ProcessAirMovement(Vector3 inputDirection, float delta)
   {
     float currentSpeed = new Vector2(player.Velocity.X, player.Velocity.Z).Length();
@@ -171,6 +205,27 @@ public partial class PlayerMovement : Node
       newVelocity.Y = player.Velocity.Y;
       player.Velocity = newVelocity;
       newHorizontalVel = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
+
+      // Spawn an air-dash dust sprite effect near the player's feet.
+      // Uses the 2D sheet assets/sprites/dust_28x12.png via DashDustSprite.
+      var spawnPos = player.GlobalPosition + Vector3.Down * 0.6f;
+      // Use generic SpriteSheetFx: dust_28x12, billboarded and large.
+      SpriteSheetFx.Spawn(
+        player,
+        sheetPath: "res://assets/sprites/dust_28x12.png",
+        frameW: 28,
+        frameH: 12,
+        position: spawnPos,
+        surfaceNormal: null,
+        pixelSize: 0.10f,
+        fps: 18f,
+        loop: false,
+        billboard: true,
+        normalOffset: 0.06f,
+        randomRoll: true,
+        doubleSided: true,
+        depthTest: true
+      );
     }
 
     // Apply air friction (drag) to the horizontal velocity.
@@ -194,6 +249,24 @@ public partial class PlayerMovement : Node
           player.Velocity = player.Velocity.Bounce(normal) * WallHopBoost;
           player.Velocity += new Vector3(0, WallHopUpwardBoost, 0);
           player.JumpBufferTimer = 0;
+          // Spawn a wall impact sprite at the contact point, oriented to the wall normal.
+          Vector3 hitPos = collision.GetPosition();
+          SpriteSheetFx.Spawn(
+            player,
+            sheetPath: "res://assets/sprites/impact_2_dust_48x48.png",
+            frameW: 48,
+            frameH: 48,
+            position: hitPos,
+            surfaceNormal: normal,
+            pixelSize: 0.06f,
+            fps: 18f,
+            loop: false,
+            billboard: false,
+            normalOffset: 0.08f,
+            randomRoll: true,
+            doubleSided: true,
+            depthTest: true
+          );
           wallFound = true;
           break;
         }
@@ -203,6 +276,25 @@ public partial class PlayerMovement : Node
         player.Velocity = new Vector3(player.Velocity.X, JumpVelocity, player.Velocity.Z);
         player.JumpBufferTimer = 0;
         player.JumpsRemaining--;
+
+        // Air jump: spawn the same wall hop sprite near the player's feet, oriented up (non-billboard).
+        var spawnPos = player.GlobalPosition + Vector3.Down * 0.6f;
+        SpriteSheetFx.Spawn(
+          player,
+          sheetPath: "res://assets/sprites/impact_2_dust_48x48.png",
+          frameW: 48,
+          frameH: 48,
+          position: spawnPos,
+          surfaceNormal: Vector3.Up,
+          pixelSize: 0.06f,
+          fps: 18f,
+          loop: false,
+          billboard: false,
+          normalOffset: 0.08f,
+          randomRoll: true,
+          doubleSided: true,
+          depthTest: true
+        );
       }
     }
     player.JumpBufferTimer = Mathf.Max(player.JumpBufferTimer - delta, 0);

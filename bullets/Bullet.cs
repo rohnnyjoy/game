@@ -21,6 +21,7 @@ public partial class Bullet : Node3D
   [Export] public Vector3 Direction { get; set; } = Vector3.Forward;
   [Export] public float Speed { get; set; } = 20.0f;
   [Export] public float Damage { get; set; } = 1.0f;
+  [Export] public float KnockbackStrength { get; set; } = 3.5f;
   [Export] public Color Color { get; set; } = Colors.White;
   [Export] public bool DestroyOnImpact { get; set; } = true;
   [Export] public Vector3 InitialPosition { get; private set; }
@@ -89,18 +90,13 @@ public partial class Bullet : Node3D
 
     Velocity = Direction.Normalized() * Speed;
 
-    GD.Print("Bullet ready", Modifiers.Count);
     foreach (var modifier in Modifiers)
     {
-      GD.Print("Modifier: ", modifier);
       await modifier.OnFire(this);
     }
-
-    // Create a timer for bullet lifetime cleanup.
-    GetTree().CreateTimer(LifeTime).Timeout += _Cleanup;
   }
 
-  public override async void _PhysicsProcess(double delta)
+  public override void _PhysicsProcess(double delta)
   {
     // Skip processing if bullet is inert.
     if (isInert)
@@ -119,7 +115,7 @@ public partial class Bullet : Node3D
       float distanceFromPlayer = GlobalPosition.DistanceTo(player.GlobalPosition);
       if (distanceFromPlayer > MaxDistanceFromPlayer)
       {
-        EnterInertState();
+        Deactivate();
         return;
       }
     }
@@ -160,13 +156,12 @@ public partial class Bullet : Node3D
         // Delegate to modifiers.
         DestroyOnImpact = true;
         foreach (var modifier in Modifiers)
-          await modifier.OnCollision(this, collisionData);
+          _ = modifier.OnCollision(this, collisionData);
 
         // ★ Integration: Let the hit object’s RubbleSpawner handle rubble emission.
         if (collisionData.Collider != null)
         {
           RubbleSpawner rubbleSpawner = FindRubbleSpawner(collisionData.Collider);
-          GD.Print("Rubble spawner: ", rubbleSpawner, collisionData.Normal);
           if (rubbleSpawner != null)
           {
             // Use the bullet's Damage and the collision normal as impact direction.
@@ -174,13 +169,18 @@ public partial class Bullet : Node3D
           }
         }
 
+        // Broadcast impact for consistent FX handling.
+        GD.Print($"[Bullet] impact hit collider={collisionData.Collider?.Name} at ({collisionData.Position.X:0.00},{collisionData.Position.Y:0.00},{collisionData.Position.Z:0.00}) normal=({collisionData.Normal.X:0.00},{collisionData.Normal.Y:0.00},{collisionData.Normal.Z:0.00})");
+        Vector3 travelDir = Velocity.LengthSquared() > 0.000001f ? Velocity.Normalized() : (collisionData.Normal != Vector3.Zero ? -collisionData.Normal.Normalized() : Vector3.Forward);
+        GlobalEvents.Instance?.EmitImpactOccurred(collisionData.Position, collisionData.Normal, travelDir);
+
         // Call any additional collision response.
         DefaultBulletCollision(collisionData, this);
-        SpawnCollisionParticles(collisionData);
+        // SpawnCollisionParticles(collisionData);
 
         if (DestroyOnImpact)
         {
-          EnterInertState();
+          Deactivate();
           return;
         }
       }
@@ -191,9 +191,9 @@ public partial class Bullet : Node3D
     }
 
     foreach (var modifier in Modifiers)
-      await modifier.OnUpdate(this, dt);
+      _ = modifier.OnUpdate(this, dt);
 
-    await _ProcessOverlapCollisions(dt);
+    // await _ProcessOverlapCollisions(dt);
   }
 
   private async Task _ProcessOverlapCollisions(float dt)
@@ -248,10 +248,12 @@ public partial class Bullet : Node3D
 
         DefaultBulletCollision(collisionData, this);
         SpawnCollisionParticles(collisionData);
+        Vector3 travelDir2 = Velocity.LengthSquared() > 0.000001f ? Velocity.Normalized() : (collisionData.Normal != Vector3.Zero ? -collisionData.Normal.Normalized() : Vector3.Forward);
+        GlobalEvents.Instance?.EmitImpactOccurred(collisionData.Position, collisionData.Normal, travelDir2);
 
         if (DestroyOnImpact)
         {
-          EnterInertState();
+          Deactivate();
           return;
         }
 
@@ -277,11 +279,18 @@ public partial class Bullet : Node3D
         Enemy enemy = hit as Enemy;
         enemy.TakeDamage(collision.TotalDamageDealt);
 
-        // Compute shake parameters based on total damage.
+        // Emit damage for global knockback handling
+        Vector3 dir = Velocity.LengthSquared() > 0.000001f ? Velocity.Normalized() : (enemy.GlobalTransform.Origin - GlobalTransform.Origin).Normalized();
+        dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
+        GlobalEvents.Instance?.EmitDamageDealt(enemy, collision.TotalDamageDealt, dir * Mathf.Max(0.0f, KnockbackStrength));
+
+        // Compute UI screen shake based on total damage (pixels).
         float shakeDuration = 0.05f;
         float shakeIntensity = Mathf.Clamp(collision.TotalDamageDealt * 0.05f, 0.1f, 0.3f);
-
         Player.Instance.CameraShake.TriggerShake(shakeDuration, shakeIntensity);
+
+        // Spawn damage number above the enemy
+        DamageNumber3D.Spawn(this, enemy, collision.TotalDamageDealt);
       }
     }
     catch (Exception e)
@@ -405,30 +414,6 @@ public partial class Bullet : Node3D
     return randomDir;
   }
 
-  private async void EnterInertState()
-  {
-    if (isInert)
-      return;
-    isInert = true;
-
-    // Stop bullet movement.
-    Velocity = Vector3.Zero;
-
-    // Disable collision shapes and areas.
-    foreach (Node child in GetChildren())
-    {
-      if (child is CollisionShape3D cs)
-        cs.Disabled = true;
-      else if (child is Area3D area)
-        area.Monitoring = false;
-    }
-
-    var timer = GetTree().CreateTimer(TrailCleanupDelay);
-    await ToSignal(timer, "timeout");
-
-    _Cleanup();
-  }
-
   public Array<Rid> GetChildCollisionRIDs()
   {
     var excludeArray = new Array<Rid>();
@@ -440,13 +425,6 @@ public partial class Bullet : Node3D
       }
     }
     return excludeArray;
-  }
-
-  private void _Cleanup()
-  {
-    if (!IsInstanceValid(this))
-      return;
-    QueueFree();
   }
 
   /// <summary>
@@ -464,5 +442,51 @@ public partial class Bullet : Node3D
         return recursive;
     }
     return null;
+  }
+
+  public void Deactivate()
+  {
+    Velocity = Vector3.Zero;
+    foreach (Node child in GetChildren())
+    {
+      if (child is CollisionShape3D cs)
+        cs.Disabled = true;
+      else if (child is Area3D area)
+        area.Monitoring = false;
+    }
+    isInert = true;
+  }
+
+  public void Reset()
+  {
+    // Reset runtime state
+    Velocity = Vector3.Zero;
+    TraveledDistance = 0.0f;
+    _overlapTimer = 0.0f;
+    isInert = false;
+    _lastCollisionColliderId = 0;
+
+    // Clear any runtime modifiers.
+    Modifiers.Clear();
+    Position = InitialPosition;
+
+    // Re-enable collision shapes and areas in case they were disabled.
+    foreach (Node child in GetChildren())
+    {
+      if (child is CollisionShape3D cs)
+        cs.Disabled = false;
+      else if (child is Area3D area)
+        area.Monitoring = true;
+      // If the bullet has an attached trail, reset it to avoid snapping.
+      else if (child is RibbonTrailEmitter trail)
+      {
+        trail.Reset();
+      }
+    }
+
+    foreach (var key in GetMetaList())
+    {
+      RemoveMeta(key.ToString());
+    }
   }
 }

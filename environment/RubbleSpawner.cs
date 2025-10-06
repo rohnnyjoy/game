@@ -17,11 +17,8 @@ public partial class RubbleSpawner : Node
 	// Now marked as async to allow for timed despawning.
 	public async void EmitRubbleAt(Vector3 position, Vector3 impactDirection, Vector3 colliderNormal, float impactDamage)
 	{
-		if (RubbleScene == null)
-		{
-			GD.PrintErr("RubbleScene is not assigned.");
-			return;
-		}
+    if (RubbleScene == null)
+      return;
 
 		float scatterForce = BaseScatterForce;
 		Vector3 bounceDirection = impactDirection.Bounce(colliderNormal).Normalized();

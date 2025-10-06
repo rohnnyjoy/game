@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://bbqxn5xc7ejyb"]
 
 [ext_resource type="Script" uid="uid://pxs6qsaeu8ik" path="res://weapons/ol_reliable/OlReliable.cs" id="1_8oltt"]
-[ext_resource type="PackedScene" uid="uid://7des0y8vwq0i" path="res://bullets/modifiers/BasicBullet.tscn" id="2_32o5e"]
+[ext_resource type="PackedScene" uid="uid://7des0y8vwq0i" path="res://bullets/basic_bullet/BasicBullet.tscn" id="2_32o5e"]
 [ext_resource type="PackedScene" uid="uid://c2vpqfik2lif8" path="res://models/revolver.tscn" id="2_q6oph"]
 [ext_resource type="PackedScene" uid="uid://bw5igtpk11dw5" path="res://weapons/shared/muzzle_flashes/basic_muzzle_flash/BasicMuzzleFlash.tscn" id="3_32o5e"]
 
@@ -9,7 +9,6 @@
 script = ExtResource("1_8oltt")
 BulletScene = ExtResource("2_32o5e")
 MuzzleFlash = ExtResource("3_32o5e")
-BulletSpeed = 250.0
 
 [node name="Pistol" parent="." instance=ExtResource("2_q6oph")]
 transform = Transform3D(-0.05, 0, -7.54979e-09, 0, 0.05, 0, 7.54979e-09, 0, -0.05, -0.00304568, 0, 0)
