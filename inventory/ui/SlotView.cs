@@ -1,5 +1,9 @@
 using Godot;
 
+/// <summary>
+/// Inventory slot UI with a 9-patch frame, padded inner content area,
+/// optional icon, and precise drag preview anchored to the grabbed pixel.
+/// </summary>
 public partial class SlotView : Control
 {
   private NinePatchRect _frame;
@@ -8,6 +12,8 @@ public partial class SlotView : Control
   private ModuleVm _module;
   private Vector2 _cardSize = new Vector2(100, 100);
   private ColorRect _placeholderOverlay;
+
+  // Grab offset measured in the inner-content local space at drag start.
   private Vector2 _grabOffsetInInner = Vector2.Zero;
 
   public StackKind Kind { get; set; } = StackKind.Inventory;
@@ -43,6 +49,7 @@ public partial class SlotView : Control
     _icon = new TextureRect
     {
       Name = "Icon",
+      // In-slot display remains KeepAspectCentered; drag preview compensates for inset.
       StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
       MouseFilter = MouseFilterEnum.Ignore,
       Visible = false
@@ -55,15 +62,18 @@ public partial class SlotView : Control
       Name = "PlaceholderOverlay",
       Color = new Color(1f, 1f, 1f, 0.25f),
       Visible = false,
-      MouseFilter = MouseFilterEnum.Ignore
+      MouseFilter = MouseFilterEnum.Ignore,
+      ZIndex = 100
     };
     _placeholderOverlay.SetAnchorsPreset(LayoutPreset.FullRect);
-    _placeholderOverlay.ZIndex = 100;
     AddChild(_placeholderOverlay);
 
     UpdateVisuals();
   }
 
+  /// <summary>
+  /// Configure frame texture, margins, padding, and intended inner card size.
+  /// </summary>
   public void ConfigureVisuals(Texture2D frameTexture, int ninePatchMargin, float slotPadding, Vector2 cardSize)
   {
     FrameTexture = frameTexture;
@@ -73,6 +83,9 @@ public partial class SlotView : Control
     UpdateVisuals();
   }
 
+  /// <summary>
+  /// Apply margins and min size so the inner content area matches _cardSize.
+  /// </summary>
   private void UpdateVisuals()
   {
     if (_frame != null)
@@ -86,6 +99,7 @@ public partial class SlotView : Control
 
     if (_content != null)
     {
+      // Theme margins define the inner content rect used for icon & math.
       int inner = (int)Mathf.Round(SlotPadding + NinePatchMargin);
       _content.AddThemeConstantOverride("margin_left", inner);
       _content.AddThemeConstantOverride("margin_right", inner);
@@ -93,11 +107,15 @@ public partial class SlotView : Control
       _content.AddThemeConstantOverride("margin_bottom", inner);
     }
 
+    // Overall slot minimum size = inner card size + left/right & top/bottom padding/margins.
     float width = _cardSize.X + 2f * (SlotPadding + NinePatchMargin);
     float height = _cardSize.Y + 2f * (SlotPadding + NinePatchMargin);
     CustomMinimumSize = new Vector2(width, height);
   }
 
+  /// <summary>
+  /// Assigns or clears the module. Icon uses KeepAspectCentered inside the inner content.
+  /// </summary>
   public void SetContent(ModuleVm module)
   {
     _module = module;
@@ -115,71 +133,126 @@ public partial class SlotView : Control
     }
   }
 
-  public void Clear()
-  {
-    SetContent(null);
-  }
+  public void Clear() => SetContent(null);
 
+  /// <summary>
+  /// Shows a translucent overlay to indicate a placeholder drop target.
+  /// </summary>
   public void SetPlaceholderHighlight(bool enabled)
   {
     if (_placeholderOverlay != null)
       _placeholderOverlay.Visible = enabled;
   }
 
-  private Vector2 GetInnerTopLeftLocal()
+  /// <summary>
+  /// Inner content rect (local coordinates). This is the basis for all mouse math.
+  /// </summary>
+  private Rect2 GetInnerRectLocal()
   {
     if (_content == null)
-      return Vector2.Zero;
+      return new Rect2(Vector2.Zero, Vector2.Zero);
 
-    Vector2 innerGlobal = _content.GetGlobalRect().Position;
+    Rect2 innerGlobal = _content.GetGlobalRect();
     Vector2 selfGlobal = GetGlobalRect().Position;
-    return innerGlobal - selfGlobal;
+    return new Rect2(innerGlobal.Position - selfGlobal, innerGlobal.Size);
+  }
+
+  /// <summary>
+  /// Calculates the actual draw rect of the icon (size and inset) inside the given inner rect,
+  /// respecting KeepAspectCentered. If no texture, returns zero size and zero inset.
+  /// </summary>
+  private void GetIconDrawRect(in Vector2 innerSize, out Vector2 drawSize, out Vector2 inset)
+  {
+    drawSize = Vector2.Zero;
+    inset = Vector2.Zero;
+
+    if (_module?.Icon == null)
+      return;
+
+    Vector2 texSize = _module.Icon.GetSize();
+    if (texSize.X <= 0 || texSize.Y <= 0)
+      return;
+
+    float scale = Mathf.Min(innerSize.X / texSize.X, innerSize.Y / texSize.Y);
+    drawSize = texSize * scale;
+    inset = (innerSize - drawSize) * 0.5f; // centered letterbox inset within inner rect
   }
 
   public override void _GuiInput(InputEvent @event)
   {
-    if (@event is InputEventMouseButton mb && mb.Pressed && mb.ButtonIndex == MouseButton.Left)
-    {
-      Vector2 localClick = GetLocalMousePosition();
-      Vector2 innerTopLeft = GetInnerTopLeftLocal();
-      _grabOffsetInInner = localClick - innerTopLeft;
-      _grabOffsetInInner.X = Mathf.Clamp(_grabOffsetInInner.X, 0, _cardSize.X);
-      _grabOffsetInInner.Y = Mathf.Clamp(_grabOffsetInInner.Y, 0, _cardSize.Y);
-    }
-
+    // Do NOT record grab offset here. Godot starts a drag after a threshold of movement;
+    // recording here would bake in a stale offset and cause a visible jump.
     base._GuiInput(@event);
   }
 
   public override Variant _GetDragData(Vector2 atPosition)
   {
-    if (_module == null)
+    if (_module?.Icon == null)
       return new Variant();
 
+    // 1) Compute grab offset at true drag start in inner-local space.
+    Rect2 inner = GetInnerRectLocal();
+    Vector2 innerTopLeft = inner.Position;
+    Vector2 innerSize = inner.Size;
+
+    _grabOffsetInInner = atPosition - innerTopLeft;
+    _grabOffsetInInner.X = Mathf.Clamp(_grabOffsetInInner.X, 0, innerSize.X);
+    _grabOffsetInInner.Y = Mathf.Clamp(_grabOffsetInInner.Y, 0, innerSize.Y);
+
+    // 2) Compute the actual drawn region of the icon inside the inner rect.
+    GetIconDrawRect(innerSize, out Vector2 drawSize, out Vector2 inset);
+
+    // If for any reason drawSize is zero (e.g., bad texture), bail out gracefully.
+    if (drawSize.X <= 0 || drawSize.Y <= 0)
+      return new Variant();
+
+    // 3) Build a preview that is EXACTLY the draw region size (no scaling/enlargement).
+    // Using Scale here is fine because preview.Size == drawSize, so it renders 1:1
+    // with what the player saw in the slot.
+    var preview = new TextureRect
+    {
+      Texture = _module.Icon,
+      StretchMode = TextureRect.StretchModeEnum.Scale,
+      MouseFilter = MouseFilterEnum.Ignore,
+      CustomMinimumSize = drawSize,
+      Size = drawSize
+    };
+
+    // 4) Wrapper has the same origin/size as the draw region, so its (0,0)
+    // matches the top-left of the on-screen drawn pixels.
+    var wrapper = new Control
+    {
+      MouseFilter = MouseFilterEnum.Ignore,
+      CustomMinimumSize = drawSize,
+      Size = drawSize
+    };
+
+    // 5) Position preview so the exact pixel grabbed stays under the cursor:
+    // - _grabOffsetInInner is measured from inner top-left.
+    // - 'inset' shifts from inner top-left to the draw region top-left.
+    // So the grab offset within the draw region = (_grabOffsetInInner - inset).
+    // We negate to move the image under the cursor.
+    Vector2 grabWithinDraw = _grabOffsetInInner - inset;
+
+    // Clamp to draw bounds for safety (e.g., clicking letterbox area).
+    grabWithinDraw.X = Mathf.Clamp(grabWithinDraw.X, 0, drawSize.X);
+    grabWithinDraw.Y = Mathf.Clamp(grabWithinDraw.Y, 0, drawSize.Y);
+
+    preview.Position = -grabWithinDraw;
+
+    wrapper.AddChild(preview);
+    SetDragPreview(wrapper);
+
+    // 6) Payload for the drop target.
     var data = new Godot.Collections.Dictionary
     {
       { "module_id", _module.ModuleId },
-      { "source_stack", (int)Kind }
+      { "source_stack", (int)Kind },
+      // Provide precise visual geometry so targets can align placeholder with the
+      // actual sprite instead of the raw mouse pointer.
+      { "grab_within_draw_x", grabWithinDraw.X },
+      { "draw_width", drawSize.X }
     };
-
-    TextureRect preview = new TextureRect
-    {
-      Texture = _module.Icon,
-      StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-      MouseFilter = MouseFilterEnum.Ignore,
-      CustomMinimumSize = _cardSize,
-      SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
-      SizeFlagsVertical = SizeFlags.ShrinkCenter
-    };
-
-    Control wrapper = new Control
-    {
-      MouseFilter = MouseFilterEnum.Ignore,
-      CustomMinimumSize = _cardSize
-    };
-    wrapper.AddChild(preview);
-    // Keep cursor anchored at the exact grab point we measured on mouse-down
-    wrapper.Position = -_grabOffsetInInner;
-    SetDragPreview(wrapper);
 
     return data;
   }

@@ -13,6 +13,9 @@ internal static class Program
     Console.Error.WriteLine($"[FAIL] {message}");
   }
 
+  // Expose a test-friendly assert for other files in this assembly.
+  public static void TAssert(bool condition, string message) => Assert(condition, message);
+
   private static void TestBounceReflection()
   {
     var state = new BulletCollisionState
@@ -264,6 +267,7 @@ internal static class Program
     TestInventoryStoreInitialization();
     TestInventoryStoreMoveModule();
     TestInventoryStoreRemoveModule();
+    DragMathTests.TestDragMathAlignment();
   }
 
   public static int Main()
@@ -278,4 +282,34 @@ internal static class Program
     Console.Error.WriteLine($"{_failed} test(s) failed.");
     return 1;
   }
+}
+
+internal static class DragMathTests
+{
+  public static void TestDragMathAlignment()
+  {
+    // Two slots of width 120 at X ranges [0..120] and [140..260], midpoints 60 and 200.
+    var mids = new float[] { 60f, 200f };
+
+    // Case: User grabbed near right edge of a wide icon (drawWidth=160, grab=144).
+    // Mouse pointer is at X=244; visual center should be mouse - 144 + 80 = 180.
+    float mouseX = 244f;
+    float grabWithinDraw = 144f;
+    float drawWidth = 160f;
+    float visualCenter = DragMath.ComputeVisualCenterX(mouseX, grabWithinDraw, drawWidth);
+
+    // Sanity: visual center should be offset left of the raw mouse X.
+    Program.TAssert(Mathf.IsEqualApprox(visualCenter, 180f), "Visual center should be 180 for given inputs");
+
+    int idxByVisual = DragMath.ComputeInsertIndex(mids, visualCenter);
+    int idxByMouse = DragMath.ComputeInsertIndex(mids, mouseX);
+
+    // Expected: based on sprite center at 180, insert before second slot (index 1).
+    Program.TAssert(idxByVisual == 1, "Insert index by visual center should be 1");
+
+    // Buggy behavior: using raw mouse X (244) would incorrectly insert after the second slot (index 2).
+    Program.TAssert(idxByMouse == 2, "Insert index by raw mouse should be 2 (buggy reference)");
+  }
+
+  // No local assert; use Program.TAssert so failures increment the shared counter.
 }

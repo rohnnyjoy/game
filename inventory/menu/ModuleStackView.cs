@@ -4,23 +4,12 @@ using System.Collections.Generic;
 
 public partial class ModuleStackView : Panel
 {
-  [Export]
-  public StackKind Kind { get; set; } = StackKind.Inventory;
-
-  [Export]
-  public StackLayoutConfig Layout { get; set; }
-
-  [Export(PropertyHint.Range, "1,16,1")]
-  public int VisibleSlotCount { get; set; } = 4;
-
-  [Export]
-  public Vector2 CardSize { get; set; } = new Vector2(100, 100);
-
-  [Export]
-  public Color PlaceholderColor { get; set; } = new Color(1, 1, 1, 0.65f);
-
-  [Export]
-  public float PlaceholderWidth { get; set; } = 0f;
+  [Export] public StackKind Kind { get; set; } = StackKind.Inventory;
+  [Export] public StackLayoutConfig Layout { get; set; }
+  [Export(PropertyHint.Range, "1,16,1")] public int VisibleSlotCount { get; set; } = 4;
+  [Export] public Vector2 CardSize { get; set; } = new Vector2(100, 100);
+  [Export] public Color PlaceholderColor { get; set; } = new Color(1, 1, 1, 0.65f);
+  [Export] public float PlaceholderWidth { get; set; } = 0f;
 
   private readonly List<SlotView> _slots = new();
   private MarginContainer _content;
@@ -32,6 +21,8 @@ public partial class ModuleStackView : Panel
   private bool _isDragHovering;
   private string _hoverModuleId = string.Empty;
   private int _highlightSlotIndex = -1;
+  private float _dragGrabWithinDrawX = 0f;
+  private float _dragDrawWidth = 0f;
 
   public override void _Ready()
   {
@@ -56,7 +47,7 @@ public partial class ModuleStackView : Panel
 
   public override bool _CanDropData(Vector2 atPosition, Variant data)
   {
-    if (!TryParseDragData(data, out string moduleId, out StackKind source))
+    if (!TryParseDragData(data, out string moduleId, out StackKind source, out float grabWithinDrawX, out float drawWidth))
       return false;
 
     if (_store == null || !_store.TryGetModuleData(moduleId, out _))
@@ -67,26 +58,57 @@ public partial class ModuleStackView : Panel
 
     _isDragHovering = true;
     _hoverModuleId = moduleId;
+    _dragGrabWithinDrawX = grabWithinDrawX;
+    _dragDrawWidth = drawWidth;
     UpdatePlaceholderFromMouse();
-
     return true;
   }
 
   public override void _DropData(Vector2 atPosition, Variant data)
   {
-    if (!TryParseDragData(data, out string moduleId, out StackKind source))
+    if (!TryParseDragData(data, out string moduleId, out StackKind source, out float grabWithinDrawX, out float drawWidth))
     {
       ClearHoverState();
       return;
     }
+
     string resolvedModuleId = moduleId;
     StackKind resolvedSource = source;
-    ClearHoverState();
 
     if (_store == null)
+    {
+      ClearHoverState();
       return;
+    }
 
-    int targetIndex = ComputeDropIndex(GetGlobalMousePosition());
+    // Single source of truth: prefer the live placeholder index captured during hover.
+    int dropIndex = _placeholderIndex >= 0 ? _placeholderIndex : 0;
+    // Fallback: if placeholder index is unavailable (edge cases), compute from mouse X.
+    if (_placeholderIndex < 0)
+    {
+      float x = GetGlobalMousePosition().X;
+      if (drawWidth > 0f)
+        x = DragMath.ComputeVisualCenterX(x, grabWithinDrawX, drawWidth);
+      dropIndex = ComputeDropIndexForX(x);
+    }
+
+    // Convert to InventoryStore.MoveModule index space and clamp.
+    int listCount = _store.GetModules(Kind).Length; // destination list size pre-move
+    int targetIndex = dropIndex;
+    if (resolvedSource == Kind)
+    {
+      int currentIndex = GetModuleIndexIn(Kind, resolvedModuleId);
+      if (currentIndex >= 0 && targetIndex > currentIndex)
+        targetIndex += 1; // convert from post-removal to pre-removal index
+      targetIndex = Math.Clamp(targetIndex, 0, listCount);
+    }
+    else
+    {
+      targetIndex = Math.Clamp(targetIndex, 0, listCount);
+    }
+
+    // Clear hover state BEFORE committing so the re-render uses final state (no preview gap).
+    ClearHoverState();
     _store.MoveModule(resolvedModuleId, resolvedSource, Kind, targetIndex, ChangeOrigin.UI);
   }
 
@@ -107,11 +129,7 @@ public partial class ModuleStackView : Panel
   {
     MouseFilter = MouseFilterEnum.Stop;
 
-    _content = new MarginContainer
-    {
-      Name = "Content",
-      MouseFilter = MouseFilterEnum.Ignore
-    };
+    _content = new MarginContainer { Name = "Content", MouseFilter = MouseFilterEnum.Ignore };
     _content.SetAnchorsPreset(LayoutPreset.FullRect);
     AddChild(_content);
 
@@ -124,11 +142,7 @@ public partial class ModuleStackView : Panel
     _slotsBox.SetAnchorsPreset(LayoutPreset.FullRect);
     _content.AddChild(_slotsBox);
 
-    _overlay = new Control
-    {
-      Name = "Overlay",
-      MouseFilter = MouseFilterEnum.Ignore
-    };
+    _overlay = new Control { Name = "Overlay", MouseFilter = MouseFilterEnum.Ignore };
     _overlay.SetAnchorsPreset(LayoutPreset.FullRect);
     AddChild(_overlay);
 
@@ -144,8 +158,7 @@ public partial class ModuleStackView : Panel
 
   private void RenderModules(ModuleVm[] modules)
   {
-    if (modules == null)
-      modules = Array.Empty<ModuleVm>();
+    modules ??= Array.Empty<ModuleVm>();
 
     int slotCount = Math.Max(VisibleSlotCount, modules.Length);
     EnsureSlotCount(slotCount);
@@ -167,6 +180,7 @@ public partial class ModuleStackView : Panel
 
   private void ApplyLayout(int slotCount)
   {
+    // Keep HBox separation in sync with the visual size of a frame.
     float separation = MathF.Max(0f, Layout.Offset - (CardSize.X + 2f * Layout.SlotPadding));
     _slotsBox.AddThemeConstantOverride("separation", (int)MathF.Round(separation));
 
@@ -189,14 +203,10 @@ public partial class ModuleStackView : Panel
   {
     while (_slots.Count < desired)
     {
-      var slot = new SlotView
-      {
-        Kind = Kind
-      };
+      var slot = new SlotView { Kind = Kind };
       _slots.Add(slot);
       _slotsBox.AddChild(slot);
     }
-
     while (_slots.Count > desired)
     {
       var last = _slots[_slots.Count - 1];
@@ -205,25 +215,32 @@ public partial class ModuleStackView : Panel
     }
   }
 
-  private int ComputeDropIndex(Vector2 globalMouse)
+  private int ComputeDropIndexForX(float x)
   {
     if (_slots.Count == 0)
       return 0;
 
+    // Border-based logic: change index only when crossing the border between slots
+    // (i.e., the left edge of the next slot), not at midpoints.
     for (int i = 0; i < _slots.Count; i++)
     {
       Rect2 rect = _slots[i].GetGlobalRect();
-      float mid = rect.Position.X + rect.Size.X * 0.5f;
-      if (globalMouse.X < mid)
-        return i;
+      float left = rect.Position.X;
+      float right = left + rect.Size.X;
+      if (x < left)
+        return i;           // before this slot
+      if (x <= right)
+        return i;           // inside this slot
     }
-    return _slots.Count;
+    return _slots.Count;     // after the last slot
   }
 
-  private bool TryParseDragData(Variant data, out string moduleId, out StackKind source)
+  private bool TryParseDragData(Variant data, out string moduleId, out StackKind source, out float grabWithinDrawX, out float drawWidth)
   {
     moduleId = null;
     source = Kind;
+    grabWithinDrawX = 0f;
+    drawWidth = 0f;
 
     if (data.VariantType != Variant.Type.Dictionary)
       return false;
@@ -236,48 +253,70 @@ public partial class ModuleStackView : Panel
 
     if (dict.TryGetValue("source_stack", out Variant sourceVariant) && sourceVariant.VariantType == Variant.Type.Int)
     {
-      try
-      {
-        source = (StackKind)(int)sourceVariant;
-      }
-      catch
-      {
-        source = Kind;
-      }
+      try { source = (StackKind)(int)sourceVariant; }
+      catch { source = Kind; }
     }
-
+    if (dict.TryGetValue("grab_within_draw_x", out Variant grabVar) && grabVar.VariantType == Variant.Type.Float)
+      grabWithinDrawX = (float)grabVar;
+    if (dict.TryGetValue("draw_width", out Variant drawVar) && drawVar.VariantType == Variant.Type.Float)
+      drawWidth = (float)drawVar;
     return true;
   }
 
+  /// <summary>
+  /// Places the placeholder BEFORE the slot at 'index'. If index == _slots.Count,
+  /// it places it AFTER the last slot. All math is done in GLOBAL space and then
+  /// converted into the overlay’s LOCAL coordinates.
+  /// </summary>
   private void PositionPlaceholder(int index)
   {
-    if (_placeholder == null || _slotsBox == null)
+    if (_placeholder == null || _overlay == null)
       return;
 
     Rect2 overlayRect = _overlay.GetGlobalRect();
-    Rect2 boxRect = _slotsBox.GetGlobalRect();
 
-    Vector2 frameSize = GetFrameSize();
-    float separation = MathF.Max(0f, Layout.Offset - (CardSize.X + 2f * Layout.SlotPadding));
-
-    float targetWidth = PlaceholderWidth > 0f ? PlaceholderWidth : frameSize.X;
-    float targetHeight = frameSize.Y;
+    // Dimensions: use the actual slot frame rect height/width for consistency with visuals.
+    Vector2 size;
     Vector2 globalPos;
 
     if (_slots.Count == 0)
     {
+      // No slots yet: anchor to the slotsBox top-left.
+      Rect2 boxRect = _slotsBox.GetGlobalRect();
+      float width = PlaceholderWidth > 0f ? PlaceholderWidth : GetFrameSize().X;
+      size = new Vector2(width, GetFrameSize().Y);
       globalPos = boxRect.Position;
     }
     else
     {
-      Rect2 lastRect = _slots[^1].GetGlobalRect();
-      globalPos = new Vector2(lastRect.Position.X + lastRect.Size.X + separation, lastRect.Position.Y);
+      index = Math.Clamp(index, 0, _slots.Count);
+
+      // Determine anchor rect at the insertion edge.
+      // If inserting before slot k, anchor is slot k’s left edge.
+      // If inserting at the end, anchor is the right edge of the last slot.
+      Rect2 refRect;
+      float anchorX;
+      if (index == 0)
+      {
+        refRect = _slots[0].GetGlobalRect();
+        anchorX = refRect.Position.X;
+      }
+      else
+      {
+        refRect = _slots[index - 1].GetGlobalRect();
+        anchorX = refRect.Position.X + refRect.Size.X;
+      }
+
+      float width = PlaceholderWidth > 0f ? PlaceholderWidth : refRect.Size.X; // full-slot width by default
+      float height = refRect.Size.Y;
+
+      size = new Vector2(width, height);
+      globalPos = new Vector2(anchorX, refRect.Position.Y);
     }
 
-    float localX = globalPos.X - overlayRect.Position.X;
-    float localY = globalPos.Y - overlayRect.Position.Y;
-    _placeholder.Position = new Vector2(localX, localY);
-    _placeholder.Size = new Vector2(targetWidth, targetHeight);
+    // Convert global -> overlay-local
+    _placeholder.Position = globalPos - overlayRect.Position;
+    _placeholder.Size = size;
   }
 
   private void HidePlaceholder()
@@ -298,9 +337,18 @@ public partial class ModuleStackView : Panel
       return;
     }
 
-    Vector2 globalMouse = GetViewport()?.GetMousePosition() ?? GetGlobalMousePosition();
-    int index = ComputeDropIndex(globalMouse);
+    // Use the same global mouse space as ComputeDropIndex/GetGlobalRect().
+    float mouseX = GetGlobalMousePosition().X;
+    // Adjust the anchor X to the visual center if we have geometry from the drag source.
+    float anchorX = (_dragDrawWidth > 0f)
+      ? DragMath.ComputeVisualCenterX(mouseX, _dragGrabWithinDrawX, _dragDrawWidth)
+      : mouseX;
+
+    int index = ComputeDropIndexForX(anchorX);
+
     ShowPlaceholder(index);
+
+    // Re-render to show the gap in the logical sequence.
     RenderCurrent();
   }
 
@@ -324,25 +372,39 @@ public partial class ModuleStackView : Panel
     {
       SetHighlightedSlot(-1);
       _placeholderIndex = 0;
-      PositionPlaceholder(0);
+      PositionPlaceholder(0);      // FIX: Respect index at 0
       ShowTrailingPlaceholder();
       return;
     }
 
     index = Math.Clamp(index, 0, _slots.Count);
+    _placeholderIndex = index;
+
     if (index >= _slots.Count)
     {
+      // Trailing placeholder (after the last slot)
       SetHighlightedSlot(-1);
-      _placeholderIndex = index;
-      PositionPlaceholder(index);
+      PositionPlaceholder(index);  // FIX: Place at the correct trailing anchor
       ShowTrailingPlaceholder();
     }
     else
     {
+      // Highlight a concrete slot and hide the trailing bar
       SetHighlightedSlot(index);
-      _placeholderIndex = index;
       HideTrailingPlaceholder();
     }
+  }
+
+  private int GetModuleIndexIn(StackKind kind, string moduleId)
+  {
+    if (_store == null || string.IsNullOrEmpty(moduleId)) return -1;
+    var modules = _store.GetModules(kind);
+    for (int i = 0; i < modules.Length; i++)
+    {
+      if (modules[i]?.ModuleId == moduleId)
+        return i;
+    }
+    return -1;
   }
 
   private void ShowTrailingPlaceholder()
@@ -389,9 +451,10 @@ public partial class ModuleStackView : Panel
       return;
     }
 
-    // Build preview sequence: remove from same stack if applicable, insert placeholder at index
-    var others = new System.Collections.Generic.List<ModuleVm>(baseModules);
-    // If dragging within the same stack, remove the module being dragged so we create a gap
+    // Build preview list with a gap at _placeholderIndex.
+    var others = new List<ModuleVm>(baseModules);
+
+    // If dragging within this same stack, remove the dragged entry to create the gap.
     int removeIdx = others.FindIndex(vm => vm.ModuleId == _hoverModuleId);
     if (removeIdx >= 0)
       others.RemoveAt(removeIdx);
