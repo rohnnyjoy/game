@@ -12,6 +12,7 @@ public partial class HomingModule : WeaponModule
   public HomingModule()
   {
     CardTexture = IconAtlas.MakeItemsIcon(6); // homing
+    ModuleName = "Neuron Capsule";
     ModuleDescription = "Attacks home in on the nearest enemy within 10m.";
     Rarity = Rarity.Legendary;
     BulletModifiers.Add(new HomingBulletModifier());

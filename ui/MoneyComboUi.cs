@@ -6,6 +6,8 @@ public partial class MoneyComboUi : Control
   private DynaText text;
   private DynaText.Config cfg;
   private string display = "0";
+  private Control _crosshairAnchor;
+  private bool _attachToCrosshair;
 
   // Running state (ported to match Balatro's event-queue model)
   private int pendingCombo = 0;             // queued amount to drain (not shown while a drain is active)
@@ -124,6 +126,11 @@ public partial class MoneyComboUi : Control
       // X stays at 0 so the text grows to the right of the crosshair; Y is centered.
       text.Position = new Vector2(0f, -0.5f * bounds.Y);
     }
+
+    if (_attachToCrosshair)
+    {
+      UpdateCrosshairAttachment();
+    }
   }
 
   public void AttachToBottomRight(Control bottomRight)
@@ -138,18 +145,48 @@ public partial class MoneyComboUi : Control
     if (text != null)
       text.Position = Vector2.Zero;
     Visible = true;
+    _attachToCrosshair = false;
+    _crosshairAnchor = null;
   }
 
   public void AttachToCrosshair(Control crosshair)
   {
-    var rect = crosshair.GetGlobalRect();
-    // Place this control at the crosshair center, then offset horizontally.
-    // The text node is vertically centered in _Process, so we only need the desired offset here.
-    GlobalPosition = rect.Position + rect.Size * 0.5f + CrosshairOffset;
+    _crosshairAnchor = crosshair;
+    _attachToCrosshair = true;
+    UpdateCrosshairAttachment();
     Size = Vector2.Zero; // size not used; we position by global center
     if (text != null)
       text.Position = new Vector2(0f, text.Position.Y);
     Visible = true;
+  }
+
+  private void UpdateCrosshairAttachment()
+  {
+    if (!IsInstanceValid(_crosshairAnchor))
+    {
+      _attachToCrosshair = false;
+      _crosshairAnchor = null;
+      Visible = false;
+      return;
+    }
+
+    var crosshair = _crosshairAnchor;
+    var xform = crosshair.GetGlobalTransformWithCanvas();
+    Vector2 size = crosshair.Size;
+    if (size == Vector2.Zero)
+    {
+      size = crosshair.GetMinimumSize();
+      if (size == Vector2.Zero)
+        size = crosshair.CustomMinimumSize;
+    }
+
+    Vector2 center = xform.Origin + size * 0.5f;
+    Vector2 pos = center + CrosshairOffset;
+    var gui = GameUi.Instance;
+    if (gui != null && !gui.UseFullFrameShake)
+      pos -= gui.GetScreenShakeOffset();
+
+    GlobalPosition = pos;
   }
 
   public void OnMoneyUpdated(int oldAmount, int newAmount)

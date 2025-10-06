@@ -1,5 +1,6 @@
 using Godot;
 
+[GlobalClass]
 public partial class StackLayoutConfig : Resource
 {
   [Export] public float Offset { get; set; } = 120.0f;

@@ -12,6 +12,7 @@ public partial class SlotView : Control
   private ModuleVm _module;
   private Vector2 _cardSize = new Vector2(100, 100);
   private ColorRect _placeholderOverlay;
+  private bool _allowDrag = true;
 
   // Grab offset measured in the inner-content local space at drag start.
   private Vector2 _grabOffsetInInner = Vector2.Zero;
@@ -52,7 +53,8 @@ public partial class SlotView : Control
       // In-slot display remains KeepAspectCentered; drag preview compensates for inset.
       StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
       MouseFilter = MouseFilterEnum.Ignore,
-      Visible = false
+      Visible = false,
+      TextureFilter = CanvasItem.TextureFilterEnum.Nearest
     };
     _icon.SetAnchorsPreset(LayoutPreset.FullRect);
     _content.AddChild(_icon);
@@ -69,6 +71,10 @@ public partial class SlotView : Control
     AddChild(_placeholderOverlay);
 
     UpdateVisuals();
+
+    // Hover signals to show custom tooltip instantly
+    MouseEntered += OnMouseEntered;
+    MouseExited += OnMouseExited;
   }
 
   /// <summary>
@@ -99,7 +105,8 @@ public partial class SlotView : Control
 
     if (_content != null)
     {
-      // Theme margins define the inner content rect used for icon & math.
+      // Inner content rect equals the intended card area; keep the nine-patch
+      // border out of the content by including its margin here.
       int inner = (int)Mathf.Round(SlotPadding + NinePatchMargin);
       _content.AddThemeConstantOverride("margin_left", inner);
       _content.AddThemeConstantOverride("margin_right", inner);
@@ -123,7 +130,8 @@ public partial class SlotView : Control
     {
       _icon.Texture = _module.Icon;
       _icon.Visible = _module.Icon != null;
-      TooltipText = _module.Tooltip ?? string.Empty;
+      // Use custom tooltip on hover instead of Godot default delay-based tooltip
+      TooltipText = string.Empty;
     }
     else
     {
@@ -134,6 +142,11 @@ public partial class SlotView : Control
   }
 
   public void Clear() => SetContent(null);
+
+  public void SetAllowDrag(bool allow)
+  {
+    _allowDrag = allow;
+  }
 
   /// <summary>
   /// Shows a translucent overlay to indicate a placeholder drop target.
@@ -183,15 +196,39 @@ public partial class SlotView : Control
 
   public override void _GuiInput(InputEvent @event)
   {
-    // Do NOT record grab offset here. Godot starts a drag after a threshold of movement;
-    // recording here would bake in a stale offset and cause a visible jump.
+    if (!_allowDrag)
+    {
+      base._GuiInput(@event);
+      return;
+    }
+
+    // Rely on Godot's standard drag start (threshold-based). We prepare data in _GetDragData.
+    // Avoid forcing drags on click to keep interactions consistent with parent containers.
     base._GuiInput(@event);
   }
 
   public override Variant _GetDragData(Vector2 atPosition)
   {
-    if (_module?.Icon == null)
+    if (!_allowDrag)
       return new Variant();
+
+    if (!TryPrepareDrag(atPosition, out Variant data, out Control preview))
+      return new Variant();
+
+    SetDragPreview(preview);
+    return data;
+  }
+
+  private bool TryPrepareDrag(Vector2 atPosition, out Variant dragData, out Control preview)
+  {
+    dragData = new Variant();
+    preview = null;
+
+    if (!_allowDrag)
+      return false;
+
+    if (_module?.Icon == null)
+      return false;
 
     // 1) Compute grab offset at true drag start in inner-local space.
     Rect2 inner = GetInnerRectLocal();
@@ -203,15 +240,15 @@ public partial class SlotView : Control
     _grabOffsetInInner.Y = Mathf.Clamp(_grabOffsetInInner.Y, 0, innerSize.Y);
 
     // 2) Compute the actual drawn region of the icon inside the inner rect.
-    GetIconDrawRect(innerSize, out Vector2 drawSize, out Vector2 inset, out float scale);
+    GetIconDrawRect(innerSize, out Vector2 drawSize, out Vector2 inset, out _);
 
     // If for any reason drawSize is zero (e.g., bad texture), bail out gracefully.
     if (drawSize.X <= 0 || drawSize.Y <= 0)
-      return new Variant();
+      return false;
 
     // 3) Build a preview that is EXACTLY the draw region size (no extra scaling),
     // while using Nearest filtering to keep pixels crisp.
-    var preview = new TextureRect
+    var previewTexture = new TextureRect
     {
       Texture = _module.Icon,
       StretchMode = TextureRect.StretchModeEnum.Scale,
@@ -241,10 +278,10 @@ public partial class SlotView : Control
     grabWithinDraw.X = Mathf.Clamp(grabWithinDraw.X, 0, drawSize.X);
     grabWithinDraw.Y = Mathf.Clamp(grabWithinDraw.Y, 0, drawSize.Y);
 
-    preview.Position = -grabWithinDraw;
+    previewTexture.Position = -grabWithinDraw;
 
-    wrapper.AddChild(preview);
-    SetDragPreview(wrapper);
+    wrapper.AddChild(previewTexture);
+    preview = wrapper;
 
     // 6) Payload for the drop target.
     var data = new Godot.Collections.Dictionary
@@ -257,6 +294,21 @@ public partial class SlotView : Control
       { "draw_width", drawSize.X }
     };
 
-    return data;
+    dragData = data;
+    return true;
+  }
+
+  private void OnMouseEntered()
+  {
+    if (_module != null && GameUi.Instance != null)
+    {
+      GameUi.Instance.ShowTooltip(this, _module.Tooltip ?? string.Empty);
+    }
+  }
+
+  private void OnMouseExited()
+  {
+    if (GameUi.Instance != null)
+      GameUi.Instance.HideTooltip();
   }
 }

@@ -20,6 +20,7 @@ public partial class AimbotModule : WeaponModule
   public AimbotModule()
   {
     CardTexture = IconAtlas.MakeItemsIcon(1); // aimbot
+    ModuleName = "Mechanical Lens";
     Rarity = Rarity.Epic;
     ModuleDescription = "Attacks reorient mid-flight toward the nearest enemy across a large range (within a wide 120° cone).";
     BulletModifiers.Add(new AimbotBulletModifier());

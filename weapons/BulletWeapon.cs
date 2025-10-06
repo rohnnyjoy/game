@@ -183,8 +183,7 @@ public partial class BulletWeapon : Weapon
         muzzleFlashInstance.Emitting = true;
       }
 
-      // Camera-based shake (reverted to original)
-      GameUi.Instance?.AddJiggle(0.7f);
+      // No UI shake on gunshot; keep recoil/sfx only
       PlayGunshot();
       currentRecoil = 1.0f;
       return;
@@ -237,7 +236,7 @@ public partial class BulletWeapon : Weapon
         muzzleFlashInstance.Emitting = true;
       }
 
-      GameUi.Instance?.AddJiggle(0.7f);
+      // No UI shake on gunshot; keep recoil/sfx only
 
       // Apply recoil effect.
       currentRecoil = 1.0f;

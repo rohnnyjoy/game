@@ -16,6 +16,7 @@ public partial class StickyModule : WeaponModule
   public StickyModule()
   {
     CardTexture = IconAtlas.MakeItemsIcon(4); // sticky
+    ModuleName = "Gelmantle Core";
     ModuleDescription = "Bullets stick to surfaces and enemies, detonating after a short delay.";
     Rarity = Rarity.Common;
     BulletModifiers.Add(new StickyBulletModifier());

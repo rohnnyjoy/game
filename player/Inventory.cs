@@ -18,6 +18,7 @@ public partial class Inventory : Node
         new AimbotModule(),
         new BouncingModule(),
         new StickyModule(),
+        new FastModule(),
     };
 
   public Weapon PrimaryWeapon

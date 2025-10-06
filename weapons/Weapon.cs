@@ -10,6 +10,7 @@ public partial class Weapon : Node3D
 
   private Array<WeaponModule> _modules = new();
   public event Action ModulesChanged;
+  public event Action StatsUpdated;
 
   [Export]
   public Array<WeaponModule> Modules
@@ -20,14 +21,87 @@ public partial class Weapon : Node3D
       _modules = value ?? new Array<WeaponModule>();
       DebugTrace.Log($"Weapon.Modules set count={_modules.Count}");
       ModulesChanged?.Invoke();
+      StatsUpdated?.Invoke();
     }
   }
-  [Export] public float FireRate { get; set; } = 0.5f;
-  [Export] public float ReloadSpeed { get; set; } = 2f;
-  [Export] public int Ammo { get; set; } = 10;
-  [Export] public float Damage { get; set; } = 10f;
-  [Export] public float Accuracy { get; set; } = 1.0f;
-  [Export] public float BulletSpeed { get; set; } = 100f;
+  private float _fireRate = 0.5f;
+  private float _reloadSpeed = 2f;
+  private int _ammo = 10;
+  private float _damage = 10f;
+  private float _accuracy = 1.0f;
+  private float _bulletSpeed = 100f;
+
+  [Export]
+  public float FireRate
+  {
+    get => _fireRate;
+    set
+    {
+      if (_fireRate == value) return;
+      _fireRate = value;
+      StatsUpdated?.Invoke();
+    }
+  }
+
+  [Export]
+  public float ReloadSpeed
+  {
+    get => _reloadSpeed;
+    set
+    {
+      if (_reloadSpeed == value) return;
+      _reloadSpeed = value;
+      StatsUpdated?.Invoke();
+    }
+  }
+
+  [Export]
+  public int Ammo
+  {
+    get => _ammo;
+    set
+    {
+      if (_ammo == value) return;
+      _ammo = value;
+      StatsUpdated?.Invoke();
+    }
+  }
+
+  [Export]
+  public float Damage
+  {
+    get => _damage;
+    set
+    {
+      if (_damage == value) return;
+      _damage = value;
+      StatsUpdated?.Invoke();
+    }
+  }
+
+  [Export]
+  public float Accuracy
+  {
+    get => _accuracy;
+    set
+    {
+      if (_accuracy == value) return;
+      _accuracy = value;
+      StatsUpdated?.Invoke();
+    }
+  }
+
+  [Export]
+  public float BulletSpeed
+  {
+    get => _bulletSpeed;
+    set
+    {
+      if (_bulletSpeed == value) return;
+      _bulletSpeed = value;
+      StatsUpdated?.Invoke();
+    }
+  }
 
   protected int CurrentAmmo;
   protected bool Reloading = false;

@@ -1,0 +1,30 @@
+[gd_scene load_steps=5]
+
+[ext_resource type="Script" path="res://ui/HealthUi.cs" id="1_buv8e"]
+[ext_resource type="Script" path="res://inventory/menu/PrimaryWeaponStack.cs" id="2_3s6yq"]
+[ext_resource type="Resource" path="res://inventory/ui/layouts/hud_primary_stack.tres" id="3_pj0fh"]
+[ext_resource type="Script" path="res://ui/TopLeftHud.cs" id="4_c0xh8"]
+
+[node name="TopLeftHud" type="VBoxContainer"]
+script = ExtResource("4_c0xh8")
+anchors_preset = 0
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 16.0
+offset_top = 16.0
+theme_override_constants/separation = 8
+
+[node name="HealthInset" type="MarginContainer" parent="."]
+
+[node name="Health" type="Control" parent="HealthInset"]
+script = ExtResource("1_buv8e")
+
+[node name="PrimaryWeaponStack" type="Panel" parent="."]
+script = ExtResource("2_3s6yq")
+layout = ExtResource("3_pj0fh")
+enable_interactions = false
+draw_background = false
+visible_slot_count = 0
+card_size = Vector2(72, 72)

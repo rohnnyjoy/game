@@ -72,14 +72,16 @@ public partial class GlobalEvents : Node
     GD.Print("GlobalEvents singleton is ready.");
     // Prewarm runtime-generated resources to avoid first-use hitches
     Coin.Prewarm();
+    HealthPotion.Prewarm();
     ImpactSprite.Prewarm();
     CallDeferred(nameof(WarmupCoinDraw));
+    CallDeferred(nameof(WarmupPotionDraw));
     CallDeferred(nameof(WarmupImpactDraw));
-    // Ensure a CoinRenderer exists for batched coin rendering
-    if (CoinRenderer.Instance == null)
+    // Ensure an ItemRenderer exists for batched pickup rendering
+    if (ItemRenderer.Instance == null)
     {
-      var cr = new CoinRenderer();
-      AddChild(cr);
+      var ir = new ItemRenderer();
+      AddChild(ir);
     }
 
     // Wire global listeners
@@ -100,6 +102,10 @@ public partial class GlobalEvents : Node
     if (target is Enemy enemy)
     {
       enemy.ApplyKnockback(impulse);
+    }
+    else if (target is Player player)
+    {
+      player.ApplyKnockback(impulse);
     }
     // (Reverted) No global screen shake trigger here
   }
@@ -151,6 +157,29 @@ public partial class GlobalEvents : Node
       Vector3 pos = cam != null ? cam.GlobalPosition + cam.GlobalTransform.Basis.Z * 1.0f : Vector3.Zero;
       ImpactSprite.Spawn(this, pos, Vector3.Forward, pixelSize: 0.0005f);
       await ToSignal(GetTree().CreateTimer(0.06), "timeout");
+    }
+    catch { }
+  }
+
+  private async void WarmupPotionDraw()
+  {
+    try
+    {
+      var s = new AnimatedSprite3D();
+      s.SpriteFrames = HealthPotion.GetSharedFrames();
+      s.PixelSize = 0.0005f; // effectively invisible
+      s.TextureFilter = BaseMaterial3D.TextureFilterEnum.Nearest;
+      s.Animation = "idle";
+      s.Play();
+      AddChild(s);
+      var cam = GetViewport()?.GetCamera3D();
+      if (cam != null)
+      {
+        s.GlobalPosition = cam.GlobalPosition + cam.GlobalTransform.Basis.Z * -1.0f;
+        s.LookAt(cam.GlobalTransform.Origin, Vector3.Up);
+      }
+      await ToSignal(GetTree().CreateTimer(0.05), "timeout");
+      s.QueueFree();
     }
     catch { }
   }

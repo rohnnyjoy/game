@@ -49,8 +49,18 @@ public sealed class ModuleData
 
   public ModuleVm ToViewModel()
   {
-    string tooltip = string.IsNullOrWhiteSpace(Description) ? Name : $"{Name}\n{Description}";
+    var lines = new List<string> { Name, BuildRarityTooltipLine(Module.Rarity) };
+    if (!string.IsNullOrWhiteSpace(Description))
+      lines.Add(Description);
+
+    string tooltip = string.Join('\n', lines);
     return new ModuleVm(ModuleId, Icon, tooltip);
+  }
+
+  private static string BuildRarityTooltipLine(Rarity rarity)
+  {
+    string rarityName = rarity.ToString();
+    return $"[rarity={rarity}]{rarityName}";
   }
 }
 

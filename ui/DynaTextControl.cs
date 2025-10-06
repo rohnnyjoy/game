@@ -24,6 +24,7 @@ public partial class DynaTextControl : Control
   [Export] public float AmbientQuiverAmount = 0.0f; // default off; use transient quiver to match Balatro
   [Export] public float AmbientQuiverSpeed = 0.5f;
   [Export] public bool CenterInRect = true;
+  [Export] public float LetterSpacingExtraPx = 1.0f; // extra per-letter spacing fed to DynaText (default matches prior behavior)
 
   private string _text = string.Empty;
   private System.Collections.Generic.List<Color> _deferredColours = null;
@@ -45,7 +46,7 @@ public partial class DynaTextControl : Control
       Float = AmbientFloat,
       Bump = AmbientBump,
       TextHeightScale = 1f,
-      SpacingExtraPx = 1.0f,
+      SpacingExtraPx = LetterSpacingExtraPx,
       Silent = true,
     };
     Config.Parts.Add(new DynaText.TextPart { Provider = () => _text });

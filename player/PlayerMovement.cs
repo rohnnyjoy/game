@@ -54,8 +54,11 @@ public partial class PlayerMovement : Node
     else
       ProcessAirMovement(inputDirection, delta);
 
+    // Add knockback impulse velocity before sliding and decay it after.
     player.PreSlideHorizontalVelocity = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
+    player.Velocity += player.KnockbackVelocity;
     player.MoveAndSlide();
+    player.StepKnockback(delta);
 
     
 

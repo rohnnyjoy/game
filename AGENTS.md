@@ -27,6 +27,24 @@ This repository uses Godot 4 + C# (Godot.NET). Agents working here should valida
   - Godot API types (e.g., `CollisionMask` is `uint` in Godot 4). Use explicit casts and correct types.
   - Missing symbols due to file moves/renames. Update `using` directives and namespaces to match project conventions.
 
+## Unrelated Errors Policy
+
+- If a build surfaces errors unrelated to your current task, do not refactor or “fix the world.”
+- Note the first 1–2 unrelated errors with `file:line` in your handoff, then continue your scoped work.
+- Only touch unrelated code when it directly blocks your change (keep edits surgical and minimal).
+
+## Build Retry Policy
+
+- If a build fails and you still have clear next steps, make progress on those steps first, then retry the build later.
+- If the build is the final blocking step and you suspect transient noise, wait ~30–60 seconds and retry once.
+- Keep retries limited; if it still fails, report the first error(s) and your intended next fix.
+
+## Collaboration
+
+- Prefer additive, narrowly scoped changes to avoid stepping on parallel work.
+- Communicate intent via short plans; group small edits and build once per group.
+- Avoid mass renames/formatting outside your task scope.
+
 ## Tooling & Performance
 
 - Use `rg` for searching and file lists: it’s faster and keeps the console responsive.

@@ -9,11 +9,23 @@ public partial class PrimaryWeaponInfo : PanelContainer
   private VBoxContainer _vbox;
   private DynaTextControl _nameText;
   private GridContainer _statsGrid;
-  private DynaTextControl _modulesHeader;
-  private DynaTextControl _modulesValue;
+  // Module list removed from display
 
   private Weapon _currentWeapon;
   private InventoryStore _store;
+
+  // Track previous values to animate only the changed stat
+  private bool _hasLastStats = false;
+  private float _lastDamage, _lastAccPct, _lastBulletSpeed, _lastShotsPerSecond, _lastReloadSec;
+  private int _lastMag;
+  private Weapon _lastWeaponRef;
+  // Also track last displayed strings to key animation to visible changes
+  private string _lastDamageText = "";
+  private string _lastAccText = "";
+  private string _lastBulletText = "";
+  private string _lastFireText = "";
+  private string _lastReloadText = "";
+  private string _lastMagText = "";
 
   private readonly FontFile _pixelFont = GD.Load<FontFile>("res://assets/fonts/Born2bSportyV2.ttf");
 
@@ -76,21 +88,10 @@ public partial class PrimaryWeaponInfo : PanelContainer
     AddStatRow("Reload:", out _reloadVal);
     AddStatRow("Magazine:", out _magVal);
 
-    // Modules (header as DynaText)
-    _modulesHeader = new DynaTextControl { Name = "ModulesHeader", FontPx = 36, AmbientRotate = false, AmbientFloat = true, AmbientBump = false, CenterInRect = false };
-    _modulesHeader.ShadowAlpha = 0.55f;
-    _modulesHeader.SetColours(new List<Color> { Colors.White });
-    _modulesHeader.SetText("Modules:");
-    _modulesHeader.CustomMinimumSize = new Vector2(0, 42);
-    _vbox.AddChild(_modulesHeader);
-    // Spacer for visual separation
-    var spacer = new Control { Name = "Spacer" };
-    spacer.CustomMinimumSize = new Vector2(0, 6);
-    _vbox.AddChild(spacer);
-    _modulesValue = new DynaTextControl { Name = "ModulesValue", FontPx = 40, AmbientRotate = true, AmbientFloat = true, AmbientBump = false };
-    _modulesValue.ShadowAlpha = 0.55f;
-    _modulesValue.CustomMinimumSize = new Vector2(0, 46);
-    _vbox.AddChild(_modulesValue);
+    // Name gradient set once
+    _nameText.SetColours(GetNameColours());
+
+    // Module list intentionally removed from UI
   }
 
   private void ApplyFont(Control c, int size)
@@ -136,7 +137,10 @@ public partial class PrimaryWeaponInfo : PanelContainer
     var w = Player.Instance?.Inventory?.PrimaryWeapon;
     _currentWeapon = w;
     if (w != null)
+    {
       w.ModulesChanged += OnWeaponModulesChanged;
+      w.StatsUpdated += OnWeaponStatsUpdated;
+    }
   }
 
   private void UnhookWeaponEvents()
@@ -144,11 +148,17 @@ public partial class PrimaryWeaponInfo : PanelContainer
     if (_currentWeapon != null)
     {
       _currentWeapon.ModulesChanged -= OnWeaponModulesChanged;
+      _currentWeapon.StatsUpdated -= OnWeaponStatsUpdated;
       _currentWeapon = null;
     }
   }
 
   private void OnWeaponModulesChanged()
+  {
+    UpdateInfo();
+  }
+
+  private void OnWeaponStatsUpdated()
   {
     UpdateInfo();
   }
@@ -161,11 +171,15 @@ public partial class PrimaryWeaponInfo : PanelContainer
       if (_nameText != null) _nameText.SetText("No primary weapon");
       return;
     }
-    // Name: colorful palette and Balatro-style transient quiver + pulse
-    _nameText.SetColours(GetNameColours());
-    _nameText.SetText(GetWeaponDisplayName(w));
-    _nameText.Pulse(0.3f);
-    _nameText.Quiver(0.03f, 0.5f, 0.4f);
+    // Name: animate only when weapon changes
+    string name = GetWeaponDisplayName(w);
+    _nameText.SetText(name);
+    bool weaponChanged = _lastWeaponRef != w;
+    if (weaponChanged)
+    {
+      _nameText.Pulse(0.3f);
+      _nameText.Quiver(0.03f, 0.5f, 0.4f);
+    }
 
     float damage = w.GetDamage();
     int mag = w.GetAmmo();
@@ -175,45 +189,41 @@ public partial class PrimaryWeaponInfo : PanelContainer
     float acc = Mathf.Clamp(w.GetAccuracy(), 0f, 1f) * 100f;
     float bs = w.GetBulletSpeed();
 
-    _damageVal.SetColours(new List<Color> { new Color(1.0f, 0.35f, 0.0f) });
-    _damageVal.SetText($"{damage:0.##}");
-    ApplyJuice(_damageVal, damage);
+    string damageText = $"{damage:0.##}";
+    Color damageCol = WeaponStatColorConfig.GetColour(WeaponStatKind.Damage, damage);
+    SetStatVisual(_damageVal, damageText, damageCol, ref _lastDamageText, ref _lastDamageColor, damage);
 
-    _accVal.SetColours(new List<Color> { new Color(0.1f, 1.0f, 0.35f) });
-    _accVal.SetText($"{acc:0}%");
-    ApplyJuice(_accVal, acc);
+    string accText = $"{acc:0}%";
+    Color accCol = WeaponStatColorConfig.GetColour(WeaponStatKind.AccuracyPct, acc);
+    SetStatVisual(_accVal, accText, accCol, ref _lastAccText, ref _lastAccColor, acc);
 
-    _bulletVal.SetColours(new List<Color> { new Color(0.3f, 0.6f, 1.0f) });
-    _bulletVal.SetText($"{bs:0.##}");
-    ApplyJuice(_bulletVal, bs);
+    string bulletText = $"{bs:0.##}";
+    Color bsCol = WeaponStatColorConfig.GetColour(WeaponStatKind.BulletSpeed, bs);
+    SetStatVisual(_bulletVal, bulletText, bsCol, ref _lastBulletText, ref _lastBulletColor, bs);
 
-    _fireVal.SetColours(new List<Color> { new Color(1.0f, 0.92f, 0.0f) });
-    _fireVal.SetText($"{sps:0.##}/s");
-    ApplyJuice(_fireVal, sps);
+    string fireText = $"{sps:0.##}/s";
+    Color spsCol = WeaponStatColorConfig.GetColour(WeaponStatKind.ShotsPerSecond, sps);
+    SetStatVisual(_fireVal, fireText, spsCol, ref _lastFireText, ref _lastFireColor, sps);
 
-    _reloadVal.SetColours(new List<Color> { new Color(0.1f, 1.0f, 1.0f) });
-    _reloadVal.SetText($"{reload:0.##}s");
-    ApplyJuice(_reloadVal, reload);
+    string reloadText = $"{reload:0.##}s";
+    Color reloadCol = WeaponStatColorConfig.GetColour(WeaponStatKind.ReloadSeconds, reload);
+    SetStatVisual(_reloadVal, reloadText, reloadCol, ref _lastReloadText, ref _lastReloadColor, reload);
 
-    _magVal.SetColours(new List<Color> { Colors.White });
-    _magVal.SetText($"{mag}");
-    ApplyJuice(_magVal, mag);
+    string magText = $"{mag}";
+    Color magCol = WeaponStatColorConfig.GetColour(WeaponStatKind.Magazine, mag);
+    SetStatVisual(_magVal, magText, magCol, ref _lastMagText, ref _lastMagColor, mag);
 
-    // Modules list
-    List<string> mods = new List<string>();
-    if (w.ImmutableModules != null)
-    {
-      foreach (var m in w.ImmutableModules) mods.Add(GetModuleDisplayName(m));
-    }
-    if (w.Modules != null)
-    {
-      foreach (var m in w.Modules) mods.Add(GetModuleDisplayName(m));
-    }
-    _modulesValue.SetColours(new List<Color> { Colors.White });
-    _modulesValue.SetText(mods.Count > 0 ? string.Join("  •  ", mods) : "None");
-    // Small consistent juice when modules list updates
-    _modulesValue.Pulse(0.3f);
-    _modulesValue.Quiver(0.03f, 0.5f, 0.4f);
+    // Snapshot current values for change detection next time
+    _lastWeaponRef = w;
+    _lastDamage = damage; _lastDamageText = damageText;
+    _lastAccPct = acc; _lastAccText = accText;
+    _lastBulletSpeed = bs; _lastBulletText = bulletText;
+    _lastShotsPerSecond = sps; _lastFireText = fireText;
+    _lastReloadSec = reload; _lastReloadText = reloadText;
+    _lastMag = mag; _lastMagText = magText;
+    _hasLastStats = true;
+
+    // Module list removed; no additional UI updates required here
   }
 
   private static string GetWeaponDisplayName(Weapon w)
@@ -226,13 +236,7 @@ public partial class PrimaryWeaponInfo : PanelContainer
     };
   }
 
-  private static string GetModuleDisplayName(WeaponModule m)
-  {
-    if (m == null) return "";
-    if (!string.IsNullOrEmpty(m.ModuleName) && m.ModuleName != "Base Module")
-      return m.ModuleName;
-    return m.GetType().Name.Replace("Module", " Module");
-  }
+  // Module list removed; helper no longer required
 
   private static List<Color> GetNameColours()
   {
@@ -248,16 +252,36 @@ public partial class PrimaryWeaponInfo : PanelContainer
     };
   }
 
-  private static List<Color> GetModulesColours()
+  private static bool NearEqual(float a, float b, float epsilon = 0.0001f)
   {
-    // Softer accent for modules text
-    return new List<Color>
-    {
-      new Color(0.9f, 0.9f, 0.9f),
-      new Color(0.85f, 0.95f, 1.0f),
-      new Color(0.95f, 0.9f, 1.0f),
-    };
+    return MathF.Abs(a - b) <= epsilon;
   }
+
+  // Track last displayed colours to avoid unnecessary SetColours (which re-inits DynaText)
+  private Color _lastDamageColor, _lastAccColor, _lastBulletColor, _lastFireColor, _lastReloadColor, _lastMagColor;
+
+  private static bool ColorsEqual(in Color a, in Color b, float eps = 0.002f)
+  {
+    return MathF.Abs(a.R - b.R) <= eps && MathF.Abs(a.G - b.G) <= eps && MathF.Abs(a.B - b.B) <= eps && MathF.Abs(a.A - b.A) <= eps;
+  }
+
+  private void SetStatVisual(DynaTextControl label, string text, Color colour, ref string lastText, ref Color lastColour, float numericForJuice)
+  {
+    bool textChanged = (text != lastText) || !_hasLastStats;
+    bool colourChanged = (!ColorsEqual(colour, lastColour)) || !_hasLastStats;
+
+    if (colourChanged)
+      label.SetColours(new List<Color> { colour });
+
+    label.SetText(text);
+    if (textChanged)
+      ApplyJuice(label, numericForJuice);
+
+    lastText = text;
+    lastColour = colour;
+  }
+
+  // Module list removed; color palette helper not needed
 
   private static void ApplyJuice(DynaTextControl dt, float value)
   {

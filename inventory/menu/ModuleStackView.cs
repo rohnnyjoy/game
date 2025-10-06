@@ -6,10 +6,43 @@ public partial class ModuleStackView : Panel
 {
   [Export] public StackKind Kind { get; set; } = StackKind.Inventory;
   [Export] public StackLayoutConfig Layout { get; set; }
-  [Export(PropertyHint.Range, "1,16,1")] public int VisibleSlotCount { get; set; } = 4;
+  [Export(PropertyHint.Range, "0,16,1")] public int VisibleSlotCount { get; set; } = 4;
   [Export] public Vector2 CardSize { get; set; } = new Vector2(100, 100);
   [Export] public Color PlaceholderColor { get; set; } = new Color(1, 1, 1, 0.65f);
   [Export] public float PlaceholderWidth { get; set; } = 0f;
+  [Export] public BoxContainer.AlignmentMode SlotsAlignment { get; set; } = BoxContainer.AlignmentMode.Center;
+
+  private bool _enableInteractions = true;
+  private bool _drawBackground = true;
+  [Export] public bool EnableInteractions
+  {
+    get => _enableInteractions;
+    set
+    {
+      if (_enableInteractions == value)
+        return;
+      _enableInteractions = value;
+      if (IsInsideTree())
+      {
+        SetProcess(_enableInteractions);
+        ApplyInteractivityToSlots();
+      }
+    }
+  }
+
+  [Export]
+  public bool DrawBackground
+  {
+    get => _drawBackground;
+    set
+    {
+      if (_drawBackground == value)
+        return;
+      _drawBackground = value;
+      if (IsInsideTree())
+        RefreshPanelBackground();
+    }
+  }
 
   private readonly List<SlotView> _slots = new();
   private MarginContainer _content;
@@ -28,7 +61,8 @@ public partial class ModuleStackView : Panel
   {
     Layout ??= new StackLayoutConfig();
     BuildUi();
-    SetProcess(true);
+    SetProcess(_enableInteractions);
+    RefreshPanelBackground();
 
     _store = InventoryStore.Instance;
     if (_store != null)
@@ -47,6 +81,9 @@ public partial class ModuleStackView : Panel
 
   public override bool _CanDropData(Vector2 atPosition, Variant data)
   {
+    if (!_enableInteractions)
+      return false;
+
     if (!TryParseDragData(data, out string moduleId, out StackKind source, out float grabWithinDrawX, out float drawWidth))
       return false;
 
@@ -66,6 +103,12 @@ public partial class ModuleStackView : Panel
 
   public override void _DropData(Vector2 atPosition, Variant data)
   {
+    if (!_enableInteractions)
+    {
+      ClearHoverState();
+      return;
+    }
+
     if (!TryParseDragData(data, out string moduleId, out StackKind source, out float grabWithinDrawX, out float drawWidth))
     {
       ClearHoverState();
@@ -121,6 +164,9 @@ public partial class ModuleStackView : Panel
 
   public override void _Process(double delta)
   {
+    if (!_enableInteractions)
+      return;
+
     if (_isDragHovering)
       UpdatePlaceholderFromMouse();
   }
@@ -128,18 +174,24 @@ public partial class ModuleStackView : Panel
   private void BuildUi()
   {
     MouseFilter = MouseFilterEnum.Stop;
+    SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+    SizeFlagsVertical = SizeFlags.ShrinkBegin;
 
     _content = new MarginContainer { Name = "Content", MouseFilter = MouseFilterEnum.Ignore };
     _content.SetAnchorsPreset(LayoutPreset.FullRect);
+    _content.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+    _content.SizeFlagsVertical = SizeFlags.ShrinkBegin;
     AddChild(_content);
 
     _slotsBox = new HBoxContainer
     {
       Name = "SlotsBox",
-      Alignment = BoxContainer.AlignmentMode.Center,
+      Alignment = SlotsAlignment,
       MouseFilter = MouseFilterEnum.Ignore
     };
     _slotsBox.SetAnchorsPreset(LayoutPreset.FullRect);
+    _slotsBox.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+    _slotsBox.SizeFlagsVertical = SizeFlags.ShrinkBegin;
     _content.AddChild(_slotsBox);
 
     _overlay = new Control { Name = "Overlay", MouseFilter = MouseFilterEnum.Ignore };
@@ -166,6 +218,7 @@ public partial class ModuleStackView : Panel
     for (int i = 0; i < _slots.Count; i++)
     {
       var slot = _slots[i];
+      slot.SetAllowDrag(_enableInteractions);
       slot.ConfigureVisuals(Layout.SlotNinePatchTexture, Layout.SlotNinePatchMargin, Layout.SlotPadding, CardSize);
       slot.Kind = Kind;
       if (i < modules.Length)
@@ -204,6 +257,7 @@ public partial class ModuleStackView : Panel
     while (_slots.Count < desired)
     {
       var slot = new SlotView { Kind = Kind };
+      slot.SetAllowDrag(_enableInteractions);
       _slots.Add(slot);
       _slotsBox.AddChild(slot);
     }
@@ -215,24 +269,55 @@ public partial class ModuleStackView : Panel
     }
   }
 
+  private void ApplyInteractivityToSlots()
+  {
+    foreach (var slot in _slots)
+      slot.SetAllowDrag(_enableInteractions);
+    if (!_enableInteractions)
+      ClearHoverState();
+  }
+
+  private void RefreshPanelBackground()
+  {
+    if (_drawBackground)
+      RemoveThemeStyleboxOverride("panel");
+    else
+      AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
+  }
+
   private int ComputeDropIndexForX(float x)
   {
-    if (_slots.Count == 0)
+    // Compute insertion index based on the BORDER between slots, not slot centers.
+    // For N slots there are N+1 insertion positions [0..N]. The boundaries
+    // that cause the index to advance are the midpoints between the right edge
+    // of slot i and the left edge of slot i+1. Crossing that border increments
+    // the index by one. This keeps the placeholder stable while moving across a
+    // slot and only shifts when passing the gap between two slots.
+    int n = _slots.Count;
+    if (n == 0)
       return 0;
 
-    // Border-based logic: change index only when crossing the border between slots
-    // (i.e., the left edge of the next slot), not at midpoints.
-    for (int i = 0; i < _slots.Count; i++)
+    if (n == 1)
     {
-      Rect2 rect = _slots[i].GetGlobalRect();
-      float left = rect.Position.X;
-      float right = left + rect.Size.X;
-      if (x < left)
-        return i;           // before this slot
-      if (x <= right)
-        return i;           // inside this slot
+      // With a single slot, treat the slot's right edge as the final boundary.
+      Rect2 r = _slots[0].GetGlobalRect();
+      float right = r.Position.X + r.Size.X;
+      return x < right ? 0 : 1;
     }
-    return _slots.Count;     // after the last slot
+
+    // For n >= 2, use mid-gap between adjacent slots.
+    for (int i = 0; i < n - 1; i++)
+    {
+      Rect2 a = _slots[i].GetGlobalRect();
+      Rect2 b = _slots[i + 1].GetGlobalRect();
+      float aRight = a.Position.X + a.Size.X;
+      float bLeft = b.Position.X;
+      float cut = 0.5f * (aRight + bLeft);
+      if (x < cut)
+        return i;
+    }
+    // Past the last border -> append after the last slot.
+    return n;
   }
 
   private bool TryParseDragData(Variant data, out string moduleId, out StackKind source, out float grabWithinDrawX, out float drawWidth)
@@ -472,8 +557,9 @@ public partial class ModuleStackView : Panel
 
       if (i == placeholderIndex)
       {
+        // Show an empty gap without any white tint overlay
         slot.SetContent(null);
-        slot.SetPlaceholderHighlight(true);
+        slot.SetPlaceholderHighlight(false);
       }
       else if (j < others.Count)
       {

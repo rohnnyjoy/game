@@ -22,7 +22,7 @@ public partial class ScatterModule : WeaponModule
   };
 
   [Export]
-  public override string ModuleName { get; set; } = "Scatter Module";
+  public override string ModuleName { get; set; } = "Shrapnel Chamber";
 
   // [Export]
   // public new Texture2D CardTexture { get; set; } = GD.Load<Texture2D>("res://icons/shotgun.png");

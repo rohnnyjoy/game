@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://kadcr801fqcm"]
+[gd_scene load_steps=15 format=3 uid="uid://kadcr801fqcm"]
 
 [ext_resource type="Script" uid="uid://c38ik6og0388m" path="res://player/Player.cs" id="1_kne1u"]
 [ext_resource type="Script" uid="uid://cfl7010e0y50c" path="res://player/CameraPivot.cs" id="2_83hs8"]
@@ -6,11 +6,7 @@
 [ext_resource type="Script" uid="uid://waf5apg8fapb" path="res://player/camera/CameraShake.cs" id="3_83hs8"]
 [ext_resource type="Script" uid="uid://biw8xnu0hfuhx" path="res://player/PlayerMovement.cs" id="3_aqcbf"]
 [ext_resource type="Script" uid="uid://b473g26ihvyw1" path="res://player/WeaponHolder.cs" id="4_83hs8"]
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_xk8km"]
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xhfnw"]
-albedo_color = Color(0, 1, 1, 1)
+[ext_resource type="PackedScene" uid="uid://c1cojstr50644" path="res://assets/models/character.glb" id="5_char"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_67y6s"]
 
@@ -128,9 +124,8 @@ CameraPath = NodePath("../CameraPivot/CameraRig/CameraShake/Camera")
 script = ExtResource("3_aqcbf")
 PlayerPath = NodePath("..")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-mesh = SubResource("CapsuleMesh_xk8km")
-surface_material_override/0 = SubResource("StandardMaterial3D_xhfnw")
+[node name="Character" parent="." instance=ExtResource("5_char")]
+transform = Transform3D(-0.39, 0, 5.88884e-08, 0, 0.39, 0, -5.88884e-08, 0, -0.39, 0, -0.9, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("CapsuleShape3D_67y6s")
@@ -172,7 +167,7 @@ fov = 70.0
 
 [node name="WeaponHolder" type="Node3D" parent="CameraPivot"]
 physics_interpolation_mode = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, -0.55, -1.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.892559, -0.55, -1.43968)
 script = ExtResource("4_83hs8")
 PlayerPath = NodePath("../..")
 PivotPath = NodePath("..")

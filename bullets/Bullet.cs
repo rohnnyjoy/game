@@ -284,8 +284,7 @@ public partial class Bullet : Node3D
         dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
         GlobalEvents.Instance?.EmitDamageDealt(enemy, collision.TotalDamageDealt, dir * Mathf.Max(0.0f, KnockbackStrength));
 
-        // Compute UI screen shake based on total damage (pixels).
-        GameUi.Instance?.AddJiggle(Mathf.Clamp(collision.TotalDamageDealt * 0.01f, 0.2f, 2.0f));
+        // Do not trigger UI shake on impact; UI shake reserved for gold increments
 
         // Spawn damage number above the enemy
         DamageNumber3D.Spawn(this, enemy, collision.TotalDamageDealt);

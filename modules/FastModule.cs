@@ -9,6 +9,7 @@ public partial class FastModule : WeaponModule
   {
     // Initialize the module description when the node is ready.
     CardTexture = IconAtlas.MakeItemsIcon(7); // speed
+    ModuleName = "Kinetic Booster";
     Rarity = Rarity.Common;
     ModuleDescription = "Bullets move faster";
   }

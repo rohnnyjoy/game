@@ -90,13 +90,19 @@ public partial class InventoryStore : Node
       int currentIndex = list.IndexOf(moduleId);
       if (currentIndex == -1) return;
 
+      // Interpret toIndex in the pre-removal index space.
       int insertionIndex = Math.Clamp(toIndex, 0, list.Count);
+
+      // Remove first to get the post-removal list size, but adjust the
+      // target relative to the original currentIndex before any post-removal clamp.
       list.RemoveAt(currentIndex);
-      if (insertionIndex > list.Count)
-        insertionIndex = list.Count;
+
       if (insertionIndex > currentIndex)
         insertionIndex -= 1;
+
+      // Finally, clamp to the post-removal bounds [0..list.Count].
       insertionIndex = Math.Clamp(insertionIndex, 0, list.Count);
+
       list.Insert(insertionIndex, moduleId);
       CommitState(origin);
       return;

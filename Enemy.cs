@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Combat;
 
 public partial class Enemy : CharacterBody3D
 {
@@ -33,6 +34,9 @@ public partial class Enemy : CharacterBody3D
   private float startX;
   private int direction = 1;
   private float speedMultiplier = 1.0f;
+
+  [Export]
+  public DropTableResource LootOnDeath { get; set; }
   
   // Knockback state
   private Vector3 _knockbackVelocity = Vector3.Zero;
@@ -42,10 +46,15 @@ public partial class Enemy : CharacterBody3D
   [Export]
   public int CoinsOnDeath { get; set; } = 2;
   
-  // Flash-on-damage state
-  private readonly List<MeshInstance3D> _meshInstances = new List<MeshInstance3D>();
-  private StandardMaterial3D _flashMaterial;
-  private int _flashToken = 0;
+  // Shared damage FX helper (flash + impact sprite)
+  private DamageFeedback _damageFeedback;
+
+  // Contact damage to player
+  [Export] public float ContactDamage { get; set; } = 10f;
+  [Export] public float ContactKnockbackStrength { get; set; } = 3f;
+  [Export] public float ContactDamageCooldown { get; set; } = 0.5f;
+  private Area3D _contactArea;
+  private readonly Dictionary<long, float> _lastHitAt = new();
 
   // Onready nodes
   private AnimationPlayer animPlayer;
@@ -61,17 +70,32 @@ public partial class Enemy : CharacterBody3D
     animPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
 
     // Gather mesh instances for damage flash
-    CollectMeshInstances(this);
-    // Prepare a simple white unshaded material to overlay as a flash
-    _flashMaterial = new StandardMaterial3D
-    {
-      AlbedoColor = new Color(1, 1, 1, 1),
-      EmissionEnabled = true,
-      Emission = new Color(1, 1, 1, 1)
-    };
+    _damageFeedback = new DamageFeedback();
+    _damageFeedback.VisualRoot = this;
+    AddChild(_damageFeedback);
 
-    // Connect local damage signal to visual feedback
+    // Connect local damage signal to shared visual feedback
     Connect(nameof(Damaged), new Callable(this, nameof(OnDamaged)));
+
+    // Setup contact damage detection area
+    SetupContactDamageArea();
+
+    // Ensure a default loot table if none assigned (5% health potion by default)
+    if (LootOnDeath == null)
+    {
+      var table = new DropTableResource();
+      table.RollMode = DropTableResource.DropRollMode.Independent;
+      var entry = new DropEntryResource
+      {
+        Kind = LootKind.HealthPotion,
+        DropChance = 0.05f,
+        MinQuantity = 1,
+        MaxQuantity = 1,
+        Weight = 1.0f
+      };
+      table.Entries.Add(entry);
+      LootOnDeath = table;
+    }
   }
 
   public override void _PhysicsProcess(double delta)
@@ -235,10 +259,13 @@ public partial class Enemy : CharacterBody3D
     // GetParent().AddChild(weaponModuleCard);
     // Spawn coins on death (prefer MultiMesh renderer if present)
     int coinCount = Math.Max(0, CoinsOnDeath);
-    if (CoinRenderer.Instance != null)
-      CoinRenderer.Instance.SpawnCoinsAt(GlobalTransform.Origin, coinCount);
+    if (ItemRenderer.Instance != null)
+      ItemRenderer.Instance.SpawnCoinsAt(GlobalTransform.Origin, coinCount);
     else
       SpawnCoins(coinCount);
+
+    // Spawn loot from table (e.g., health potion drop)
+    LootOnDeath?.SpawnDrops(GlobalTransform.Origin, GetParent());
     QueueFree();
   }
 
@@ -271,51 +298,9 @@ public partial class Enemy : CharacterBody3D
       animPlayer.Play("idle");
   }
 
-  private void CollectMeshInstances(Node node)
-  {
-    foreach (Node child in node.GetChildren())
-    {
-      if (child is MeshInstance3D mi)
-      {
-        _meshInstances.Add(mi);
-      }
-      // Recurse into Node3D children (typical for visual hierarchies)
-      if (child is Node3D || child is Node)
-      {
-        CollectMeshInstances(child);
-      }
-    }
-  }
-
   private void OnDamaged(float amount)
   {
-    // Fire-and-forget the flash
-    _ = FlashAsync(0.08f);
-  }
-
-  private async Task FlashAsync(float durationSeconds)
-  {
-    _flashToken++;
-    int token = _flashToken;
-
-    foreach (var mi in _meshInstances)
-    {
-      // Apply a white flash overlay using MaterialOverride.
-      // Clearing MaterialOverride later restores any per-surface materials.
-      mi.MaterialOverride = _flashMaterial;
-    }
-
-    var timer = GetTree().CreateTimer(Mathf.Max(0.01f, durationSeconds));
-    await ToSignal(timer, "timeout");
-
-    // Only the most recent flash call should clear the override
-    if (token == _flashToken)
-    {
-      foreach (var mi in _meshInstances)
-      {
-        mi.MaterialOverride = null;
-      }
-    }
+    _damageFeedback?.Trigger(amount);
   }
 
   public void ApplyKnockback(Vector3 impulse)
@@ -324,5 +309,70 @@ public partial class Enemy : CharacterBody3D
     float len = _knockbackVelocity.Length();
     if (len > MaxKnockbackSpeed && len > 0.0001f)
       _knockbackVelocity = _knockbackVelocity / len * MaxKnockbackSpeed;
+  }
+
+  private void SetupContactDamageArea()
+  {
+    _contactArea = new Area3D
+    {
+      Monitoring = true,
+      Monitorable = true,
+      // Sense only the player layer (layer 2 in Player.tscn)
+      CollisionMask = (uint)(1 << 1)
+    };
+    AddChild(_contactArea);
+
+    // Try to mirror the main collider's shape for more accurate contact.
+    var bodyShape = GetNodeOrNull<CollisionShape3D>("CollisionShape3D");
+    if (bodyShape?.Shape is CapsuleShape3D cap)
+    {
+      var capCopy = new CapsuleShape3D { Radius = cap.Radius + 0.05f, Height = cap.Height };
+      var cs = new CollisionShape3D { Shape = capCopy };
+      _contactArea.AddChild(cs);
+    }
+    else
+    {
+      // Fallback small sphere around the body center.
+      var sphere = new SphereShape3D { Radius = 0.7f };
+      var cs = new CollisionShape3D { Shape = sphere };
+      _contactArea.AddChild(cs);
+    }
+
+    _contactArea.BodyEntered += OnContactBodyEntered;
+  }
+
+  private void OnContactBodyEntered(Node3D body)
+  {
+    if (body == null || !IsInstanceValid(body)) return;
+    if (!body.IsInGroup("players")) return;
+    if (body is Player player)
+      TryDamagePlayer(player);
+  }
+
+  private void TryDamagePlayer(Player player)
+  {
+    if (player == null || !IsInstanceValid(player)) return;
+    long id = (long)player.GetInstanceId();
+    float now = (float)Time.GetTicksMsec() / 1000f;
+    if (_lastHitAt.TryGetValue(id, out float last) && (now - last) < ContactDamageCooldown)
+      return;
+
+    _lastHitAt[id] = now;
+
+    // Apply damage and knockback
+    player.TakeDamage(ContactDamage);
+
+    Vector3 dir = (player.GlobalTransform.Origin - GlobalTransform.Origin);
+    dir.Y = 0.1f; // keep mostly horizontal to avoid excessive pop
+    if (dir.LengthSquared() < 0.0001f)
+      dir = Vector3.Forward;
+    dir = dir.Normalized();
+
+    GlobalEvents.Instance?.EmitDamageDealt(player, ContactDamage, dir * MathF.Max(0f, ContactKnockbackStrength));
+
+    // Spawn a contact impact sprite on the player's surface with a normal opposing the hit direction
+    Vector3 normal = (-dir).Normalized();
+    Vector3 hitPos = player.GlobalTransform.Origin + Vector3.Up * 0.5f;
+    ImpactSprite.Spawn(this, hitPos, normal);
   }
 }

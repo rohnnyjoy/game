@@ -14,6 +14,7 @@ public partial class BouncingModule : WeaponModule
   public BouncingModule()
   {
     CardTexture = IconAtlas.MakeItemsIcon(0); // bounce
+    ModuleName = "Richochet Coil";
     ModuleDescription = "Bullets bounce off surfaces, reducing damage with each bounce.";
     Rarity = Rarity.Rare;
     BulletModifiers.Add(new BouncingBulletModifier());

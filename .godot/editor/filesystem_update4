@@ -96,3 +96,15 @@ res://bullets/Bullet.cs
 res://inventory/cards/Card3D.cs
 res://modules/BouncingModule.cs
 res://FloatingContainer.cs
+res://render/SubViewportCompositor.cs
+res://ui/TooltipUi.cs
+res://shared/combat/DamageFeedback.cs
+res://ui/HealthUi.cs
+res://inventory/ui/HudSlotView.cs
+res://ui/PrimaryWeaponHudUi.cs
+res://ui/TopLeftHud.cs
+res://pickup/HealthPotion.cs
+res://loot/DropEntryResource.cs
+res://loot/DropTableResource.cs
+res://inventory/ui/layouts/hud_primary_stack.tres
+res://pickup/ItemRenderer.cs

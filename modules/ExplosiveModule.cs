@@ -15,6 +15,7 @@ public partial class ExplosiveModule : WeaponModule
   {
     // Set the module’s card texture and description.
     CardTexture = IconAtlas.MakeItemsIcon(5); // explosive
+    ModuleName = "Boom Juice";
     ModuleDescription = "Attacks explode on impact, dealing 25% damage in a 2-meter radius.";
     Rarity = Rarity.Uncommon;
     BulletModifiers.Add(new ExplosiveBulletModifier());

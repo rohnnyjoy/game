@@ -9,6 +9,7 @@ public partial class SlowModule : WeaponModule
   {
     // Initialize the module description when the node is ready.
     CardTexture = IconAtlas.MakeItemsIcon(8); // slow
+    ModuleName = "Chrono Ampule";
     Rarity = Rarity.Common;
     ModuleDescription = "Bullets move slower, but do more damage.";
   }
