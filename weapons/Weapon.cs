@@ -18,6 +18,7 @@ public partial class Weapon : Node3D
     set
     {
       _modules = value ?? new Array<WeaponModule>();
+      DebugTrace.Log($"Weapon.Modules set count={_modules.Count}");
       ModulesChanged?.Invoke();
     }
   }

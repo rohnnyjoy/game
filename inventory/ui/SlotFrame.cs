@@ -49,8 +49,11 @@ public partial class SlotFrame : PanelContainer
       card.Position = Vector2.Zero;
       card.RotationDegrees = 0f;
       card.Scale = Vector2.One;
+      DebugTrace.Log($"SlotFrame.{Name}.AdoptCard (noop) card={card.Name}");
       return;
     }
+    var parentBefore = card.GetParent();
+    DebugTrace.Log($"SlotFrame.{Name}.AdoptCard BEGIN card={card.Name} parentBefore={(parentBefore!=null?parentBefore.GetPath():new NodePath("<null>")).ToString()} center={_center.GetPath()}");
     // Ensure only this card is present in the frame.
     if (card.GetParent() == _center)
     {
@@ -59,6 +62,7 @@ public partial class SlotFrame : PanelContainer
       {
         if (child is Card2D c && c != card)
         {
+          DebugTrace.Log($"SlotFrame.{Name}.AdoptCard remove-other child={c.Name}");
           _center.RemoveChild(c);
         }
       }
@@ -70,17 +74,30 @@ public partial class SlotFrame : PanelContainer
       {
         if (child is Card2D c)
         {
+          DebugTrace.Log($"SlotFrame.{Name}.AdoptCard clear child={c.Name}");
           _center.RemoveChild(c);
         }
       }
       var parent = card.GetParent();
-      if (parent != null) parent.RemoveChild(card);
-      _center.AddChild(card);
+      if (parent != null)
+      {
+        DebugTrace.Log($"SlotFrame.{Name}.AdoptCard reparent from={(parent!=null?parent.GetPath():new NodePath("<null>")).ToString()} to={_center.GetPath()}");
+        // Single atomic operation avoids remove/add re-entrancy.
+        card.Reparent(_center);
+        DebugTrace.Log($"SlotFrame.{Name}.AdoptCard reparented");
+      }
+      else
+      {
+        DebugTrace.Log($"SlotFrame.{Name}.AdoptCard adding orphan to center={_center.GetPath()}");
+        _center.AddChild(card);
+        DebugTrace.Log($"SlotFrame.{Name}.AdoptCard added orphan to center");
+      }
     }
     // Let containers handle placement; reset manual transform bits used while dragging
     card.Position = Vector2.Zero;
     card.RotationDegrees = 0f;
     card.Scale = Vector2.One;
+    DebugTrace.Log($"SlotFrame.{Name}.AdoptCard END card={card.Name}");
   }
 
   public Card2D GetCard()
@@ -95,7 +112,8 @@ public partial class SlotFrame : PanelContainer
   public void SetPlaceholder(bool enabled)
   {
     _isPlaceholder = enabled;
-    // Do not change visuals; placeholder is conceptual to leave the frame empty
+    DebugTrace.Log($"SlotFrame.{Name}.SetPlaceholder {enabled}");
+    // Visuals remain unchanged (conceptual placeholder only)
   }
 
   public bool IsPlaceholder() => _isPlaceholder;
@@ -104,6 +122,7 @@ public partial class SlotFrame : PanelContainer
   {
     // Remove all Card2D children from this frame
     if (GetCard() == null) return;
+    DebugTrace.Log($"SlotFrame.{Name}.ClearCard");
     foreach (Node child in _center.GetChildren())
     {
       if (child is Card2D c)

@@ -279,6 +279,7 @@ public partial class CardStack : Panel
     if (_finishGuard)
       return;
     _finishGuard = true;
+    DebugTrace.Log($"CardStack.FinishDrop card={card2d?.Name} newIndex={newIndex} old={(oldParentNode as Node)?.Name} new={(newParentNode as Node)?.Name}");
 
     var newParent = newParentNode as CardStack ?? this;
     var oldParent = oldParentNode as CardStack;
@@ -301,11 +302,16 @@ public partial class CardStack : Panel
 
     // Update source and destination lists after the move
     if (oldParent != null)
+    {
+      DebugTrace.Log($"CardStack.FinishDrop -> oldParent.OnCardsChanged count={oldParent.GetCards().Count}");
       oldParent.OnCardsChanged(oldParent.GetCards());
+    }
+    DebugTrace.Log($"CardStack.FinishDrop -> newParent.OnCardsChanged count={newParent.GetCards().Count}");
     newParent.OnCardsChanged(newParent.GetCards());
 
     // Snap/animate cards into their slots immediately after drop, Balatro-style
     newParent.UpdateCards(newParent.GetCards(), true);
+    DebugTrace.Log($"CardStack.FinishDrop done");
 
     _finishGuard = false;
   }

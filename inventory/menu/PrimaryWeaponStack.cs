@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
 {
-  private bool _muteCardSignals = false;
+  private readonly System.Collections.Generic.Dictionary<WeaponModule, WeaponModuleCard2D> _cardMap = new();
   private bool _suppressPopulate = false;
   private bool _populateQueued = false;
   private MarginContainer _content;
@@ -43,13 +43,8 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
   private Vector2 _dragStartGlobal;
   [Export] public float HorizontalThresholdPx { get; set; } = 10f;
   private Array<Card2D> _dragSnapshot;
+  private int _externalPreviewIndex = -1;
 
-  private void DoSilently(Action action)
-  {
-    _muteCardSignals = true;
-    try { action(); }
-    finally { _muteCardSignals = false; }
-  }
 
   public override void _Ready()
   {
@@ -118,30 +113,15 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     }
     else
     {
-      // External drag preview when mouse is over this stack
+      // External preview fully disabled for stability; only clear any lingering placeholder.
       var dragging = Card2D.CurrentlyDragged;
-      if (dragging != null && _slotsBox != null)
+      if ((!IsInstanceValid(dragging) || dragging == null) && _lastPlaceholderIndex != -1)
       {
-        bool inside = GetGlobalRect().HasPoint(dragging.GetGlobalMousePosition());
-        if (inside)
+        if (_externalPreviewIndex != -1 && _slotsBox != null && _slotsBox.GetChildCount() > _externalPreviewIndex && _slotsBox.GetChild(_externalPreviewIndex) is SlotFrame clearPrev)
         {
-          int targetIndex = ComputeNearestIndexLocal(GetLocalMousePosition());
-          targetIndex = Mathf.Clamp(targetIndex, 0, _slotsBox.GetChildCount() - 1);
-          if (targetIndex != _lastPlaceholderIndex)
-          {
-            _lastPlaceholderIndex = targetIndex;
-            PreviewArrangeExternal(_lastPlaceholderIndex);
-          }
+          clearPrev.SetPlaceholder(false);
         }
-        else if (_lastPlaceholderIndex != -1)
-        {
-          PopulateCards();
-          _lastPlaceholderIndex = -1;
-        }
-      }
-      else if (_lastPlaceholderIndex != -1)
-      {
-        PopulateCards();
+        _externalPreviewIndex = -1;
         _lastPlaceholderIndex = -1;
       }
     }
@@ -221,33 +201,44 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
 
   private void PopulateCards()
   {
-    var newCards = new Array<Card2D>();
-    foreach (WeaponModule module in Player.Instance.Inventory.PrimaryWeapon.Modules)
+    DebugTrace.Log($"PrimaryWeaponStack.PopulateCards start");
+    var modules = Player.Instance.Inventory.PrimaryWeapon.Modules;
+
+    // Remove stale
+    var keys = new System.Collections.Generic.List<WeaponModule>(_cardMap.Keys);
+    foreach (var m in keys)
     {
-      var existingCard = findCard(module);
-      if (existingCard == null)
+      if (!modules.Contains(m))
       {
-        WeaponModuleCard2D card = new WeaponModuleCard2D();
-        card.Module = module;
-        newCards.Add(card);
-      }
-      else
-      {
-        newCards.Add(existingCard);
+        var card = _cardMap[m];
+        var parent = card.GetParent();
+        if (parent != null) parent.RemoveChild(card);
+        card.QueueFree();
+        _cardMap.Remove(m);
       }
     }
 
-    DoSilently(() =>
+    // Assemble ordered list
+    var ordered = new Array<Card2D>();
+    foreach (WeaponModule module in modules)
     {
-      UpdateSlotBackgrounds();
-      int idx = 0;
-      foreach (Card2D c in newCards)
+      if (!_cardMap.TryGetValue(module, out var card))
       {
-        var frame = _slotsBox.GetChild(idx) as SlotFrame;
-        frame?.AdoptCard(c);
-        idx++;
+        card = new WeaponModuleCard2D { Module = module };
+        _cardMap[module] = card;
       }
-    });
+      ordered.Add(card);
+    }
+
+    UpdateSlotBackgrounds();
+    int idx = 0;
+    foreach (Card2D c in ordered)
+    {
+      var frame = _slotsBox.GetChild(idx) as SlotFrame;
+      frame?.AdoptCard(c);
+      idx++;
+    }
+    DebugTrace.Log($"PrimaryWeaponStack.PopulateCards done count={ordered.Count}");
   }
 
 
@@ -280,6 +271,7 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
 
   private void OnInventoryChanged()
   {
+    DebugTrace.Log($"PrimaryWeaponStack.OnInventoryChanged");
     if (_suppressPopulate) return;
     if (DebugLogs) GD.Print($"[PrimaryWeaponStack:{Name}] InventoryChanged (queued)");
     // Defer populate to avoid re-entrant scene graph mutations during drops
@@ -292,6 +284,7 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
 
   private void DeferredPopulate()
   {
+    DebugTrace.Log($"PrimaryWeaponStack.DeferredPopulate");
     _populateQueued = false;
     PopulateCards();
     // Refresh visuals once after data change; avoid per-frame churn.
@@ -301,13 +294,14 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
 
   public override void OnCardsChanged(Array<Card2D> newCards)
   {
-    if (_muteCardSignals) return;
-    if (_dragCard != null) return; // ignore visual-only churn during active drag
+    // Treat as model change only; UI repopulates deferred
+    if (_dragCard != null) { DebugTrace.Log($"PrimaryWeaponStack.OnCardsChanged ignored (active drag)"); return; }
     if (DebugLogs) GD.Print($"[PrimaryWeaponStack:{Name}] OnCardsChanged count={newCards.Count}");
     // Defensive: ignore empty lists (can occur from legacy CardStack fallback paths)
     // to avoid clearing the weapon modules when a drag is canceled or invalid.
     if (newCards == null || newCards.Count == 0)
     {
+      DebugTrace.Log($"PrimaryWeaponStack.OnCardsChanged ignored (empty)");
       return;
     }
     var newModules = new Array<WeaponModule>();
@@ -325,17 +319,12 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
       weapon.Modules = newModules;
     }
     _suppressPopulate = false;
-    DoSilently(() =>
+    DebugTrace.Log($"PrimaryWeaponStack.OnCardsChanged committed modules={newModules.Count}");
+    if (!_populateQueued)
     {
-      UpdateSlotBackgrounds();
-      int idx = 0;
-      foreach (Card2D c in newCards)
-      {
-        var frame = _slotsBox.GetChild(idx) as SlotFrame;
-        frame?.AdoptCard(c);
-        idx++;
-      }
-    });
+      _populateQueued = true;
+      CallDeferred(nameof(DeferredPopulate));
+    }
   }
 
   public void HandleDrop(Card2D card, int destIndex)
@@ -355,7 +344,6 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     _suppressPopulate = true;
     inv.SetModulesBoth(invMods, weapMods);
     _suppressPopulate = false;
-    // Defer UI repopulate to avoid re-entrant scene graph mutation during drop release
     if (!_populateQueued)
     {
       _populateQueued = true;
@@ -366,6 +354,7 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
   // IFramedCardStack: Begin drag with placeholder behavior
   public void BeginCardDrag(Card2D card, SlotFrame fromFrame, Vector2 startGlobalMouse)
   {
+    DebugTrace.Log($"PrimaryWeaponStack.BeginCardDrag card={card.Name} frame={fromFrame?.Name}");
     _dragCard = card;
     _dragFrame = fromFrame;
     _originIndex = _dragFrame.GetIndex();
@@ -378,12 +367,9 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     var gp = card.GlobalPosition;
     var oldParent = card.GetParent();
     if (DebugLogs)
-      GD.Print($"[PrimaryWeaponStack:{Name}] BeginDrag card={card.Name} oldParent={(oldParent!=null?oldParent.GetPath():new NodePath("<null>")).ToString()} gp(before)={gp}");
+      GD.Print($"[PrimaryWeaponStack:{Name}] BeginDrag card={card.Name} oldParent={(oldParent != null ? oldParent.GetPath() : new NodePath("<null>")).ToString()} gp(before)={gp}");
 
-    if (oldParent != null) oldParent.RemoveChild(card);
-
-    Node uiLayer = GetDragLayer();
-    uiLayer.AddChild(card);
+    // Do not reparent during drag; just switch to top-level for global coordinates
     card.TopLevel = true;
     card.GlobalPosition = gp;
     // Keep on top within the canvas layer while dragging
@@ -391,13 +377,11 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     card.MoveToFront();
     card.RecomputeDragOffset();
     if (DebugLogs)
-      GD.Print($"[PrimaryWeaponStack:{Name}] AfterReparent card={card.Name} gp(after)={card.GlobalPosition} toplevel={card.TopLevel} parent={card.GetParent().GetPath()}");
+      GD.Print($"[PrimaryWeaponStack:{Name}] AfterBeginDrag card={card.Name} gp(after)={card.GlobalPosition} toplevel={card.TopLevel} parent={card.GetParent().GetPath()}");
 
-    DoSilently(() =>
-    {
-      _dragFrame.SetPlaceholder(true);
-      PreviewArrange(_lastPlaceholderIndex);
-    });
+    _dragFrame.SetPlaceholder(true);
+    PreviewArrange(_lastPlaceholderIndex);
+    DebugTrace.Log($"PrimaryWeaponStack.BeginCardDrag placeholder set + preview idx={_lastPlaceholderIndex}");
   }
 
   private Node GetDragLayer()
@@ -416,61 +400,63 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
   // IFramedCardStack: End drag, decide reorder or cancel
   public bool EndCardDrag(Card2D card, Vector2 endGlobalMouse)
   {
-    if (_dragCard != card || _dragFrame == null)
-    {
-      return false;
-    }
+    // DebugTrace.Log($"PrimaryWeaponStack.EndCardDrag card={card.Name}");
+    // if (_dragCard != card || _dragFrame == null)
+    // {
+    //   return false;
+    // }
 
-    bool insideThis = GetGlobalRect().HasPoint(endGlobalMouse);
-    float dx = Mathf.Abs(endGlobalMouse.X - _dragStartGlobal.X);
-    // Recompute target index at drop time to avoid stale placeholder index
-    Vector2 endLocal = endGlobalMouse - GetGlobalRect().Position;
-    int destIndex = ComputeNearestIndexLocal(endLocal);
-    destIndex = Mathf.Clamp(destIndex, 0, _slotsBox.GetChildCount() - 1);
-    GD.Print($"[PrimaryWeaponStack:{Name}] EndDrag dx={dx} origin={_originIndex} placeholder={_lastPlaceholderIndex} destIndex(computed)={destIndex} inside={insideThis}");
+    // bool insideThis = GetGlobalRect().HasPoint(endGlobalMouse);
+    // float dx = Mathf.Abs(endGlobalMouse.X - _dragStartGlobal.X);
+    // // Recompute target index at drop time to avoid stale placeholder index
+    // Vector2 endLocal = endGlobalMouse - GetGlobalRect().Position;
+    // int destIndex = ComputeNearestIndexLocal(endLocal);
+    // destIndex = Mathf.Clamp(destIndex, 0, _slotsBox.GetChildCount() - 1);
+    // GD.Print($"[PrimaryWeaponStack:{Name}] EndDrag dx={dx} origin={_originIndex} placeholder={_lastPlaceholderIndex} destIndex(computed)={destIndex} inside={insideThis}");
 
-    if (!insideThis)
-    {
-      DoSilently(() => _dragFrame.SetPlaceholder(false));
-      // Restore layout before exiting; Card2D handles outside drops
-      PopulateCards();
-      card.TopLevel = false;
-      // Proactively re-emit modules state so info UI doesn't briefly clear
-      var weapon = Player.Instance?.Inventory?.PrimaryWeapon;
-      if (weapon != null)
-      {
-        weapon.Modules = weapon.Modules;
-      }
-      ClearDragState();
-      return false;
-    }
+    // if (!insideThis)
+    // {
+    //   DoSilently(() => _dragFrame.SetPlaceholder(false)); DebugTrace.Log($"PrimaryWeaponStack.EndCardDrag outside -> placeholder off");
+    //   // Restore layout before exiting; Card2D handles outside drops
+    //   PopulateCards();
+    //   card.TopLevel = false;
+    //   // Proactively re-emit modules state so info UI doesn't briefly clear
+    //   var weapon = Player.Instance?.Inventory?.PrimaryWeapon;
+    //   if (weapon != null)
+    //   {
+    //     weapon.Modules = weapon.Modules;
+    //   }
+    //   ClearDragState();
+    //   return false;
+    // }
 
-    bool cancel = dx < HorizontalThresholdPx && destIndex == _originIndex;
-    if (cancel)
-    {
-      var frameRect = _dragFrame.GetGlobalRect();
-      var to = frameRect.Position + frameRect.Size * 0.5f - card.CardCore.CardSize * 0.5f;
-      var tween = card.CreateTween();
-      tween.TweenProperty(card, "global_position", to, 0.18f)
-           .SetTrans(Tween.TransitionType.Quad)
-           .SetEase(Tween.EaseType.Out);
-      tween.Finished += () => {
-        card.TopLevel = false;
-        DoSilently(() => _dragFrame.AdoptCard(card));
-      };
-      DoSilently(() => _dragFrame.SetPlaceholder(false));
-      // Restore layout
-      PopulateCards();
-      ClearDragState();
-      return true;
-    }
+    // bool cancel = dx < HorizontalThresholdPx && destIndex == _originIndex;
+    // if (cancel)
+    // {
+    //   var frameRect = _dragFrame.GetGlobalRect();
+    //   var to = frameRect.Position + frameRect.Size * 0.5f - card.CardCore.CardSize * 0.5f;
+    //   var tween = card.CreateTween();
+    //   tween.TweenProperty(card, "global_position", to, 0.18f)
+    //        .SetTrans(Tween.TransitionType.Quad)
+    //        .SetEase(Tween.EaseType.Out);
+    //   tween.Finished += () => {
+    //     card.TopLevel = false;
+    //     DoSilently(() => _dragFrame.AdoptCard(card));
+    //     DebugTrace.Log($"PrimaryWeaponStack.EndCardDrag cancel -> adopted back");
+    //   };
+    //   DoSilently(() => _dragFrame.SetPlaceholder(false)); DebugTrace.Log($"PrimaryWeaponStack.EndCardDrag cancel -> placeholder off");
+    //   // Restore layout
+    //   PopulateCards();
+    //   ClearDragState();
+    //   return true;
+    // }
 
-    // Avoid reparenting/adopting here while still in release handling; defer to data update + repopulate
-    card.TopLevel = false;
+    // // Avoid reparenting/adopting here while still in release handling; defer to data update + repopulate
+    // card.TopLevel = false;
 
-    HandleDrop(card, destIndex);
-    DoSilently(() => _dragFrame.SetPlaceholder(false));
-    ClearDragState();
+    // HandleDrop(card, destIndex);
+    // DoSilently(() => _dragFrame.SetPlaceholder(false)); DebugTrace.Log($"PrimaryWeaponStack.EndCardDrag commit -> placeholder off");
+    // ClearDragState();
     return true;
   }
 
@@ -510,6 +496,7 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
   private void PreviewArrange(int placeholderIndex)
   {
     if (_slotsBox == null || _dragSnapshot == null) return;
+    DebugTrace.Log($"PrimaryWeaponStack.PreviewArrange idx={placeholderIndex} snapshot={_dragSnapshot.Count}");
     var others = new Array<Card2D>();
     foreach (var c in _dragSnapshot)
     {
@@ -517,60 +504,34 @@ public partial class PrimaryWeaponStack : CardStack, IFramedCardStack
     }
     int k = 0;
     int frameCount = _slotsBox.GetChildCount();
-    DoSilently(() =>
+    for (int i = 0; i < frameCount; i++)
     {
-      for (int i = 0; i < frameCount; i++)
+      if (_slotsBox.GetChild(i) is SlotFrame frame)
       {
-        if (_slotsBox.GetChild(i) is SlotFrame frame)
+        if (i == placeholderIndex)
         {
-          if (i == placeholderIndex)
-          {
-            frame.ClearCard();
-            continue;
-          }
-          if (k < others.Count)
-          {
-            frame.AdoptCard(others[k]);
-            k++;
-          }
-          else
-          {
-            frame.ClearCard();
-          }
+          frame.ClearCard();
+          continue;
+        }
+        if (k < others.Count)
+        {
+          frame.AdoptCard(others[k]);
+          k++;
+        }
+        else
+        {
+          frame.ClearCard();
         }
       }
-    });
+    }
   }
 
   private void PreviewArrangeExternal(int placeholderIndex)
   {
     if (_slotsBox == null) return;
-    var current = GetAllCardsInFrames();
-    int k = 0;
-    int frameCount = _slotsBox.GetChildCount();
-    DoSilently(() =>
-    {
-      for (int i = 0; i < frameCount; i++)
-      {
-        if (_slotsBox.GetChild(i) is SlotFrame frame)
-        {
-          if (i == placeholderIndex)
-          {
-            frame.ClearCard();
-            continue;
-          }
-          if (k < current.Count)
-          {
-            frame.AdoptCard(current[k]);
-            k++;
-          }
-          else
-          {
-            frame.ClearCard();
-          }
-        }
-      }
-    });
+    DebugTrace.Log($"PrimaryWeaponStack.PreviewArrangeExternal idx={placeholderIndex}");
+    // External preview disabled for stability: record index only.
+    _externalPreviewIndex = placeholderIndex;
   }
 
   private void ApplySharedLayout()

@@ -181,17 +181,7 @@ void fragment() {
         _crosshairCenter.CallDeferred(Node.MethodName.AddChild, _crosshair);
       }
 
-      if (_comboUi != null)
-      {
-        Node prevParent = _comboUi.GetParent();
-        if (IsInstanceValid(prevParent))
-          prevParent.CallDeferred(Node.MethodName.RemoveChild, _comboUi);
-        // Add directly under the CanvasLayer, not the CenterContainer, so layout doesn't override our position.
-        _crosshairLayer.CallDeferred(Node.MethodName.AddChild, _comboUi);
-        // Re-attach to crosshair now that it's in the same layer so position aligns exactly.
-        if (_crosshair != null)
-          _comboUi.CallDeferred(nameof(MoneyComboUi.AttachToCrosshair), _crosshair);
-      }
+      // Keep other UI elements (including MoneyComboUi) under original UI layer so they shake with the frame.
     }
   }
 
@@ -223,9 +213,11 @@ void fragment() {
   {
     // Balatro-equivalent easing/timing based on reference/balatro/functions/common_events.lua
     float dt = (float)delta;
-    // Step 1: Setting and shake amount
+    // Step 1: Setting and shake amount (no ambient sway; require jiggle > 0)
     float setting = Mathf.Clamp(ScreenShakeSetting, 0, 100);
     float shakeAmt = (ReducedMotion ? 0f : 1f) * (setting / 100f) * 3f;
+    if (_jiggle <= 0.0001f)
+      shakeAmt = 0f;
     if (shakeAmt < 0.05f) shakeAmt = 0f;
 
     // Step 2: Decay jiggle
@@ -235,14 +227,15 @@ void fragment() {
     float t = (float)Time.GetTicksMsec() / 1000f;
     // Rotation
     float rot = (0.001f * Mathf.Sin(0.3f * t) + 0.002f * (_jiggle) * Mathf.Sin(39.913f * t)) * shakeAmt;
-    _shakeCurrentRotation = rot;
     // Pixel dimensions
     Vector2 vpSize = GetViewport().GetVisibleRect().Size;
     float S = Mathf.Min(vpSize.X, vpSize.Y); // match Balatro room-based scaling more closely across aspects
     // Eased cursor term omitted (mouse captured); treat as centered, so delta=0
     float offsetX = shakeAmt * (0.015f * Mathf.Sin(0.913f * t) + 0.01f * (_jiggle * shakeAmt) * Mathf.Sin(19.913f * t));
     float offsetY = shakeAmt * (0.015f * Mathf.Sin(0.952f * t) + 0.01f * (_jiggle * shakeAmt) * Mathf.Sin(21.913f * t));
-    _shakeCurrentOffset = new Vector2(offsetX * S, offsetY * S);
+    Vector2 targetOffset = new Vector2(offsetX * S, offsetY * S);
+    _shakeCurrentOffset = _shakeCurrentOffset.Lerp(targetOffset, 0.8f);
+    _shakeCurrentRotation = Mathf.Lerp(_shakeCurrentRotation, rot, 0.8f);
 
     if (UseFullFrameShake && _shakeMaterial != null)
     {

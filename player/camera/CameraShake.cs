@@ -17,7 +17,7 @@ public partial class CameraShake : Node3D
 
   [Export] public bool FollowGameUi = true;
   // Rough mapping from pixels (UI offset) to local meters on camera rig.
-  [Export] public float PixelsToMetersScale = 0.001f;
+  [Export] public float PixelsToMetersScale = 0.0035f;
 
   public override void _Ready()
   {

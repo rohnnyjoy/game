@@ -26,6 +26,7 @@ public partial class Inventory : Node
     set
     {
       _primaryWeapon = value;
+      DebugTrace.Log($"Inventory.PrimaryWeapon set -> {value?.GetType().Name}");
       EmitSignal(nameof(InventoryChanged));
     }
   }
@@ -36,6 +37,7 @@ public partial class Inventory : Node
     set
     {
       _weaponModules = value;
+      DebugTrace.Log($"Inventory.WeaponModules set count={_weaponModules?.Count ?? 0}");
       EmitSignal(nameof(InventoryChanged));
     }
   }
@@ -61,6 +63,7 @@ public partial class Inventory : Node
     {
       _primaryWeapon.Modules = primaryWeaponModules ?? new Array<WeaponModule>();
     }
+    DebugTrace.Log($"Inventory.SetModulesBoth inv={_weaponModules.Count} weap={_primaryWeapon?.Modules?.Count ?? 0}");
     EmitSignal(nameof(InventoryChanged));
   }
 }
