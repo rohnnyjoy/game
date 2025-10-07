@@ -7,6 +7,9 @@ public partial class CursedSkullBulletModifier : BulletModifier
 
   public override Task OnCollision(Bullet bullet, Bullet.CollisionData collision)
   {
+    if (BulletManager.Instance != null)
+      return Task.CompletedTask;
+
     if (bullet == null || collision == null)
       return Task.CompletedTask;
 
@@ -60,4 +63,3 @@ public partial class CursedSkullBulletModifier : BulletModifier
     return Task.CompletedTask;
   }
 }
-

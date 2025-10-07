@@ -7,6 +7,9 @@ public partial class MetronomeOnHitModifier : BulletModifier
 
   public override Task OnCollision(Bullet bullet, Bullet.CollisionData collision)
   {
+    if (BulletManager.Instance != null)
+      return Task.CompletedTask;
+
     if (Owner == null)
       return Task.CompletedTask;
 

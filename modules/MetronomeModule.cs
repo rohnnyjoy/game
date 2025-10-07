@@ -1,8 +1,9 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
-public partial class MetronomeModule : WeaponModule, IBulletCollisionListener
+public partial class MetronomeModule : WeaponModule, IDamagePreStepProvider
 {
   [Export] public float StackIncrement { get; set; } = 0.08f; // +8% damage per hit
   [Export] public float MaxMultiplier { get; set; } = 2.0f;   // up to 2x damage
@@ -21,6 +22,18 @@ public partial class MetronomeModule : WeaponModule, IBulletCollisionListener
     ModuleDescription = "Each successful hit powers the next shot.";
     Rarity = Rarity.Rare;
     BulletModifiers.Add(new MetronomeOnHitModifier { Owner = this });
+  }
+
+  public IEnumerable<DamagePreStepConfig> GetDamagePreSteps()
+  {
+    yield return new DamagePreStepConfig(
+      DamagePreStepKind.Metronome,
+      priority: 5,
+      paramA: StackIncrement,
+      paramB: MaxMultiplier,
+      paramC: ResetDelaySeconds,
+      flag: ResetOnReload
+    );
   }
 
   public float GetCurrentMultiplier()
@@ -52,15 +65,6 @@ public partial class MetronomeModule : WeaponModule, IBulletCollisionListener
   {
     ResetChain();
     _lastHitAt = GetNow();
-  }
-
-  public float OnBulletCollision(Weapon weapon, Node3D enemy, ulong enemyId, float damage)
-  {
-    if (enemy != null)
-      return AdjustDamageForEnemy(enemyId, damage);
-
-    RegisterMiss();
-    return damage;
   }
 
   private float GetNow() => (float)Time.GetTicksMsec() / 1000f;

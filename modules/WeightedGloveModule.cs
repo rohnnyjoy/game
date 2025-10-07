@@ -1,6 +1,7 @@
 using Godot;
+using System.Collections.Generic;
 
-public partial class WeightedGloveModule : WeaponModule
+public partial class WeightedGloveModule : WeaponModule, IDamagePreStepProvider
 {
   [Export] public float DamagePerSpeedFactor { get; set; } = 1.0f; // 2x damage at 2x speed by default
   [Export] public float KnockbackPerSpeedFactor { get; set; } = 1.0f; // 2x knockback at 2x speed by default
@@ -18,5 +19,17 @@ public partial class WeightedGloveModule : WeaponModule
       KnockbackPerSpeedFactor = KnockbackPerSpeedFactor,
       UseInitialSpeedAsBaseline = UseInitialSpeedAsBaseline,
     });
+  }
+
+  public IEnumerable<DamagePreStepConfig> GetDamagePreSteps()
+  {
+    yield return new DamagePreStepConfig(
+      DamagePreStepKind.SpeedScale,
+      priority: 0,
+      paramA: DamagePerSpeedFactor,
+      paramB: KnockbackPerSpeedFactor,
+      paramC: 0f,
+      flag: UseInitialSpeedAsBaseline
+    );
   }
 }

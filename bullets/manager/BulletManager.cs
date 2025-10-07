@@ -39,18 +39,8 @@ public partial class BulletManager : Node3D
     public Transform3D LocalMeshTransform = Transform3D.Identity;
     public bool AlignToVelocity = false;
 
-    // Speed-based scaling (Weighted Glove)
-    public bool SpeedScaleEnabled = false;
-    public float DamagePerSpeedFactor = 1.0f;
-    public float KnockbackPerSpeedFactor = 1.0f;
-    public bool UseInitialSpeedAsBaseline = true;
-
-    // Cursed Skull configuration
-    public bool CursedSkullEnabled = false;
-    public float CursedTransferRadius = 8.0f;
-    // Owning weapon reference and collision listeners (e.g., Metronome)
+    // Owning weapon reference
     public BulletWeapon? OwnerWeapon;
-    public List<IBulletCollisionListener> CollisionListeners = new();
 
     // Bullet storage for this archetype
     public List<BulletData> Bullets = new List<BulletData>(256);
@@ -68,6 +58,41 @@ public partial class BulletManager : Node3D
     public BulletBehaviorConfig BehaviorConfig = BulletBehaviorConfig.None;
     public List<CollisionActionType> CollisionOrder = new List<CollisionActionType>();
     public List<IBulletEffect>? Effects;
+
+    public DamagePreStep[] DamagePreSteps = System.Array.Empty<DamagePreStep>();
+    public DamagePostStep[] DamagePostSteps = System.Array.Empty<DamagePostStep>();
+    public MetronomeState[] MetronomeStates = System.Array.Empty<MetronomeState>();
+  }
+
+  private struct DamagePreStep
+  {
+    public DamagePreStepKind Kind;
+    public float ParamA;
+    public float ParamB;
+    public float ParamC;
+    public bool Flag;
+    public int StateIndex;
+  }
+
+  private struct DamagePostStep
+  {
+    public DamagePostStepKind Kind;
+    public float ParamA;
+    public float ParamB;
+    public float ParamC;
+  }
+
+  private struct MetronomeState
+  {
+    public float StackIncrement;
+    public float MaxMultiplier;
+    public float ResetDelay;
+    public bool ResetOnReload;
+    public int Streak;
+    public ulong LastEnemyId;
+    public float LastHitAt;
+    public bool HasEnemy;
+    public int MaxStacks;
   }
 
   private struct BulletData
@@ -124,6 +149,7 @@ public partial class BulletManager : Node3D
   private readonly Dictionary<int, Archetype> _archetypes = new();
   private int _nextArchetypeId = 1;
   private uint _nextBulletId = 1;
+  private readonly Dictionary<BulletWeapon, Archetype> _weaponArchetypes = new();
 
   [Export]
   public bool DebugLogCollisions { get; set; } = true;
@@ -209,28 +235,15 @@ public partial class BulletManager : Node3D
     float stickyDuration = 1.0f;
     float stickyCollisionDamage = 1.0f;
 
-    // Weighted Glove / Speed scaling
-    bool speedScaleEnabled = false;
-    float damagePerSpeedFactor = 1.0f;
-    float knockbackPerSpeedFactor = 1.0f;
-    bool speedUseInitial = true;
-
-    // Cursed Skull
-    bool cursedEnabled = false;
-    float cursedRadius = 8.0f;
-
-    var collisionListeners = new List<IBulletCollisionListener>();
+    var preStepConfigs = new List<(DamagePreStepConfig Config, int Order)>();
+    var postStepConfigs = new List<(DamagePostStepConfig Config, int Order)>();
+    int preOrder = 0;
+    int postOrder = 0;
 
     void InspectModule(WeaponModule module)
     {
       if (module == null)
         return;
-
-      if (module is IBulletCollisionListener listener)
-      {
-        if (!collisionListeners.Contains(listener))
-          collisionListeners.Add(listener);
-      }
 
       if (module is BouncingModule bounceModule)
       {
@@ -259,23 +272,25 @@ public partial class BulletManager : Node3D
         explosiveRadius = explosiveModule.ExplosionRadius;
         explosiveDamageMultiplier = explosiveModule.ExplosionDamageMultiplier;
       }
-      else if (module is WeightedGloveModule wg)
-      {
-        speedScaleEnabled = true;
-        damagePerSpeedFactor = wg.DamagePerSpeedFactor;
-        knockbackPerSpeedFactor = wg.KnockbackPerSpeedFactor;
-        speedUseInitial = wg.UseInitialSpeedAsBaseline;
-      }
-      else if (module is CursedSkullModule cs)
-      {
-        cursedEnabled = true;
-        cursedRadius = cs.TransferRadius;
-      }
       else if (module is StickyModule stickyModule)
       {
         stickyEnabled = true;
         stickyDuration = stickyModule.StickDuration;
         stickyCollisionDamage = stickyModule.CollisionDamage;
+      }
+      if (module is IDamagePreStepProvider preProvider)
+      {
+        foreach (var cfg in preProvider.GetDamagePreSteps())
+        {
+          preStepConfigs.Add((cfg, preOrder++));
+        }
+      }
+      if (module is IDamagePostStepProvider postProvider)
+      {
+        foreach (var cfg in postProvider.GetDamagePostSteps())
+        {
+          postStepConfigs.Add((cfg, postOrder++));
+        }
       }
       foreach (var modifierObj in module.BulletModifiers)
       {
@@ -328,18 +343,6 @@ public partial class BulletManager : Node3D
           stickyDuration = stickyMod.StickDuration;
           stickyCollisionDamage = stickyMod.CollisionDamage;
         }
-        else if (modifierObj is SpeedScaledImpactModifier sp)
-        {
-          speedScaleEnabled = true;
-          damagePerSpeedFactor = sp.DamagePerSpeedFactor;
-          knockbackPerSpeedFactor = sp.KnockbackPerSpeedFactor;
-          speedUseInitial = sp.UseInitialSpeedAsBaseline;
-        }
-        else if (modifierObj is CursedSkullBulletModifier csb)
-        {
-          cursedEnabled = true;
-          cursedRadius = csb.TransferRadius;
-        }
       }
     }
 
@@ -368,13 +371,8 @@ public partial class BulletManager : Node3D
       existingArch.CollisionOrder = BuildCollisionOrder(bw);
       existingArch.Effects = BuildEffectsList(this, existingArch.CollisionOrder, bounceConfig, pierceConfig, explosiveConfig);
       existingArch.OwnerWeapon = bw;
-      existingArch.CollisionListeners = new List<IBulletCollisionListener>(collisionListeners);
-      existingArch.SpeedScaleEnabled = speedScaleEnabled;
-      existingArch.DamagePerSpeedFactor = damagePerSpeedFactor;
-      existingArch.KnockbackPerSpeedFactor = knockbackPerSpeedFactor;
-      existingArch.UseInitialSpeedAsBaseline = speedUseInitial;
-      existingArch.CursedSkullEnabled = cursedEnabled;
-      existingArch.CursedTransferRadius = cursedRadius;
+      BuildDamagePipelines(existingArch, preStepConfigs, postStepConfigs);
+      _weaponArchetypes[bw] = existingArch;
       return;
     }
 
@@ -425,13 +423,8 @@ public partial class BulletManager : Node3D
       newArch.CollisionOrder = BuildCollisionOrder(bw);
       newArch.Effects = BuildEffectsList(this, newArch.CollisionOrder, bounceConfig, pierceConfig, explosiveConfig);
       newArch.OwnerWeapon = bw;
-      newArch.CollisionListeners = new List<IBulletCollisionListener>(collisionListeners);
-      newArch.SpeedScaleEnabled = speedScaleEnabled;
-      newArch.DamagePerSpeedFactor = damagePerSpeedFactor;
-      newArch.KnockbackPerSpeedFactor = knockbackPerSpeedFactor;
-      newArch.UseInitialSpeedAsBaseline = speedUseInitial;
-      newArch.CursedSkullEnabled = cursedEnabled;
-      newArch.CursedTransferRadius = cursedRadius;
+      BuildDamagePipelines(newArch, preStepConfigs, postStepConfigs);
+      _weaponArchetypes[bw] = newArch;
     }
   }
 
@@ -495,6 +488,255 @@ public partial class BulletManager : Node3D
       }
     }
     return list;
+  }
+
+  private static void BuildDamagePipelines(Archetype arch, List<(DamagePreStepConfig Config, int Order)> preConfigs, List<(DamagePostStepConfig Config, int Order)> postConfigs)
+  {
+    if (preConfigs.Count > 0)
+    {
+      preConfigs.Sort(static (a, b) =>
+      {
+        int cmp = b.Config.Priority.CompareTo(a.Config.Priority);
+        return cmp != 0 ? cmp : a.Order.CompareTo(b.Order);
+      });
+
+      var preSteps = new DamagePreStep[preConfigs.Count];
+      var metronomeStates = new List<MetronomeState>();
+      for (int i = 0; i < preConfigs.Count; i++)
+      {
+        var cfg = preConfigs[i].Config;
+        var step = new DamagePreStep
+        {
+          Kind = cfg.Kind,
+          ParamA = cfg.ParamA,
+          ParamB = cfg.ParamB,
+          ParamC = cfg.ParamC,
+          Flag = cfg.Flag,
+          StateIndex = -1,
+        };
+
+        if (cfg.Kind == DamagePreStepKind.Metronome)
+        {
+          var state = new MetronomeState
+          {
+            StackIncrement = cfg.ParamA,
+            MaxMultiplier = cfg.ParamB,
+            ResetDelay = cfg.ParamC,
+            ResetOnReload = cfg.Flag,
+            Streak = 0,
+            LastEnemyId = 0,
+            LastHitAt = 0,
+            HasEnemy = false,
+            MaxStacks = ComputeMaxStacks(cfg.ParamA, cfg.ParamB),
+          };
+          step.StateIndex = metronomeStates.Count;
+          metronomeStates.Add(state);
+        }
+
+        preSteps[i] = step;
+      }
+
+      arch.DamagePreSteps = preSteps;
+      arch.MetronomeStates = metronomeStates.Count > 0 ? metronomeStates.ToArray() : System.Array.Empty<MetronomeState>();
+    }
+    else
+    {
+      arch.DamagePreSteps = System.Array.Empty<DamagePreStep>();
+      arch.MetronomeStates = System.Array.Empty<MetronomeState>();
+    }
+
+    if (postConfigs.Count > 0)
+    {
+      postConfigs.Sort(static (a, b) =>
+      {
+        int cmp = b.Config.Priority.CompareTo(a.Config.Priority);
+        return cmp != 0 ? cmp : a.Order.CompareTo(b.Order);
+      });
+
+      var postSteps = new DamagePostStep[postConfigs.Count];
+      for (int i = 0; i < postConfigs.Count; i++)
+      {
+        var cfg = postConfigs[i].Config;
+        postSteps[i] = new DamagePostStep
+        {
+          Kind = cfg.Kind,
+          ParamA = cfg.ParamA,
+          ParamB = cfg.ParamB,
+          ParamC = cfg.ParamC,
+        };
+      }
+
+      arch.DamagePostSteps = postSteps;
+    }
+    else
+    {
+      arch.DamagePostSteps = System.Array.Empty<DamagePostStep>();
+    }
+
+    ResetDamageStates(arch, forReload: false);
+  }
+
+  private static int ComputeMaxStacks(float stackIncrement, float maxMultiplier)
+  {
+    if (stackIncrement <= 0.0f)
+      return 0;
+    if (maxMultiplier <= 1.0f)
+      return 0;
+    return (int)MathF.Ceiling(MathF.Max(0.0f, (maxMultiplier - 1.0f) / stackIncrement));
+  }
+
+  private static float GetTimeSeconds() => (float)Time.GetTicksMsec() / 1000f;
+
+  private static void ApplyDamagePreSteps(Archetype arch, ref BulletData bullet, bool enemyHit, ulong enemyId, ref float damage, ref float knockbackScale)
+  {
+    var steps = arch.DamagePreSteps;
+    if (steps.Length == 0)
+      return;
+
+    float currentSpeed = bullet.Velocity.Length();
+    for (int i = 0; i < steps.Length; i++)
+    {
+      var step = steps[i];
+      switch (step.Kind)
+      {
+        case DamagePreStepKind.SpeedScale:
+        {
+          float baseline = step.Flag
+            ? bullet.InitialSpeed
+            : (bullet.InitialSpeed > 0.0001f ? bullet.InitialSpeed : (currentSpeed > 0.0001f ? currentSpeed : 1.0f));
+          float ratio = baseline > 0.0001f ? currentSpeed / baseline : 1.0f;
+          float damageScale = 1.0f + (ratio - 1.0f) * MathF.Max(0.0f, step.ParamA);
+          float knockScale = 1.0f + (ratio - 1.0f) * MathF.Max(0.0f, step.ParamB);
+          damage *= damageScale;
+          knockbackScale *= knockScale;
+          break;
+        }
+        case DamagePreStepKind.Metronome:
+        {
+          if (step.StateIndex < 0 || arch.MetronomeStates.Length == 0 || step.StateIndex >= arch.MetronomeStates.Length)
+            break;
+
+          var state = arch.MetronomeStates[step.StateIndex];
+          float now = GetTimeSeconds();
+          if (state.ResetDelay > 0.0f && (now - state.LastHitAt) > state.ResetDelay)
+          {
+            state.Streak = 0;
+            state.HasEnemy = false;
+            state.LastEnemyId = 0;
+          }
+
+          if (!enemyHit || enemyId == 0)
+          {
+            state.Streak = 0;
+            state.HasEnemy = false;
+            state.LastEnemyId = 0;
+            state.LastHitAt = now;
+            arch.MetronomeStates[step.StateIndex] = state;
+            break;
+          }
+
+          if (!state.HasEnemy || state.LastEnemyId != enemyId)
+          {
+            state.Streak = 0;
+            state.LastEnemyId = enemyId;
+            state.HasEnemy = true;
+          }
+
+          float multiplier = 1.0f + state.StackIncrement * Math.Max(0, state.Streak);
+          if (state.MaxMultiplier > 0.0f)
+            multiplier = MathF.Min(multiplier, state.MaxMultiplier);
+          damage *= MathF.Max(0.0f, multiplier);
+
+          if (state.StackIncrement > 0.0f)
+          {
+            int next = state.Streak + 1;
+            if (state.MaxStacks > 0)
+              next = Math.Min(next, state.MaxStacks);
+            state.Streak = Math.Max(0, next);
+          }
+          else
+          {
+            state.Streak = 0;
+          }
+
+          state.LastHitAt = now;
+          arch.MetronomeStates[step.StateIndex] = state;
+          break;
+        }
+      }
+    }
+  }
+
+  private void ApplyDamagePostSteps(Archetype arch, Node3D enemy, float appliedDamage, float leftover, ref BulletData bullet)
+  {
+    var steps = arch.DamagePostSteps;
+    if (steps.Length == 0)
+      return;
+
+    for (int i = 0; i < steps.Length; i++)
+    {
+      var step = steps[i];
+      switch (step.Kind)
+      {
+        case DamagePostStepKind.OverkillTransfer:
+        {
+          if (leftover <= 0.0f || enemy == null)
+            break;
+
+          Node3D? neighbor = FindNearestEnemy(enemy.GlobalTransform.Origin, step.ParamA);
+          if (neighbor == null || neighbor == enemy || !IsInstanceValid(neighbor))
+            break;
+
+          try
+          {
+            if (neighbor is Enemy en)
+              en.TakeDamage(leftover);
+            else
+              neighbor.CallDeferred("take_damage", leftover);
+
+            FloatingNumber3D.Spawn(this, neighbor, leftover);
+            Vector3 dir = bullet.Velocity.LengthSquared() > 0.000001f ? bullet.Velocity.Normalized() : Vector3.Forward;
+            dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
+            GlobalEvents.Instance?.EmitDamageDealt(neighbor, leftover, dir * DefaultKnockback);
+          }
+          catch (Exception e)
+          {
+            GD.PrintErr($"CursedSkull transfer failed: {e.Message}");
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  private static void ResetDamageStates(Archetype arch, bool forReload)
+  {
+    var states = arch.MetronomeStates;
+    if (states.Length == 0)
+      return;
+
+    for (int i = 0; i < states.Length; i++)
+    {
+      var state = states[i];
+      if (forReload && !state.ResetOnReload)
+        continue;
+      state.Streak = 0;
+      state.LastEnemyId = 0;
+      state.LastHitAt = 0;
+      state.HasEnemy = false;
+      states[i] = state;
+    }
+  }
+
+  public void NotifyWeaponReloaded(BulletWeapon weapon)
+  {
+    if (weapon == null)
+      return;
+
+    if (_weaponArchetypes.TryGetValue(weapon, out var arch))
+    {
+      ResetDamageStates(arch, forReload: true);
+    }
   }
 
   private void TryExtractMeshInfoFromScene(PackedScene scene, out Mesh? mesh, out Material? material, out Transform3D localTransform)
@@ -722,23 +964,6 @@ public partial class BulletManager : Node3D
     }
   }
 
-  private static float InvokeCollisionListeners(Archetype arch, Node3D enemy, ulong enemyId, float damage)
-  {
-    var weapon = arch.OwnerWeapon;
-    if (weapon == null || !GodotObject.IsInstanceValid(weapon))
-      return damage;
-    if (arch.CollisionListeners == null || arch.CollisionListeners.Count == 0)
-      return damage;
-
-    float adjusted = damage;
-    foreach (var listener in arch.CollisionListeners)
-    {
-      if (listener == null) continue;
-      adjusted = listener.OnBulletCollision(weapon, enemy, enemyId, adjusted);
-    }
-    return adjusted;
-  }
-
   public override void _PhysicsProcess(double delta)
   {
     float dt = (float)delta;
@@ -773,7 +998,11 @@ public partial class BulletManager : Node3D
         if (b.LifeRemaining <= 0)
         {
           if (!b.HasEnemyHit)
-            _ = InvokeCollisionListeners(arch, null!, 0, b.Damage);
+          {
+            float damage = b.Damage;
+            float knockbackScale = 1.0f;
+            ApplyDamagePreSteps(arch, ref b, false, 0, ref damage, ref knockbackScale);
+          }
           // drop
         }
         else
@@ -903,82 +1132,37 @@ public partial class BulletManager : Node3D
                 {
                   if (collider is Enemy enemy)
                   {
-                    float ratio = 1.0f;
-                    if (arch.SpeedScaleEnabled)
-                    {
-                      float baseline = arch.UseInitialSpeedAsBaseline ? b.InitialSpeed : (b.InitialSpeed > 0.0001f ? b.InitialSpeed : b.Velocity.Length());
-                      if (baseline > 0.0001f)
-                        ratio = b.Velocity.Length() / baseline;
-                    }
-                    float dmgScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.DamagePerSpeedFactor)) : 1.0f;
-                    float kbScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.KnockbackPerSpeedFactor)) : 1.0f;
+                    float damage = b.Damage;
+                    float knockbackScale = 1.0f;
+                    ApplyDamagePreSteps(arch, ref b, true, colliderId, ref damage, ref knockbackScale);
 
                     float hpBefore = enemy.CurrentHealth;
-                    float damage = b.Damage * dmgScale;
-                    damage = InvokeCollisionListeners(arch, enemy, colliderId, damage);
-
                     enemy.TakeDamage(damage);
                     Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
                     dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-                    GlobalEvents.Instance?.EmitDamageDealt(enemy, damage, dir * DefaultKnockback * kbScale);
+                    GlobalEvents.Instance?.EmitDamageDealt(enemy, damage, dir * DefaultKnockback * knockbackScale);
 
-                    if (arch.CursedSkullEnabled)
-                    {
-                      float leftover = damage - hpBefore;
-                      if (leftover > 0.0f)
-                      {
-                        Node3D? neighbor = FindNearestEnemy(enemy.GlobalTransform.Origin, arch.CursedTransferRadius);
-                        if (neighbor != null && neighbor != enemy && IsInstanceValid(neighbor))
-                        {
-                          try
-                          {
-                            if (neighbor is Enemy en)
-                              en.TakeDamage(leftover);
-                            else
-                              neighbor.CallDeferred("take_damage", leftover);
+                    float leftover = damage - hpBefore;
+                    ApplyDamagePostSteps(arch, enemy, damage, leftover, ref b);
 
-                            FloatingNumber3D.Spawn(this, neighbor, leftover);
-                            GlobalEvents.Instance?.EmitDamageDealt(neighbor, leftover, dir * DefaultKnockback * kbScale);
-                          }
-                          catch (Exception e)
-                          {
-                            GD.PrintErr($"CursedSkull transfer failed: {e.Message}");
-                          }
-                        }
-                      }
-                    }
-
+                    FloatingNumber3D.Spawn(this, enemy, damage);
                     b.HasEnemyHit = true;
-
-                    FloatingNumber3D.Spawn(this, collider, damage);
-                  }
-                  else
-                  {
-                    float ratio = 1.0f;
-                    if (arch.SpeedScaleEnabled)
-                    {
-                      float baseline = arch.UseInitialSpeedAsBaseline ? b.InitialSpeed : (b.InitialSpeed > 0.0001f ? b.InitialSpeed : b.Velocity.Length());
-                      if (baseline > 0.0001f)
-                        ratio = b.Velocity.Length() / baseline;
-                    }
-                    float dmgScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.DamagePerSpeedFactor)) : 1.0f;
-                    float kbScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.KnockbackPerSpeedFactor)) : 1.0f;
-
-                    float dmg = b.Damage * dmgScale;
-                    collider?.CallDeferred("take_damage", dmg);
-                    Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
-                    dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-                    GlobalEvents.Instance?.EmitDamageDealt(collider, dmg, dir * DefaultKnockback * kbScale);
-
-                    if (!b.HasEnemyHit)
-                      _ = InvokeCollisionListeners(arch, null!, 0, dmg);
                   }
                 }
                 catch (Exception e)
                 {
                   GD.PrintErr($"BulletManager damage call failed: {e.Message}");
                 }
-
+              }
+              else
+              {
+                float damage = b.Damage;
+                float knockbackScale = 1.0f;
+                ApplyDamagePreSteps(arch, ref b, false, 0, ref damage, ref knockbackScale);
+                collider?.CallDeferred("take_damage", damage);
+                Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
+                dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
+                GlobalEvents.Instance?.EmitDamageDealt(collider, damage, dir * DefaultKnockback * knockbackScale);
               }
 
               // Broadcast impact for FX and other listeners

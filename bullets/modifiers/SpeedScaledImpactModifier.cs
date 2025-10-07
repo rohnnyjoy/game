@@ -21,6 +21,9 @@ public partial class SpeedScaledImpactModifier : BulletModifier
 
   public override Task OnCollision(Bullet bullet, Bullet.CollisionData collisionData)
   {
+    if (BulletManager.Instance != null)
+      return Task.CompletedTask;
+
     if (bullet == null || !bullet.IsInsideTree() || !GodotObject.IsInstanceValid(bullet))
       return Task.CompletedTask;
 
@@ -41,4 +44,3 @@ public partial class SpeedScaledImpactModifier : BulletModifier
     return Task.CompletedTask;
   }
 }
-

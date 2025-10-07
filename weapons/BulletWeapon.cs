@@ -353,6 +353,7 @@ public partial class BulletWeapon : Weapon
     {
       await module.OnReload();
     }
+    BulletManager.Instance?.NotifyWeaponReloaded(this);
   }
 
   private async Task WaitForSeconds(float seconds)
