@@ -25,9 +25,14 @@ public partial class MoneyComboUi : Control
     get => _comboAnimValue;
     set
     {
+      int prevRemaining = Mathf.Max(0, Mathf.FloorToInt(_comboAnimValue + 0.0001f));
       _comboAnimValue = value;
       int remaining = Mathf.Max(0, Mathf.FloorToInt(value + 0.0001f));
       display = remaining > 0 ? $"+${remaining}" : "+0";
+      if (DebugLogs && prevRemaining > 0 && remaining == 0)
+      {
+        DebugLog($"Drain tween reached +0");
+      }
     }
   }
 
@@ -59,6 +64,8 @@ public partial class MoneyComboUi : Control
   [Export] public float PulseMaxExtra = 0.6f;      // extra pulse added at full intensity
   [Export] public float QuiverMax = 0.06f;         // toned down: subtle quiver at full intensity
   [Export] public float TiltMax = 0.35f;           // tilt amount at full intensity
+  [Export] public float MinJuiceIntensity = 0.35f; // floor to keep small combos feeling lively
+  [Export] public bool DebugLogs = true;           // print internal state for debugging
 
   // --- Pop lifecycle tuning (tweak in Inspector) ---
   [Export] public float ComboPopDelay = 0.12f;      // Wait before pop-out starts once armed
@@ -128,6 +135,7 @@ public partial class MoneyComboUi : Control
 
     // Start hidden until we get first combo
     display = "";
+    DebugLog($"Ready; PopDelay={ComboPopDelay}, FontPx={FontPx}, ScaleBase={ScaleBase}");
   }
 
   public override void _Process(double delta)
@@ -213,6 +221,7 @@ public partial class MoneyComboUi : Control
     bool freshPop = !_poppedIn;
     if (freshPop)
     {
+      DebugLog($"Activity: {cause} -> PopIn; pending={pendingCombo}, draining={draining}, waiting={waitingToDrain}");
       cfg.PopDelay = ComboPopDelay;
       cfg.PopInStartAt = 0f;
       text.Init(cfg);
@@ -221,11 +230,13 @@ public partial class MoneyComboUi : Control
     }
     else
     {
+      DebugLog($"Activity: {cause} -> CancelPopOut; pending={pendingCombo}, draining={draining}, waiting={waitingToDrain}");
       text.CancelPopOut(restorePopIn: true);
       Visible = true;
     }
 
     _popGen++;
+    DebugLog($"Gen incremented: {_popGen} (freshPop={freshPop})");
     return freshPop;
   }
 
@@ -234,30 +245,16 @@ public partial class MoneyComboUi : Control
     if (text == null) return;
 
     int absVal = Math.Max(1, comboValue);
-    float logVal = MathF.Log10(absVal);
-    float maxLog = JuiceScaleMaxValue > 1 ? MathF.Log10(MathF.Max(2f, JuiceScaleMaxValue)) : 1f;
-    float intensity = maxLog <= 0f ? 1f : Mathf.Clamp(logVal / maxLog, 0f, 1f);
+    int power = (int)MathF.Max(0f, MathF.Floor(MathF.Log10(absVal))); // Balatro: floor(log10(value))
 
-    float pulse = PulseBase + PulseMaxExtra * intensity;
-    if (pulse > 0f)
-    {
-      text.TriggerPulse(pulse, 2.5f, 40f);
-    }
+    float quiverAmt = 0.03f * power;         // set_quiver(0.03 * amount)
+    float pulse = 0.3f + 0.08f * power;      // pulse(0.3 + 0.08 * amount)
 
-    float quiverAmt = QuiverMax * intensity;
-    if (quiverAmt > 0f)
-    {
-      text.SetQuiver(quiverAmt, 0.5f, 0.5f + 0.3f * intensity);
-    }
+    if (quiverAmt > 0f) text.SetQuiver(quiverAmt, 0.5f, 0.5f);
+    text.TriggerPulse(pulse, 2.5f, 40f);
 
-    if (allowTilt)
-    {
-      float tiltAmt = TiltMax * intensity;
-      if (tiltAmt > 0f)
-      {
-        text.TriggerTilt(tiltAmt);
-      }
-    }
+    // Faithful to Balatro's text_super_juice: no bump or global tilt here
+    DebugLog($"Juice: value={absVal}, power={power}, pulse={pulse:0.00}, quiver={quiverAmt:0.00}");
   }
 
   private async Task ArmPopOutIfIdle()
@@ -267,6 +264,7 @@ public partial class MoneyComboUi : Control
     float waitMin = MathF.Max(0f, MinVisibleTime - (Now() - _lastActivityAt));
     if (waitMin > 0f)
     {
+      DebugLog($"ArmPopOut(wait {waitMin:0.000}s) gen={gen}");
       await ToSignal(GetTree().CreateTimer(waitMin), "timeout");
     }
     if (gen != _popGen) return;
@@ -282,6 +280,7 @@ public partial class MoneyComboUi : Control
 
     float popTail = 1f / MathF.Max(0.0001f, ComboPopOutRate);
     float total = ComboPopDelay + popTail + HideGraceAfterPop;
+    DebugLog($"StartPopOut: rate={ComboPopOutRate}, delay={ComboPopDelay}, total_wait={total:0.000}");
 
     await ToSignal(GetTree().CreateTimer(total), "timeout");
     if (gen != _popGen) return;
@@ -291,6 +290,13 @@ public partial class MoneyComboUi : Control
     display = "";
     _poppedIn = false;
     Visible = false;
+    DebugLog($"Hidden after pop-out");
+  }
+
+  private void DebugLog(string msg)
+  {
+    if (!DebugLogs) return;
+    GD.Print($"[MoneyComboUi] {Now():0.000} {msg}");
   }
 
   private static float Now() => (float)Time.GetTicksMsec() / 1000f;
@@ -298,6 +304,7 @@ public partial class MoneyComboUi : Control
   public void OnMoneyUpdated(int oldAmount, int newAmount)
   {
     int delta = newAmount - oldAmount;
+    DebugLog($"OnMoneyUpdated: delta={delta}");
 
     // Accumulate into a pending bucket; if a drain is active, we do not change the visible text mid-drain
     pendingCombo += delta;
@@ -318,6 +325,7 @@ public partial class MoneyComboUi : Control
       float newScale = ScaleNumber(absVal, ScaleBase, ScaleClampMax);
       text.SetScale(newScale);
       ApplyComboJuice(absVal, allowTilt: true);
+      DebugLog($"Show pending: '{display}', scale={newScale:0.000}");
       // Add Balatro-style jiggle on coin gain; strength scales gently with delta
       if (delta != 0)
       {
@@ -330,6 +338,7 @@ public partial class MoneyComboUi : Control
       if (!waitingToDrain)
       {
         waitingToDrain = true;
+        DebugLog($"Coalesce: claim start, waitingToDrain=true");
         _ = WaitAndDrain();
       }
     }
@@ -348,9 +357,11 @@ public partial class MoneyComboUi : Control
       float startAt = GlobalEvents.Instance != null ? GlobalEvents.Instance.NextMoneyDrainStartAt : (now + DrainDelay);
       float wait = MathF.Max(0f, startAt - now);
       if (wait <= 0.0001f) break;
+      DebugLog($"WaitAndDrain: sleeping {wait:0.000}s until start");
       await ToSignal(GetTree().CreateTimer(wait), "timeout");
     }
     waitingToDrain = false;
+    DebugLog($"WaitAndDrain: starting drain");
     await DrainOnceFromPending();
     // If more arrived while draining, display them and schedule the next window
     if (pendingCombo > 0)
@@ -361,6 +372,7 @@ public partial class MoneyComboUi : Control
       RegisterComboActivity("post-drain-new-pending");
       text.SetScale(ScaleNumber(absVal, ScaleBase, ScaleClampMax));
       ApplyComboJuice(absVal, allowTilt: true);
+      DebugLog($"Post-drain pending shown: '{display}'");
       // Nudge on subsequent batches too
       GameUi.Instance?.AddJiggle(Mathf.Clamp(0.15f + 0.01f * absVal, 0.1f, 1.0f));
       GlobalEvents.Instance?.ClaimMoneyDrainStartAt(DrainDelay);
@@ -375,6 +387,7 @@ public partial class MoneyComboUi : Control
     int startValue = Math.Max(0, pendingCombo);
     pendingCombo = 0;
     float dur = Mathf.Max(0.0001f, DrainDuration);
+    DebugLog($"DrainOnce: startValue={startValue}, dur={dur:0.000}");
     if (drainTween != null && drainTween.IsRunning()) drainTween.Kill();
     drainTween = GetTree().CreateTween();
     drainTween.SetEase(Tween.EaseType.In);
@@ -385,9 +398,11 @@ public partial class MoneyComboUi : Control
     if (!draining) return;
     ComboAnimValue = 0f;
     draining = false;
+    DebugLog($"DrainOnce: finished; pendingCombo={pendingCombo}");
     text.TriggerPulse(0.18f, 2.5f, 36f);
     if (pendingCombo <= 0 && !waitingToDrain)
     {
+      DebugLog($"Arming pop-out (idle)");
       _ = ArmPopOutIfIdle();
     }
   }

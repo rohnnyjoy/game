@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace Shared.Effects
 {
-  /// <summary>Balatro-style dissolve burst driven by a preconfigured GPUParticles3D.</summary>
+  /// <summary>Balatro-style dissolve burst driven by preconfigured GPUParticles3D emitters in the scene.</summary>
   public partial class DissolveBurst : Node3D
   {
     private const string ScenePath = "res://shared/effects/DissolveBurst.tscn";
@@ -19,17 +19,10 @@ namespace Shared.Effects
 
     private static PackedScene? _cachedScene;
     private static CurveTexture? _scaleCurve;
+    private static GradientTexture1D? _alphaOnlyRamp;
 
-    private static readonly Color[] DefaultPalette =
-    {
-      new Color(0.215686f, 0.258823f, 0.266667f, 1f),
-      new Color(0.992156f, 0.635294f, 0f, 1f),
-      new Color(0.996078f, 0.372549f, 0.333333f, 1f),
-      new Color(0.917647f, 0.752941f, 0.345098f, 1f),
-      new Color(0.74902f, 0.780392f, 0.835294f, 1f)
-    };
-
-    private GpuParticles3D _particles = default!;
+    private readonly List<GpuParticles3D> _emitters = new();
+    private int _remainingEmitters;
 
     public static void Spawn(Node parent, Transform3D transform, IReadOnlyList<Color>? palette, Vector3 halfExtents)
     {
@@ -51,56 +44,86 @@ namespace Shared.Effects
 
     public override void _Ready()
     {
-      _particles = GetNode<GpuParticles3D>("Particles");
-      _particles.Amount = ParticleCount;
-      _particles.OneShot = true;
-      _particles.DrawOrder = GpuParticles3D.DrawOrderEnum.ViewDepth;
-      _particles.Finished += OnFinished;
+      // Collect all GPUParticles3D children set up in the .tscn
+      foreach (var child in GetChildren())
+      {
+        if (child is GpuParticles3D p)
+          _emitters.Add(p);
+      }
+
+      // Back-compat: if the scene only has a single emitter named "Particles".
+      if (_emitters.Count == 0)
+      {
+        var p = GetNodeOrNull<GpuParticles3D>("Particles");
+        if (p != null) _emitters.Add(p);
+      }
+
+      foreach (var p in _emitters)
+      {
+        p.Amount = Math.Max(1, ParticleCount / Math.Max(1, _emitters.Count));
+        p.OneShot = true;
+        p.DrawOrder = GpuParticles3D.DrawOrderEnum.ViewDepth;
+        p.Explosiveness = 1f;
+      }
     }
 
     private void Configure(IReadOnlyList<Color>? palette, Vector3 halfExtents)
     {
-      if (_particles == null) return;
+      if (_emitters.Count == 0) return;
 
       Vector3 extents = new Vector3(Mathf.Max(halfExtents.X, 0.35f), Mathf.Max(halfExtents.Y, 0.2f), Mathf.Max(halfExtents.Z, 0.35f));
       float maxExtent = Mathf.Max(extents.X, Mathf.Max(extents.Y, extents.Z));
 
-      _particles.Emitting = false;
-      _particles.Lifetime = LifetimeSeconds;
-      _particles.Preprocess = 0f;
-      _particles.VisibilityAabb = new Aabb(Vector3.Zero, extents * 4f);
+      foreach (var p in _emitters)
+      {
+        p.Emitting = false;
+        p.Lifetime = LifetimeSeconds;
+        p.Preprocess = 0f;
+        p.VisibilityAabb = new Aabb(Vector3.Zero, extents * 4f);
 
-      var material = CreateProcessMaterial(extents, maxExtent, palette);
-      _particles.ProcessMaterial = material;
+        if (p.ProcessMaterial is ParticleProcessMaterial mat)
+        {
+          // Author the look in the scene; size the emission volume here.
+          mat.EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Box;
+          mat.EmissionBoxExtents = extents;
 
+          // Respect scene-set velocities; only provide defaults if unset.
+          bool hasVelocity = mat.InitialVelocityMin > 0.0001f || mat.InitialVelocityMax > 0.0001f;
+          if (!hasVelocity)
+          {
+            mat.InitialVelocityMin = maxExtent * MinSpeedRatio;
+            mat.InitialVelocityMax = maxExtent * MaxSpeedRatio;
+          }
+
+          // Respect scene scale if provided; else default to ratios.
+          bool hasScale = mat.ScaleMin > 0.0001f || mat.ScaleMax > 0.0001f;
+          if (!hasScale)
+          {
+            mat.ScaleMin = maxExtent * MinScaleRatio;
+            mat.ScaleMax = maxExtent * MaxScaleRatio;
+          }
+
+          mat.ScaleCurve ??= GetScaleCurve();
+          mat.ColorRamp ??= GetAlphaOnlyRamp();
+        }
+
+        p.Finished += OnEmitterFinished;
+      }
+
+      _remainingEmitters = _emitters.Count;
       CallDeferred(nameof(StartEmission));
     }
 
     private void StartEmission()
     {
-      if (!IsInstanceValid(_particles)) return;
-      _particles.Restart();
-      _particles.Emitting = true;
-    }
-
-    private static ParticleProcessMaterial CreateProcessMaterial(Vector3 extents, float maxExtent, IReadOnlyList<Color>? palette)
-    {
-      var material = new ParticleProcessMaterial
+      foreach (var p in _emitters)
       {
-        EmissionShape = ParticleProcessMaterial.EmissionShapeEnum.Box,
-        EmissionBoxExtents = extents,
-        LifetimeRandomness = 0.25f,
-        Spread = 180f,
-        Gravity = Vector3.Zero,
-        InitialVelocityMin = maxExtent * MinSpeedRatio,
-        InitialVelocityMax = maxExtent * MaxSpeedRatio,
-        ScaleMin = maxExtent * MinScaleRatio,
-        ScaleMax = maxExtent * MaxScaleRatio,
-        ScaleCurve = GetScaleCurve(),
-        ColorRamp = CreateGradientTexture(palette)
-      };
-
-      return material;
+        if (IsInstanceValid(p))
+        {
+          p.Emitting = true;
+          p.Restart();
+        }
+      }
     }
 
     private static CurveTexture GetScaleCurve()
@@ -119,34 +142,26 @@ namespace Shared.Effects
       return _scaleCurve;
     }
 
-    private static GradientTexture1D CreateGradientTexture(IReadOnlyList<Color>? palette)
+    private static GradientTexture1D GetAlphaOnlyRamp()
     {
+      if (_alphaOnlyRamp != null)
+        return _alphaOnlyRamp;
+
       var gradient = new Gradient();
-      var source = (palette != null && palette.Count > 0) ? palette : DefaultPalette;
+      gradient.AddPoint(0f, new Color(1, 1, 1, 0));
+      gradient.AddPoint(0.08f, new Color(1, 1, 1, 1));
+      gradient.AddPoint(0.85f, new Color(1, 1, 1, 1));
+      gradient.AddPoint(1f, new Color(1, 1, 1, 0));
 
-      if (source.Count <= 1)
-      {
-        gradient.AddPoint(0f, source[0]);
-        gradient.AddPoint(1f, source[0]);
-      }
-      else
-      {
-        for (int i = 0; i < source.Count; i++)
-        {
-          float offset = (float)i / (source.Count - 1);
-          gradient.AddPoint(offset, source[i]);
-        }
-      }
-
-      return new GradientTexture1D
-      {
-        Gradient = gradient
-      };
+      _alphaOnlyRamp = new GradientTexture1D { Gradient = gradient };
+      return _alphaOnlyRamp;
     }
 
-    private void OnFinished()
+    private void OnEmitterFinished()
     {
-      QueueFree();
+      _remainingEmitters = Math.Max(0, _remainingEmitters - 1);
+      if (_remainingEmitters == 0)
+        QueueFree();
     }
   }
 }
