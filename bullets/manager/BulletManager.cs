@@ -56,7 +56,7 @@ public partial class BulletManager : Node3D
     public Dictionary<uint, TrailBuffer>? TrailBuffers;
 
     public BulletBehaviorConfig BehaviorConfig = BulletBehaviorConfig.None;
-    public List<CollisionActionType> CollisionOrder = new List<CollisionActionType>();
+    public CollisionOp[] CollisionOps = System.Array.Empty<CollisionOp>();
 
     public DamagePreStep[] DamagePreSteps = System.Array.Empty<DamagePreStep>();
     public DamagePostStep[] DamagePostSteps = System.Array.Empty<DamagePostStep>();
@@ -106,6 +106,11 @@ public partial class BulletManager : Node3D
     public SteeringOpKind Kind;
     public float ParamA;
     public float ParamB;
+  }
+
+  private struct CollisionOp
+  {
+    public CollisionActionType Action;
   }
 
   private readonly struct SteeringFrameCache
@@ -298,7 +303,7 @@ public partial class BulletManager : Node3D
     if (bw.BulletArchetypeId >= 0 && _archetypes.TryGetValue(bw.BulletArchetypeId, out var existingArch))
     {
       existingArch.BehaviorConfig = BulletBehaviorConfig.Create(bounceConfig, pierceConfig, homingConfig, trackingConfig, aimbotConfig, explosiveConfig, stickyConfig);
-      existingArch.CollisionOrder = BuildCollisionOrder(bw);
+      existingArch.CollisionOps = BuildCollisionOps(bw);
       existingArch.SteeringOps = BuildSteeringOps(existingArch.BehaviorConfig);
       existingArch.OwnerWeapon = bw;
       BuildDamagePipelines(existingArch, preStepConfigs, postStepConfigs);
@@ -350,7 +355,7 @@ public partial class BulletManager : Node3D
     if (_archetypes.TryGetValue(id, out var newArch))
     {
       newArch.BehaviorConfig = BulletBehaviorConfig.Create(bounceConfig, pierceConfig, homingConfig, trackingConfig, aimbotConfig, explosiveConfig, stickyConfig);
-      newArch.CollisionOrder = BuildCollisionOrder(bw);
+      newArch.CollisionOps = BuildCollisionOps(bw);
       newArch.SteeringOps = BuildSteeringOps(newArch.BehaviorConfig);
       newArch.OwnerWeapon = bw;
       BuildDamagePipelines(newArch, preStepConfigs, postStepConfigs);
@@ -358,27 +363,49 @@ public partial class BulletManager : Node3D
     }
   }
 
-  private List<CollisionActionType> BuildCollisionOrder(BulletWeapon bw)
+  private static CollisionOp[] BuildCollisionOps(BulletWeapon bw)
   {
+    if (bw == null)
+      return System.Array.Empty<CollisionOp>();
+
     var order = new List<CollisionActionType>();
     var seen = new HashSet<CollisionActionType>();
+
     void Add(CollisionActionType t)
     {
-      if (!seen.Contains(t)) { seen.Add(t); order.Add(t); }
+      if (seen.Add(t))
+        order.Add(t);
     }
+
     void Inspect(WeaponModule m)
     {
-      if (m == null) return;
-      if (m is IPierceProvider pierce && pierce.TryGetPierceConfig(out var pierceCfg) && pierceCfg.MaxPenetrations > 0) Add(CollisionActionType.Pierce);
-      if (m is IBounceProvider bounce && bounce.TryGetBounceConfig(out var bounceCfg) && bounceCfg.MaxBounces > 0) Add(CollisionActionType.Bounce);
-      if (m is IStickyProvider sticky && sticky.TryGetStickyConfig(out _)) Add(CollisionActionType.Sticky);
-      if (m is IExplosiveProvider explode && explode.TryGetExplosiveConfig(out var explosiveCfg) && explosiveCfg.Radius > 0.0f && explosiveCfg.DamageMultiplier > 0.0f) Add(CollisionActionType.Explode);
+      if (m == null)
+        return;
+
+      if (m is IPierceProvider pierce && pierce.TryGetPierceConfig(out var pierceCfg) && pierceCfg.MaxPenetrations > 0)
+        Add(CollisionActionType.Pierce);
+      if (m is IBounceProvider bounce && bounce.TryGetBounceConfig(out var bounceCfg) && bounceCfg.MaxBounces > 0)
+        Add(CollisionActionType.Bounce);
+      if (m is IStickyProvider sticky && sticky.TryGetStickyConfig(out _))
+        Add(CollisionActionType.Sticky);
+      if (m is IExplosiveProvider explode && explode.TryGetExplosiveConfig(out var explosiveCfg) && explosiveCfg.Radius > 0.0f && explosiveCfg.DamageMultiplier > 0.0f)
+        Add(CollisionActionType.Explode);
     }
+
     if (bw.ImmutableModules != null)
-      foreach (WeaponModule m in bw.ImmutableModules) Inspect(m);
+      foreach (WeaponModule m in bw.ImmutableModules)
+        Inspect(m);
     if (bw.Modules != null)
-      foreach (WeaponModule m in bw.Modules) Inspect(m);
-    return order;
+      foreach (WeaponModule m in bw.Modules)
+        Inspect(m);
+
+    if (order.Count == 0)
+      return System.Array.Empty<CollisionOp>();
+
+    var ops = new CollisionOp[order.Count];
+    for (int i = 0; i < order.Count; i++)
+      ops[i] = new CollisionOp { Action = order[i] };
+    return ops;
   }
 
   private static SteeringOp[] BuildSteeringOps(BulletBehaviorConfig behavior)
@@ -1424,182 +1451,19 @@ public partial class BulletManager
     Vector3 nextPos = pos + (b.Velocity.LengthSquared() > 0 ? b.Velocity.Normalized() : Vector3.Forward) * MathF.Max(arch.Radius * 0.5f, 0.01f);
     bool isEnemy = collider != null && collider.IsInGroup("enemies");
 
-    ProcessCollisionOrderedFromIndex(ref b, arch, pos, normalWorld, nextPos, b.StuckTargetId, isEnemy, collider, Math.Max(0, start));
+    ProcessCollisionOps(ref b, arch, pos, normalWorld, nextPos, b.StuckTargetId, isEnemy, collider, Math.Max(0, start));
   }
   private void ProcessCollisionOrdered(ref BulletData b, Archetype arch, Vector3 hitPos, Vector3 hitNormal, Vector3 nextPos, ulong colliderId, bool isEnemy, Node3D? collider)
   {
-    // Initialize state snapshot
-    var state = new BulletCollisionState
-    {
-      Position = b.Position,
-      PrevPosition = b.PrevPosition,
-      Velocity = b.Velocity,
-      Damage = b.Damage,
-      BounceCount = b.BounceCount,
-      PenetrationCount = b.PenetrationCount,
-      LastColliderId = b.LastColliderId,
-      CollisionCooldown = b.CollisionCooldown,
-    };
-
-    b.LastColliderId = colliderId;
-    b.CollisionCooldown = 0.0f;
-    b.PendingActionIndex = -1;
-
-    bool resolvedMotion = false; // only one of Pierce/Bounce/Sticky should resolve motion
-    bool keepAlive = false;
-
-    var behavior = arch.BehaviorConfig;
-    var order = arch.CollisionOrder;
-
-    // If no explicit order is defined, fall back to legacy behavior
-    if (order == null || order.Count == 0)
-    {
-      var ctxLegacy = new CollisionContext(hitPos, hitNormal, nextPos, colliderId, isEnemy, arch.Radius, arch.DestroyOnImpact);
-      bool deactivateLegacy = BulletCollisionProcessor.ProcessCollision(ref state, behavior, ctxLegacy);
-      // Write back
-      b.Position = state.Position;
-      b.PrevPosition = state.PrevPosition;
-      b.Velocity = state.Velocity;
-      b.Damage = state.Damage;
-      b.BounceCount = state.BounceCount;
-      b.PenetrationCount = state.PenetrationCount;
-      b.LastColliderId = state.LastColliderId;
-      b.CollisionCooldown = state.CollisionCooldown;
-      if (deactivateLegacy)
-      {
-        b.Active = false;
-      }
-      else if (behavior != null && behavior.Aimbot is AimbotConfig aimCfg)
-      {
-        // Re-aim on hit when bullet continues; exclude same enemy if applicable
-        _ = TryApplyAimbot(ref b, aimCfg, isEnemy ? colliderId : 0);
-      }
-      return;
-    }
-
-    // No sticky precedence here; we respect the action order strictly.
-
-    for (int i = 0; i < order.Count; i++)
-    {
-      var action = order[i];
-      switch (action)
-      {
-        case CollisionActionType.Explode:
-          if (behavior.Explosive is ExplosiveConfig expCfg)
-          {
-            ApplyExplosionAOE(hitPos, expCfg, state.Damage);
-          }
-          break;
-
-        case CollisionActionType.Sticky:
-          if (behavior.Sticky is StickyConfig stickyCfg)
-          {
-            // Respect temporary sticky cooldown to allow next effects to trigger
-            if (b.StickyCooldown > 0.0f)
-              break;
-            if (isEnemy)
-            {
-              try
-              {
-                if (collider is Enemy enemyStick)
-                {
-                  enemyStick.TakeDamage(stickyCfg.CollisionDamage);
-                  Vector3 dirK = state.Velocity.LengthSquared() > 0.000001f ? state.Velocity.Normalized() : Vector3.Forward;
-                  dirK = new Vector3(dirK.X, 0.15f * dirK.Y, dirK.Z).Normalized();
-                  GlobalEvents.Instance?.EmitDamageDealt(enemyStick, stickyCfg.CollisionDamage, dirK * DefaultKnockback);
-                }
-                else if (collider != null)
-                {
-                  collider.CallDeferred("take_damage", stickyCfg.CollisionDamage);
-                  Vector3 dirK = state.Velocity.LengthSquared() > 0.000001f ? state.Velocity.Normalized() : Vector3.Forward;
-                  dirK = new Vector3(dirK.X, 0.15f * dirK.Y, dirK.Z).Normalized();
-                  GlobalEvents.Instance?.EmitDamageDealt(collider, stickyCfg.CollisionDamage, dirK * DefaultKnockback);
-                }
-              }
-              catch (Exception e)
-              {
-                GD.PrintErr($"BulletManager sticky damage call failed: {e.Message}");
-              }
-              // Visual: damage number above the enemy at impact
-              if (collider != null)
-                FloatingNumber3D.Spawn(this, collider, stickyCfg.CollisionDamage);
-            }
-            b.Position = hitPos;
-            b.PrevPosition = b.Position;
-            b.StuckPreVelocity = state.Velocity;
-            b.Velocity = Vector3.Zero;
-            b.StuckTimeLeft = stickyCfg.Duration;
-            b.StuckTargetId = colliderId;
-            b.StuckLocalOffset = collider != null ? collider.ToLocal(hitPos) : Vector3.Zero;
-            b.StuckWorldNormal = hitNormal;
-            b.StuckLocalNormal = collider != null ? ToLocalNormal(collider, hitNormal) : hitNormal;
-            if (collider != null)
-              SpawnStickyBlob(collider, hitPos, hitNormal, arch.Radius, stickyCfg.Duration);
-            keepAlive = true;
-            resolvedMotion = true;
-            // Defer remaining actions until sticky completes. Resume from next action index.
-            b.StuckStickyIndex = i;
-            b.PendingActionIndex = i + 1;
-            return;
-          }
-          break;
-
-        case CollisionActionType.Pierce:
-          if (behavior.Pierce is PierceConfig pierceCfg && !resolvedMotion)
-          {
-            int before = state.PenetrationCount;
-            var ctx = new CollisionContext(hitPos, hitNormal, nextPos, colliderId, isEnemy, arch.Radius, false);
-            var cfg = BulletBehaviorConfig.Create(null, pierceCfg);
-            _ = BulletCollisionProcessor.ProcessCollision(ref state, cfg, ctx);
-            if (state.PenetrationCount > before)
-            {
-              keepAlive = true;
-              resolvedMotion = true;
-            }
-          }
-          break;
-
-        case CollisionActionType.Bounce:
-          if (behavior.Bounce is BounceConfig bounceCfg && !resolvedMotion)
-          {
-            int before = state.BounceCount;
-            var ctx = new CollisionContext(hitPos, hitNormal, nextPos, colliderId, isEnemy, arch.Radius, false);
-            var cfg = BulletBehaviorConfig.Create(bounceCfg, null);
-            _ = BulletCollisionProcessor.ProcessCollision(ref state, cfg, ctx);
-            if (state.BounceCount > before)
-            {
-              keepAlive = true;
-              resolvedMotion = true;
-            }
-          }
-          break;
-      }
-    }
-
-    // write back from state
-    b.Position = state.Position;
-    b.PrevPosition = state.PrevPosition;
-    b.Velocity = state.Velocity;
-    b.Damage = state.Damage;
-    b.BounceCount = state.BounceCount;
-    b.PenetrationCount = state.PenetrationCount;
-    b.LastColliderId = state.LastColliderId;
-    b.CollisionCooldown = state.CollisionCooldown;
-
-    if (!keepAlive)
-    {
-      if (arch.DestroyOnImpact)
-        b.Active = false;
-    }
-    else if (behavior != null && behavior.Aimbot is AimbotConfig aimCfg)
-    {
-      // Bullet stayed alive due to bounce/pierce/sticky deferral; re-aim toward a new enemy
-      _ = TryApplyAimbot(ref b, aimCfg, isEnemy ? colliderId : 0);
-    }
+    ProcessCollisionOps(ref b, arch, hitPos, hitNormal, nextPos, colliderId, isEnemy, collider, 0);
   }
 
-  // Internal variant that starts processing at a given index in the action order
   private void ProcessCollisionOrderedFromIndex(ref BulletData b, Archetype arch, Vector3 hitPos, Vector3 hitNormal, Vector3 nextPos, ulong colliderId, bool isEnemy, Node3D? collider, int startIndex)
+  {
+    ProcessCollisionOps(ref b, arch, hitPos, hitNormal, nextPos, colliderId, isEnemy, collider, startIndex);
+  }
+
+  private void ProcessCollisionOps(ref BulletData b, Archetype arch, Vector3 hitPos, Vector3 hitNormal, Vector3 nextPos, ulong colliderId, bool isEnemy, Node3D? collider, int startIndex)
   {
     var state = new BulletCollisionState
     {
@@ -1616,43 +1480,34 @@ public partial class BulletManager
     b.LastColliderId = colliderId;
     b.CollisionCooldown = 0.0f;
     b.PendingActionIndex = -1;
+
+    var behavior = arch.BehaviorConfig;
+    var ops = arch.CollisionOps;
+
+    if (ops.Length == 0)
+    {
+      b.Position = hitPos;
+      b.PrevPosition = hitPos;
+      b.Velocity = state.Velocity;
+      if (arch.DestroyOnImpact)
+        b.Active = false;
+      return;
+    }
 
     bool resolvedMotion = false;
     bool keepAlive = false;
 
-    var behavior = arch.BehaviorConfig;
-    var order = arch.CollisionOrder;
-
-    if (order == null || order.Count == 0)
-    {
-      var ctxLegacy = new CollisionContext(hitPos, hitNormal, nextPos, colliderId, isEnemy, arch.Radius, arch.DestroyOnImpact);
-      bool deactivateLegacy = BulletCollisionProcessor.ProcessCollision(ref state, behavior, ctxLegacy);
-      b.Position = state.Position;
-      b.PrevPosition = state.PrevPosition;
-      b.Velocity = state.Velocity;
-      b.Damage = state.Damage;
-      b.BounceCount = state.BounceCount;
-      b.PenetrationCount = state.PenetrationCount;
-      b.LastColliderId = state.LastColliderId;
-      b.CollisionCooldown = state.CollisionCooldown;
-      if (deactivateLegacy)
-        b.Active = false;
-      else if (behavior != null && behavior.Aimbot is AimbotConfig aimCfg)
-        _ = TryApplyAimbot(ref b, aimCfg, isEnemy ? colliderId : 0);
-      return;
-    }
-
     int stickyIndex = -1;
-    for (int si = startIndex; si < order.Count; si++)
+    for (int si = startIndex; si < ops.Length; si++)
     {
-      if (order[si] == CollisionActionType.Sticky)
+      if (ops[si].Action == CollisionActionType.Sticky)
       {
         stickyIndex = si;
         break;
       }
     }
 
-    if (stickyIndex >= 0 && b.StickyCooldown <= 0.0f && behavior.Sticky is StickyConfig stickyFirst)
+    if (stickyIndex >= 0 && b.StickyCooldown <= 0.0f && behavior != null && behavior.Sticky is StickyConfig stickyFirst)
     {
       if (isEnemy)
       {
@@ -1677,10 +1532,10 @@ public partial class BulletManager
         {
           GD.PrintErr($"BulletManager sticky damage call failed: {e.Message}");
         }
-        // Visual: damage number above the enemy at the initial sticky impact
         if (collider != null)
           FloatingNumber3D.Spawn(this, collider, stickyFirst.CollisionDamage);
       }
+
       b.Position = hitPos;
       b.PrevPosition = b.Position;
       b.StuckPreVelocity = state.Velocity;
@@ -1697,13 +1552,13 @@ public partial class BulletManager
       return;
     }
 
-    for (int i = startIndex; i < order.Count; i++)
+    for (int i = startIndex; i < ops.Length; i++)
     {
-      var action = order[i];
+      var action = ops[i].Action;
       switch (action)
       {
         case CollisionActionType.Explode:
-          if (behavior.Explosive is ExplosiveConfig expCfg)
+          if (behavior != null && behavior.Explosive is ExplosiveConfig expCfg)
           {
             if (stickyIndex >= 0 && i > stickyIndex)
             {
@@ -1718,7 +1573,7 @@ public partial class BulletManager
           break;
 
         case CollisionActionType.Sticky:
-          if (behavior.Sticky is StickyConfig stickyCfg)
+          if (behavior != null && behavior.Sticky is StickyConfig stickyCfg)
           {
             if (b.StickyCooldown > 0.0f)
               break;
@@ -1754,7 +1609,7 @@ public partial class BulletManager
           break;
 
         case CollisionActionType.Pierce:
-          if (behavior.Pierce is PierceConfig pierceCfg && !resolvedMotion)
+          if (behavior != null && behavior.Pierce is PierceConfig pierceCfg && !resolvedMotion)
           {
             if (stickyIndex >= 0)
             {
@@ -1777,7 +1632,7 @@ public partial class BulletManager
           break;
 
         case CollisionActionType.Bounce:
-          if (behavior.Bounce is BounceConfig bounceCfg && !resolvedMotion)
+          if (behavior != null && behavior.Bounce is BounceConfig bounceCfg && !resolvedMotion)
           {
             if (stickyIndex >= 0)
             {
@@ -1817,7 +1672,6 @@ public partial class BulletManager
     }
     else if (behavior != null && behavior.Aimbot is AimbotConfig aimCfg)
     {
-      // After resuming deferred actions (e.g., sticky), re-acquire a new target
       _ = TryApplyAimbot(ref b, aimCfg, isEnemy ? colliderId : 0);
     }
   }
