@@ -8,6 +8,6 @@ resource_name = ""
 offset = 80.0
 padding = 0.0
 vertical_padding = 0.0
-slot_padding = 0.0
+slot_padding = 4.0
 slot_nine_patch_margin = 18
 slot_nine_patch_texture = ExtResource("1_r42ya")

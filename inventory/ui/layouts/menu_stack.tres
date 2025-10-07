@@ -1,0 +1,12 @@
+[gd_resource type="StackLayoutConfig" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/3x/ninepatch.png" id="1_r42ya"]
+
+[resource]
+gap = 16.0
+padding = 0.0
+vertical_padding = 0.0
+slot_padding = 6.0
+slot_nine_patch_margin = 18
+slot_nine_patch_texture = ExtResource("1_r42ya")
+

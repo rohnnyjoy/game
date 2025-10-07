@@ -233,8 +233,18 @@ public partial class ModuleStackView : Panel
 
   private void ApplyLayout(int slotCount)
   {
-    // Keep HBox separation in sync with the visual size of a frame.
-    float separation = MathF.Max(0f, Layout.Offset - (CardSize.X + 2f * Layout.SlotPadding));
+    // Inter-slot separation: prefer explicit Gap if provided; otherwise
+    // derive from legacy Offset so that:
+    // separation = Offset - (CardSize + 2*(SlotPadding + FrameMargin))
+    float separation;
+    if (Layout.Gap > 0f)
+    {
+      separation = Layout.Gap;
+    }
+    else
+    {
+      separation = MathF.Max(0f, Layout.Offset - (CardSize.X + 2f * (Layout.SlotPadding + Layout.SlotNinePatchMargin)));
+    }
     _slotsBox.AddThemeConstantOverride("separation", (int)MathF.Round(separation));
 
     int horizontalMargin = (int)MathF.Round(Layout.Padding);

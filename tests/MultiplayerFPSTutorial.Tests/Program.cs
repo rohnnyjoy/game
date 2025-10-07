@@ -268,6 +268,7 @@ internal static class Program
     TestInventoryStoreMoveModule();
     TestInventoryStoreRemoveModule();
     DragMathTests.TestDragMathAlignment();
+    AISchedulerTests.TestSchedulingSlices();
   }
 
   public static int Main()

@@ -5,19 +5,29 @@ public partial class ShopItem : WeaponModuleCard3D
   [Export]
   public int Price { get; set; } = 100; // You can set the default price or adjust via the editor.
 
-  private Label3D priceLabel;
+  private Text3DLabel priceLabel;
 
   public override void _Ready()
   {
     // Call the base class _Ready to ensure the card is rendered as usual.
     base._Ready();
 
-    // Create a Label3D to display the price and configure it.
-    priceLabel = new Label3D();
-    priceLabel.Text = "$" + Price.ToString();
-    // Ensure shop price uses the global UI font
-    var uiFont = GD.Load<FontFile>("res://assets/fonts/Born2bSportyV2.ttf");
-    if (uiFont != null) priceLabel.Font = uiFont;
+    // Create a 3D text label to display the price and configure it.
+    priceLabel = new Text3DLabel
+    {
+      Text = "$" + Price.ToString(),
+      FontPath = "res://assets/fonts/Born2bSportyV2.ttf",
+      FontSize = 40,
+      PixelSize = 0.01f,
+      Color = Colors.White,
+      OutlineColor = new Color(0,0,0,1),
+      OutlineSize = 8,
+      Shaded = false,
+      FaceCamera = true,
+      EnableShadow = true,
+      ShadowColor = new Color(0,0,0,0.35f),
+      ShadowOffset = 0.0075f
+    };
     // Adjust the position so it appears to hover above the card.
     priceLabel.Position = new Vector3(0, 2, 0); // tweak as needed for your scene
     AddChild(priceLabel);

@@ -108,3 +108,8 @@ res://loot/DropEntryResource.cs
 res://loot/DropTableResource.cs
 res://inventory/ui/layouts/hud_primary_stack.tres
 res://pickup/ItemRenderer.cs
+res://ai/EnemyAIManager.cs
+res://shared/text/Text3DLabel.cs
+res://ui/TopLeftHud.tscn
+res://shared/text/AttentionText3DBatched.cs
+res://shared/text/Text3DBatcher.cs

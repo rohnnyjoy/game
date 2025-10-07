@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 InventoryStore="*res://inventory/state/InventoryStore.cs"
 GlobalEvents="*res://GlobalEvents.cs"
 ItemPool="*res://ItemPool.cs"
+EnemyAIManager="*res://ai/EnemyAIManager.cs"
 
 [display]
 

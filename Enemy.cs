@@ -1,14 +1,12 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Combat;
 
 public partial class Enemy : CharacterBody3D
 {
+  public Node3D TargetOverride { get; set; } = null;
   // Signals
-  [Signal]
-  public delegate void EnemyDetectedEventHandler(Node3D target);
   [Signal]
   public delegate void EnemyDiedEventHandler();
   [Signal]
@@ -66,6 +64,9 @@ public partial class Enemy : CharacterBody3D
     AddToGroup("enemies");
     SetPhysicsProcess(true);
 
+    // Register with the global AI manager for centralized targeting.
+    EnemyAIManager.Instance?.Register(this);
+
     // Get child nodes (adjust paths if necessary)
     animPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
 
@@ -100,8 +101,8 @@ public partial class Enemy : CharacterBody3D
 
   public override void _PhysicsProcess(double delta)
   {
-    // Always try to find a valid player target; chase if present
-    target = FindNearestPlayer();
+    // Rely solely on the EnemyAIManager-assigned target.
+    target = (TargetOverride != null && IsInstanceValid(TargetOverride)) ? TargetOverride : null;
 
     if (target != null)
     {
@@ -177,26 +178,7 @@ public partial class Enemy : CharacterBody3D
     }
   }
 
-  private Node3D FindNearestPlayer()
-  {
-    var players = GetTree().GetNodesInGroup("players");
-    Node3D nearest = null;
-    float minDist = float.PositiveInfinity;
-
-    foreach (Node player in players)
-    {
-      if (player is Node3D player3D)
-      {
-        float dist = GlobalTransform.Origin.DistanceTo(player3D.GlobalTransform.Origin);
-        if (dist < minDist)
-        {
-          minDist = dist;
-          nearest = player3D;
-        }
-      }
-    }
-    return nearest;
-  }
+  
 
   private void MoveTowardsTarget(float delta)
   {
@@ -248,15 +230,7 @@ public partial class Enemy : CharacterBody3D
     SetPhysicsProcess(false);
 
     EmitSignal(nameof(EnemyDied));
-
-    GD.Print("GlobalEvents", GlobalEvents.Instance);
     GlobalEvents.Instance.EmitEnemyDied();
-
-    var weaponModuleCard = new WeaponModuleCard3D();
-    weaponModuleCard.Initialize(ItemPool.Instance.SampleModules(1)[0]);
-    weaponModuleCard.GlobalTransform = GlobalTransform;
-
-    // GetParent().AddChild(weaponModuleCard);
     // Spawn coins on death (prefer MultiMesh renderer if present)
     int coinCount = Math.Max(0, CoinsOnDeath);
     if (ItemRenderer.Instance != null)
@@ -289,6 +263,12 @@ public partial class Enemy : CharacterBody3D
       coin.GlobalTransform = new Transform3D(Basis.Identity, GlobalTransform.Origin + offset);
       parent.AddChild(coin);
     }
+  }
+
+  public override void _ExitTree()
+  {
+    EnemyAIManager.Instance?.Unregister(this);
+    base._ExitTree();
   }
 
   private void _on_animation_player_animation_finished(StringName animName)

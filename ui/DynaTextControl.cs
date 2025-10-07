@@ -25,6 +25,9 @@ public partial class DynaTextControl : Control
   [Export] public float AmbientQuiverSpeed = 0.5f;
   [Export] public bool CenterInRect = true;
   [Export] public float LetterSpacingExtraPx = 1.0f; // extra per-letter spacing fed to DynaText (default matches prior behavior)
+  // Small vertical nudge applied inside DynaText to account for font metrics vs. visual
+  // centering (e.g., cap-height vs ascender/descender). Positive moves down.
+  [Export] public float OffsetYExtraPx = 0f;
 
   private string _text = string.Empty;
   private System.Collections.Generic.List<Color> _deferredColours = null;
@@ -46,6 +49,7 @@ public partial class DynaTextControl : Control
       Float = AmbientFloat,
       Bump = AmbientBump,
       TextHeightScale = 1f,
+      OffsetYExtraPx = OffsetYExtraPx,
       SpacingExtraPx = LetterSpacingExtraPx,
       Silent = true,
     };

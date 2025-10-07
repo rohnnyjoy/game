@@ -16,6 +16,7 @@ public partial class DamageNumber3D : Node3D
       DefaultTextColor = color ?? Colors.White,
       OutlineColor = Colors.Black,
       OutlineSize = 14,
+      EnableShadow = false,
       Shaded = false,
       Palette = new(),
       // Tighter numeric spacing and larger size
@@ -35,9 +36,6 @@ public partial class DamageNumber3D : Node3D
       AutoFreeAfter = false,
       HoldSeconds = 0.45f,
       FadeOutSeconds = 0.33f,
-      DebugLogOnce = true,
-      DebugLog = true,
-      DebugFrameInterval = 0.1f
     };
 
     // Use global UI font for damage numbers
@@ -53,5 +51,5 @@ public partial class DamageNumber3D : Node3D
     float yJitter = rng.RandfRange(0.3f, range);
     node.GlobalPosition = target.GlobalTransform.Origin + Vector3.Up * (baseHeight + yJitter);
     node.TriggerPulse(0.2f);
-  }
+    }
 }

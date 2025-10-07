@@ -4,6 +4,9 @@ using Godot;
 public partial class StackLayoutConfig : Resource
 {
   [Export] public float Offset { get; set; } = 120.0f;
+  // Preferred: explicit inter-slot gap in pixels. When > 0, ModuleStackView
+  // uses this value directly for HBox separation, ignoring Offset math.
+  [Export] public float Gap { get; set; } = 0.0f;
   [Export] public float Padding { get; set; } = 20.0f;
   // Extra vertical padding inside stack containers (top/bottom).
   // Keeps slot rows from touching the decorative frame bars.

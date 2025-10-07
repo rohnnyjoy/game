@@ -107,15 +107,7 @@ public partial class GameUi : CanvasLayer
       AddChild(_topLeftHud);
       _healthUi = _topLeftHud.GetNodeOrNull<HealthUi>("Health");
       _primaryModulesUi = _topLeftHud.GetNodeOrNull<PrimaryWeaponStack>("PrimaryWeaponStack");
-      if (_primaryModulesUi != null)
-      {
-        // Ensure HUD stack uses no panel background and no outer padding
-        _primaryModulesUi.EnableInteractions = false;
-        _primaryModulesUi.DrawBackground = false;
-        var hudLayout = GD.Load<StackLayoutConfig>("res://inventory/ui/layouts/hud_primary_stack.tres");
-        if (hudLayout != null)
-          _primaryModulesUi.Layout = hudLayout;
-      }
+      // Scene/resource are the source of truth for HUD layout; avoid runtime overrides here.
     }
     // Initialize health display early
     if (Player.Instance != null)
