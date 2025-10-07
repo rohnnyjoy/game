@@ -10,7 +10,7 @@ namespace Shared.Effects
   public partial class DissolveBurst : Node3D
   {
     private const string ScenePath = "res://shared/effects/DissolveBurst.tscn";
-    private const int ParticleCount = 70; // Balatro emits ~1 every 0.01s over 0.7x dissolve_time ≈ 70
+    private const int ParticleCount = 48; // Lowered for perf; evenly divisible across 6 faces
 #if DEBUG
     // Slow particle burst in Debug to match slow-mo dissolve
     private const float LifetimeSeconds = 1.0f;
@@ -23,7 +23,7 @@ namespace Shared.Effects
     private const float MaxSpeedRatio = 0.36f;
     // Performance knob: number of distinct colors cloned per face.
     // Keep small to reduce node/particle overhead while preserving good mixing.
-    private const int MaxColorsPerFace = 3;
+    private const int MaxColorsPerFace = 2;
 
     private static PackedScene? _cachedScene;
     private static GradientTexture1D? _constantAlphaRamp;

@@ -48,8 +48,9 @@ public partial class BulletManager : Node3D
     // Cursed Skull configuration
     public bool CursedSkullEnabled = false;
     public float CursedTransferRadius = 8.0f;
-    // Owning weapon reference for module notifications (e.g., Metronome)
+    // Owning weapon reference and collision listeners (e.g., Metronome)
     public BulletWeapon? OwnerWeapon;
+    public List<IBulletCollisionListener> CollisionListeners = new();
 
     // Bullet storage for this archetype
     public List<BulletData> Bullets = new List<BulletData>(256);
@@ -79,7 +80,7 @@ public partial class BulletManager : Node3D
     public float Damage;
     public float LifeRemaining;
     public float InitialSpeed;
-    public float MetroAtSpawn;
+    public bool HasEnemyHit;
     public int BounceCount;
     public int PenetrationCount;
     public ulong LastColliderId;
@@ -218,10 +219,18 @@ public partial class BulletManager : Node3D
     bool cursedEnabled = false;
     float cursedRadius = 8.0f;
 
+    var collisionListeners = new List<IBulletCollisionListener>();
+
     void InspectModule(WeaponModule module)
     {
       if (module == null)
         return;
+
+      if (module is IBulletCollisionListener listener)
+      {
+        if (!collisionListeners.Contains(listener))
+          collisionListeners.Add(listener);
+      }
 
       if (module is BouncingModule bounceModule)
       {
@@ -359,6 +368,7 @@ public partial class BulletManager : Node3D
       existingArch.CollisionOrder = BuildCollisionOrder(bw);
       existingArch.Effects = BuildEffectsList(this, existingArch.CollisionOrder, bounceConfig, pierceConfig, explosiveConfig);
       existingArch.OwnerWeapon = bw;
+      existingArch.CollisionListeners = new List<IBulletCollisionListener>(collisionListeners);
       existingArch.SpeedScaleEnabled = speedScaleEnabled;
       existingArch.DamagePerSpeedFactor = damagePerSpeedFactor;
       existingArch.KnockbackPerSpeedFactor = knockbackPerSpeedFactor;
@@ -415,6 +425,7 @@ public partial class BulletManager : Node3D
       newArch.CollisionOrder = BuildCollisionOrder(bw);
       newArch.Effects = BuildEffectsList(this, newArch.CollisionOrder, bounceConfig, pierceConfig, explosiveConfig);
       newArch.OwnerWeapon = bw;
+      newArch.CollisionListeners = new List<IBulletCollisionListener>(collisionListeners);
       newArch.SpeedScaleEnabled = speedScaleEnabled;
       newArch.DamagePerSpeedFactor = damagePerSpeedFactor;
       newArch.KnockbackPerSpeedFactor = knockbackPerSpeedFactor;
@@ -678,21 +689,6 @@ public partial class BulletManager : Node3D
       return;
     }
 
-    float metroAtSpawn = 1.0f;
-    if (_archetypes.TryGetValue(archetypeId, out var arch0))
-    {
-      var w = arch0.OwnerWeapon;
-      if (w != null && IsInstanceValid(w))
-      {
-        if (w.ImmutableModules != null)
-          foreach (var m in w.ImmutableModules)
-            if (m is MetronomeModule mm) metroAtSpawn *= mm.GetCurrentMultiplier();
-        if (w.Modules != null)
-          foreach (var m in w.Modules)
-            if (m is MetronomeModule mm) metroAtSpawn *= mm.GetCurrentMultiplier();
-      }
-    }
-
     BulletData data = new BulletData
     {
       Active = true,
@@ -703,7 +699,6 @@ public partial class BulletManager : Node3D
       Damage = damage,
       LifeRemaining = Math.Max(0.01f, lifetime),
       InitialSpeed = velocity.Length(),
-      MetroAtSpawn = MathF.Max(0.0001f, metroAtSpawn),
       BounceCount = 0,
       PenetrationCount = 0,
       LastColliderId = 0,
@@ -725,6 +720,23 @@ public partial class BulletManager : Node3D
       tb.LastAddedPos = position;
       arch.TrailBuffers[data.Id] = tb;
     }
+  }
+
+  private static float InvokeCollisionListeners(Archetype arch, Node3D enemy, ulong enemyId, float damage)
+  {
+    var weapon = arch.OwnerWeapon;
+    if (weapon == null || !GodotObject.IsInstanceValid(weapon))
+      return damage;
+    if (arch.CollisionListeners == null || arch.CollisionListeners.Count == 0)
+      return damage;
+
+    float adjusted = damage;
+    foreach (var listener in arch.CollisionListeners)
+    {
+      if (listener == null) continue;
+      adjusted = listener.OnBulletCollision(weapon, enemy, enemyId, adjusted);
+    }
+    return adjusted;
   }
 
   public override void _PhysicsProcess(double delta)
@@ -760,6 +772,8 @@ public partial class BulletManager : Node3D
         b.LifeRemaining -= dt;
         if (b.LifeRemaining <= 0)
         {
+          if (!b.HasEnemyHit)
+            _ = InvokeCollisionListeners(arch, null!, 0, b.Damage);
           // drop
         }
         else
@@ -889,7 +903,6 @@ public partial class BulletManager : Node3D
                 {
                   if (collider is Enemy enemy)
                   {
-                    // Compute speed scaling if enabled
                     float ratio = 1.0f;
                     if (arch.SpeedScaleEnabled)
                     {
@@ -900,42 +913,18 @@ public partial class BulletManager : Node3D
                     float dmgScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.DamagePerSpeedFactor)) : 1.0f;
                     float kbScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.KnockbackPerSpeedFactor)) : 1.0f;
 
-                    // Apply Metronome multiplier as of this hit (before notifying)
-                    float metroMult = 1.0f;
-                    var weaponOwner = arch.OwnerWeapon;
-                    if (weaponOwner != null && IsInstanceValid(weaponOwner))
-                    {
-                      if (weaponOwner.ImmutableModules != null)
-                      {
-                        foreach (var m in weaponOwner.ImmutableModules)
-                        {
-                          if (m is MetronomeModule mm)
-                            metroMult *= mm.GetCurrentMultiplier();
-                        }
-                      }
-                      if (weaponOwner.Modules != null)
-                      {
-                        foreach (var m in weaponOwner.Modules)
-                        {
-                          if (m is MetronomeModule mm)
-                            metroMult *= mm.GetCurrentMultiplier();
-                        }
-                      }
-                    }
-
                     float hpBefore = enemy.CurrentHealth;
-                    // Uplift damage if current Metro multiplier exceeds the value at spawn time
-                    float metroRatio = MathF.Max(1.0f, metroMult / MathF.Max(0.0001f, b.MetroAtSpawn));
-                    float dmg = b.Damage * dmgScale * metroRatio;
-                    enemy.TakeDamage(dmg);
-                    // Emit damage event for knockback scaling
+                    float damage = b.Damage * dmgScale;
+                    damage = InvokeCollisionListeners(arch, enemy, colliderId, damage);
+
+                    enemy.TakeDamage(damage);
                     Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
                     dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-                    GlobalEvents.Instance?.EmitDamageDealt(enemy, dmg, dir * DefaultKnockback * kbScale);
+                    GlobalEvents.Instance?.EmitDamageDealt(enemy, damage, dir * DefaultKnockback * kbScale);
 
                     if (arch.CursedSkullEnabled)
                     {
-                      float leftover = dmg - hpBefore;
+                      float leftover = damage - hpBefore;
                       if (leftover > 0.0f)
                       {
                         Node3D? neighbor = FindNearestEnemy(enemy.GlobalTransform.Origin, arch.CursedTransferRadius);
@@ -958,33 +947,13 @@ public partial class BulletManager : Node3D
                         }
                       }
                     }
-                    // Notify Metronome modules on successful enemy hit
-                    try
-                    {
-                      var owner = arch.OwnerWeapon;
-                      if (owner != null && IsInstanceValid(owner))
-                      {
-                        if (owner.ImmutableModules != null)
-                        {
-                          foreach (var m in owner.ImmutableModules)
-                          {
-                            if (m is MetronomeModule mm) mm.NotifyHit();
-                          }
-                        }
-                        if (owner.Modules != null)
-                        {
-                          foreach (var m in owner.Modules)
-                          {
-                            if (m is MetronomeModule mm) mm.NotifyHit();
-                          }
-                        }
-                      }
-                    }
-                    catch { }
+
+                    b.HasEnemyHit = true;
+
+                    FloatingNumber3D.Spawn(this, collider, damage);
                   }
-                  else if (collider != null)
+                  else
                   {
-                    // Non-Enemy node (must implement take_damage)
                     float ratio = 1.0f;
                     if (arch.SpeedScaleEnabled)
                     {
@@ -996,10 +965,13 @@ public partial class BulletManager : Node3D
                     float kbScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.KnockbackPerSpeedFactor)) : 1.0f;
 
                     float dmg = b.Damage * dmgScale;
-                    collider.CallDeferred("take_damage", dmg);
+                    collider?.CallDeferred("take_damage", dmg);
                     Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
                     dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
                     GlobalEvents.Instance?.EmitDamageDealt(collider, dmg, dir * DefaultKnockback * kbScale);
+
+                    if (!b.HasEnemyHit)
+                      _ = InvokeCollisionListeners(arch, null!, 0, dmg);
                   }
                 }
                 catch (Exception e)
@@ -1007,32 +979,6 @@ public partial class BulletManager : Node3D
                   GD.PrintErr($"BulletManager damage call failed: {e.Message}");
                 }
 
-                // Visual feedback: damage number above enemy
-                if (collider != null)
-                {
-                  float ratio = 1.0f;
-                  if (arch.SpeedScaleEnabled)
-                  {
-                    float baseline = arch.UseInitialSpeedAsBaseline ? b.InitialSpeed : (b.InitialSpeed > 0.0001f ? b.InitialSpeed : b.Velocity.Length());
-                    if (baseline > 0.0001f)
-                      ratio = b.Velocity.Length() / baseline;
-                  }
-                  float dmgScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.DamagePerSpeedFactor)) : 1.0f;
-                  // Visual: apply the same metro uplift ratio
-                  float metroMultVis = 1.0f;
-                  var wown = arch.OwnerWeapon;
-                  if (wown != null && IsInstanceValid(wown))
-                  {
-                    if (wown.ImmutableModules != null)
-                      foreach (var m in wown.ImmutableModules)
-                        if (m is MetronomeModule mm) metroMultVis *= mm.GetCurrentMultiplier();
-                    if (wown.Modules != null)
-                      foreach (var m in wown.Modules)
-                        if (m is MetronomeModule mm) metroMultVis *= mm.GetCurrentMultiplier();
-                  }
-                  float metroRatioVis = MathF.Max(1.0f, metroMultVis / MathF.Max(0.0001f, b.MetroAtSpawn));
-                  FloatingNumber3D.Spawn(this, collider, b.Damage * dmgScale * metroRatioVis);
-                }
               }
 
               // Broadcast impact for FX and other listeners
@@ -1773,7 +1719,7 @@ public partial class BulletManager
     Vector3 origin = b.Position;
     Vector3 baseDir = b.Velocity.LengthSquared() > 0.0001f ? b.Velocity.Normalized() : Vector3.Forward;
     float bestAngle = cfg.AimConeAngle;
-    Node3D best = null;
+    Node3D best = null!;
 
     foreach (Node node in GetTree().GetNodesInGroup("enemies"))
     {

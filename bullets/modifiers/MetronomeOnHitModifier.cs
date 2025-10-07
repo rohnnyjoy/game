@@ -12,9 +12,12 @@ public partial class MetronomeOnHitModifier : BulletModifier
 
     if (collision.Collider != null && collision.Collider.IsInGroup("enemies"))
     {
-      Owner.NotifyHit();
+      bullet.Damage = Owner.AdjustDamageForEnemy(collision.ColliderId, bullet.Damage);
+    }
+    else
+    {
+      Owner.RegisterMiss();
     }
     return Task.CompletedTask;
   }
 }
-
