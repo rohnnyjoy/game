@@ -41,6 +41,7 @@ public partial class Enemy : CharacterBody3D
   [Export(PropertyHint.Range, "0.005,0.2,0.005")] public float DissolveEdgeWidth { get; set; } = 0.02f;
   [Export(PropertyHint.Range, "0.002,0.2,0.002")] public float DissolvePixelSize { get; set; } = 0.02f;
   [Export(PropertyHint.Range, "0.5,4.0,0.05")] public float DissolvePixelJitter { get; set; } = 2.3f;
+  [Export] public Vector2 DissolveSeamOffset { get; set; } = new Vector2(0.5f, 0f);
 
   [Export]
   public DropTableResource LootOnDeath { get; set; }
@@ -542,6 +543,7 @@ public partial class Enemy : CharacterBody3D
     mat.SetShaderParameter("edge_softness", DissolveEdgeWidth);
     mat.SetShaderParameter("pixel_size", DissolvePixelSize);
     mat.SetShaderParameter("pixel_jitter", DissolvePixelJitter);
+    mat.SetShaderParameter("seam_offset", DissolveSeamOffset);
 
     return mat;
   }

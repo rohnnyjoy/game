@@ -7,6 +7,7 @@ uniform float dissolve : hint_range(0.0, 1.0) = 0.0;
 uniform float edge_softness : hint_range(0.0005, 0.5, 0.0005) = 0.02;
 uniform float pixel_size : hint_range(0.002, 0.2, 0.002) = 0.02;
 uniform float pixel_jitter : hint_range(0.5, 4.0, 0.05) = 2.3;
+uniform vec2 seam_offset = vec2(0.5, 0.0);
 uniform vec4 base_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform bool use_albedo_texture = false;
 uniform sampler2D albedo_texture : source_color;
@@ -33,13 +34,15 @@ vec4 sample_base(vec2 uv)
 
 void fragment()
 {
-    vec4 base = sample_base(UV);
+    vec2 uv = UV;
+    vec4 base = sample_base(uv);
     float adj = adjusted_dissolve(dissolve);
 
-    float jitter_scale = max(0.0, pixel_jitter);
     float cell = max(0.0005, pixel_size);
+    float jitter_scale = max(0.0, pixel_jitter);
 
-    vec2 uv_wrapped = fract(UV);
+    vec2 uv_wrapped = fract(uv + seam_offset);
+
     vec2 uv_pixel = floor(uv_wrapped / cell) * cell;
 
     float t = TIME * 10.0 + 2003.0;
