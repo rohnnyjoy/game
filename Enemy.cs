@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using Combat;
+using System.Threading.Tasks;
 
 public partial class Enemy : CharacterBody3D
 {
@@ -32,20 +33,31 @@ public partial class Enemy : CharacterBody3D
   private float startX;
   private int direction = 1;
   private float speedMultiplier = 1.0f;
+  private bool _isDying = false;
+
+  [Export(PropertyHint.Range, "0.1,5.0,0.05")] public float DissolveDuration { get; set; } = 0.9f;
+  [Export] public Color DissolveBurnColorInner { get; set; } = new Color(1f, 0.66f, 0.2f);
+  [Export] public Color DissolveBurnColorOuter { get; set; } = new Color(1f, 0.32f, 0.04f);
+  [Export(PropertyHint.Range, "0.005,0.2,0.005")] public float DissolveEdgeWidth { get; set; } = 0.02f;
+  [Export(PropertyHint.Range, "0.002,0.2,0.002")] public float DissolvePixelSize { get; set; } = 0.02f;
+  [Export(PropertyHint.Range, "0.5,4.0,0.05")] public float DissolvePixelJitter { get; set; } = 2.3f;
 
   [Export]
   public DropTableResource LootOnDeath { get; set; }
-  
+
   // Knockback state
   private Vector3 _knockbackVelocity = Vector3.Zero;
   [Export] public float KnockbackDamping { get; set; } = 10.0f;
   [Export] public float MaxKnockbackSpeed { get; set; } = 20.0f;
-  
+
   [Export]
   public int CoinsOnDeath { get; set; } = 2;
-  
+
   // Shared damage FX helper (flash + impact sprite)
   private DamageFeedback _damageFeedback;
+  private readonly List<MeshInstance3D> _dissolveMeshes = new();
+  private static Shader _dissolveShader;
+  private const string DissolveShaderPath = "res://shared/shaders/dissolve_enemy.gdshader";
 
   // Contact damage to player
   [Export] public float ContactDamage { get; set; } = 10f;
@@ -80,6 +92,9 @@ public partial class Enemy : CharacterBody3D
 
     // Setup contact damage detection area
     SetupContactDamageArea();
+
+    _dissolveMeshes.Clear();
+    CollectDissolveMeshes(this);
 
     // Ensure a default loot table if none assigned (5% health potion by default)
     if (LootOnDeath == null)
@@ -178,7 +193,7 @@ public partial class Enemy : CharacterBody3D
     }
   }
 
-  
+
 
   private void MoveTowardsTarget(float delta)
   {
@@ -226,8 +241,30 @@ public partial class Enemy : CharacterBody3D
 
   private void Die()
   {
+    if (_isDying)
+      return;
+    _isDying = true;
+
     Velocity = Vector3.Zero;
     SetPhysicsProcess(false);
+    SetProcess(false);
+
+    CollisionLayer = 0;
+    CollisionMask = 0;
+    DisableCollisionShapes();
+    if (_contactArea != null)
+    {
+      _contactArea.Monitoring = false;
+      _contactArea.Monitorable = false;
+      _contactArea.CollisionLayer = 0;
+      _contactArea.CollisionMask = 0;
+    }
+
+    if (_damageFeedback != null)
+    {
+      _damageFeedback.QueueFree();
+      _damageFeedback = null;
+    }
 
     EmitSignal(nameof(EnemyDied));
     GlobalEvents.Instance.EmitEnemyDied();
@@ -240,7 +277,8 @@ public partial class Enemy : CharacterBody3D
 
     // Spawn loot from table (e.g., health potion drop)
     LootOnDeath?.SpawnDrops(GlobalTransform.Origin, GetParent());
-    QueueFree();
+
+    _ = RunDeathDissolveAsync();
   }
 
   private void SpawnCoins(int count)
@@ -354,5 +392,157 @@ public partial class Enemy : CharacterBody3D
     Vector3 normal = (-dir).Normalized();
     Vector3 hitPos = player.GlobalTransform.Origin + Vector3.Up * 0.5f;
     ImpactSprite.Spawn(this, hitPos, normal);
+  }
+
+  private void CollectDissolveMeshes(Node node)
+  {
+    foreach (Node child in node.GetChildren())
+    {
+      if (child == _damageFeedback)
+        continue;
+
+      if (child is MeshInstance3D mesh)
+      {
+        if (!_dissolveMeshes.Contains(mesh))
+          _dissolveMeshes.Add(mesh);
+      }
+
+      CollectDissolveMeshes(child);
+    }
+  }
+
+  private void DisableCollisionShapes()
+  {
+    DisableCollisionShapesRecursive(this);
+  }
+
+  private void DisableCollisionShapesRecursive(Node node)
+  {
+    foreach (Node child in node.GetChildren())
+    {
+      if (child is CollisionShape3D cs)
+        cs.Disabled = true;
+
+      if (child is CollisionObject3D body)
+      {
+        body.CollisionLayer = 0;
+        body.CollisionMask = 0;
+        if (child is Area3D area)
+        {
+          area.Monitorable = false;
+          area.Monitoring = false;
+        }
+      }
+
+      DisableCollisionShapesRecursive(child);
+    }
+  }
+
+  private async Task RunDeathDissolveAsync()
+  {
+    var materials = SetupDissolveMaterials();
+    if (materials.Count == 0)
+    {
+      QueueFree();
+      return;
+    }
+
+    float duration = MathF.Max(0.1f, DissolveDuration);
+    var tween = CreateTween();
+    foreach (var mat in materials)
+    {
+      tween.Parallel().TweenProperty(mat, "shader_parameter/dissolve", 1.0f, duration)
+        .SetTrans(Tween.TransitionType.Cubic)
+        .SetEase(Tween.EaseType.In);
+    }
+
+    await ToSignal(tween, Tween.SignalName.Finished);
+    QueueFree();
+  }
+
+  private List<ShaderMaterial> SetupDissolveMaterials()
+  {
+    var result = new List<ShaderMaterial>();
+    if (_dissolveMeshes.Count == 0)
+      return result;
+
+    _dissolveShader ??= ResourceLoader.Load<Shader>(DissolveShaderPath);
+    if (_dissolveShader == null)
+    {
+      GD.PushError($"Failed to load dissolve shader at {DissolveShaderPath}");
+      return result;
+    }
+
+    foreach (var mesh in _dissolveMeshes)
+    {
+      if (mesh == null || !IsInstanceValid(mesh))
+        continue;
+
+      Material originalOverride = mesh.MaterialOverride;
+      mesh.MaterialOverride = null;
+
+      var meshResource = mesh.Mesh;
+      int surfaceCount = meshResource?.GetSurfaceCount() ?? 0;
+
+      if (surfaceCount == 0)
+      {
+        var mat = CreateDissolveMaterial(originalOverride);
+        if (mat != null)
+        {
+          mesh.MaterialOverride = mat;
+          result.Add(mat);
+        }
+        continue;
+      }
+
+      for (int i = 0; i < surfaceCount; i++)
+      {
+        Material source = mesh.GetSurfaceOverrideMaterial(i);
+        if (source == null && meshResource != null)
+          source = meshResource.SurfaceGetMaterial(i);
+
+        var shaderMat = CreateDissolveMaterial(source);
+        if (shaderMat != null)
+        {
+          mesh.SetSurfaceOverrideMaterial(i, shaderMat);
+          result.Add(shaderMat);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  private ShaderMaterial CreateDissolveMaterial(Material source)
+  {
+    var mat = new ShaderMaterial
+    {
+      Shader = _dissolveShader
+    };
+
+    Color baseColor = Colors.White;
+    float alpha = 1f;
+    bool hasTexture = false;
+
+    if (source is BaseMaterial3D baseMat)
+    {
+      baseColor = baseMat.AlbedoColor;
+      alpha = Mathf.Clamp(baseColor.A, 0f, 1f);
+      if (baseMat.AlbedoTexture is Texture2D tex)
+      {
+        hasTexture = true;
+        mat.SetShaderParameter("albedo_texture", tex);
+      }
+    }
+    mat.SetShaderParameter("base_color", new Color(baseColor.R, baseColor.G, baseColor.B, alpha));
+    mat.SetShaderParameter("use_albedo_texture", hasTexture);
+    mat.SetShaderParameter("burn_color_1", DissolveBurnColorInner);
+    mat.SetShaderParameter("burn_color_2", DissolveBurnColorOuter);
+    mat.SetShaderParameter("dissolve", 0.0f);
+    mat.SetShaderParameter("edge_softness", DissolveEdgeWidth);
+    mat.SetShaderParameter("pixel_size", DissolvePixelSize);
+    mat.SetShaderParameter("pixel_jitter", DissolvePixelJitter);
+
+    return mat;
   }
 }
