@@ -39,6 +39,18 @@ public partial class BulletManager : Node3D
     public Transform3D LocalMeshTransform = Transform3D.Identity;
     public bool AlignToVelocity = false;
 
+    // Speed-based scaling (Weighted Glove)
+    public bool SpeedScaleEnabled = false;
+    public float DamagePerSpeedFactor = 1.0f;
+    public float KnockbackPerSpeedFactor = 1.0f;
+    public bool UseInitialSpeedAsBaseline = true;
+
+    // Cursed Skull configuration
+    public bool CursedSkullEnabled = false;
+    public float CursedTransferRadius = 8.0f;
+    // Owning weapon reference for module notifications (e.g., Metronome)
+    public BulletWeapon? OwnerWeapon;
+
     // Bullet storage for this archetype
     public List<BulletData> Bullets = new List<BulletData>(256);
 
@@ -66,6 +78,8 @@ public partial class BulletManager : Node3D
     public Vector3 Velocity;
     public float Damage;
     public float LifeRemaining;
+    public float InitialSpeed;
+    public float MetroAtSpawn;
     public int BounceCount;
     public int PenetrationCount;
     public ulong LastColliderId;
@@ -194,6 +208,16 @@ public partial class BulletManager : Node3D
     float stickyDuration = 1.0f;
     float stickyCollisionDamage = 1.0f;
 
+    // Weighted Glove / Speed scaling
+    bool speedScaleEnabled = false;
+    float damagePerSpeedFactor = 1.0f;
+    float knockbackPerSpeedFactor = 1.0f;
+    bool speedUseInitial = true;
+
+    // Cursed Skull
+    bool cursedEnabled = false;
+    float cursedRadius = 8.0f;
+
     void InspectModule(WeaponModule module)
     {
       if (module == null)
@@ -225,6 +249,18 @@ public partial class BulletManager : Node3D
         explosiveEnabled = true;
         explosiveRadius = explosiveModule.ExplosionRadius;
         explosiveDamageMultiplier = explosiveModule.ExplosionDamageMultiplier;
+      }
+      else if (module is WeightedGloveModule wg)
+      {
+        speedScaleEnabled = true;
+        damagePerSpeedFactor = wg.DamagePerSpeedFactor;
+        knockbackPerSpeedFactor = wg.KnockbackPerSpeedFactor;
+        speedUseInitial = wg.UseInitialSpeedAsBaseline;
+      }
+      else if (module is CursedSkullModule cs)
+      {
+        cursedEnabled = true;
+        cursedRadius = cs.TransferRadius;
       }
       else if (module is StickyModule stickyModule)
       {
@@ -283,6 +319,18 @@ public partial class BulletManager : Node3D
           stickyDuration = stickyMod.StickDuration;
           stickyCollisionDamage = stickyMod.CollisionDamage;
         }
+        else if (modifierObj is SpeedScaledImpactModifier sp)
+        {
+          speedScaleEnabled = true;
+          damagePerSpeedFactor = sp.DamagePerSpeedFactor;
+          knockbackPerSpeedFactor = sp.KnockbackPerSpeedFactor;
+          speedUseInitial = sp.UseInitialSpeedAsBaseline;
+        }
+        else if (modifierObj is CursedSkullBulletModifier csb)
+        {
+          cursedEnabled = true;
+          cursedRadius = csb.TransferRadius;
+        }
       }
     }
 
@@ -310,6 +358,13 @@ public partial class BulletManager : Node3D
       existingArch.BehaviorConfig = BulletBehaviorConfig.Create(bounceConfig, pierceConfig, homingConfig, trackingConfig, aimbotConfig, explosiveConfig, stickyConfig);
       existingArch.CollisionOrder = BuildCollisionOrder(bw);
       existingArch.Effects = BuildEffectsList(this, existingArch.CollisionOrder, bounceConfig, pierceConfig, explosiveConfig);
+      existingArch.OwnerWeapon = bw;
+      existingArch.SpeedScaleEnabled = speedScaleEnabled;
+      existingArch.DamagePerSpeedFactor = damagePerSpeedFactor;
+      existingArch.KnockbackPerSpeedFactor = knockbackPerSpeedFactor;
+      existingArch.UseInitialSpeedAsBaseline = speedUseInitial;
+      existingArch.CursedSkullEnabled = cursedEnabled;
+      existingArch.CursedTransferRadius = cursedRadius;
       return;
     }
 
@@ -359,6 +414,13 @@ public partial class BulletManager : Node3D
       newArch.BehaviorConfig = BulletBehaviorConfig.Create(bounceConfig, pierceConfig, homingConfig, trackingConfig, aimbotConfig, explosiveConfig, stickyConfig);
       newArch.CollisionOrder = BuildCollisionOrder(bw);
       newArch.Effects = BuildEffectsList(this, newArch.CollisionOrder, bounceConfig, pierceConfig, explosiveConfig);
+      newArch.OwnerWeapon = bw;
+      newArch.SpeedScaleEnabled = speedScaleEnabled;
+      newArch.DamagePerSpeedFactor = damagePerSpeedFactor;
+      newArch.KnockbackPerSpeedFactor = knockbackPerSpeedFactor;
+      newArch.UseInitialSpeedAsBaseline = speedUseInitial;
+      newArch.CursedSkullEnabled = cursedEnabled;
+      newArch.CursedTransferRadius = cursedRadius;
     }
   }
 
@@ -616,6 +678,21 @@ public partial class BulletManager : Node3D
       return;
     }
 
+    float metroAtSpawn = 1.0f;
+    if (_archetypes.TryGetValue(archetypeId, out var arch0))
+    {
+      var w = arch0.OwnerWeapon;
+      if (w != null && IsInstanceValid(w))
+      {
+        if (w.ImmutableModules != null)
+          foreach (var m in w.ImmutableModules)
+            if (m is MetronomeModule mm) metroAtSpawn *= mm.GetCurrentMultiplier();
+        if (w.Modules != null)
+          foreach (var m in w.Modules)
+            if (m is MetronomeModule mm) metroAtSpawn *= mm.GetCurrentMultiplier();
+      }
+    }
+
     BulletData data = new BulletData
     {
       Active = true,
@@ -625,6 +702,8 @@ public partial class BulletManager : Node3D
       Velocity = velocity,
       Damage = damage,
       LifeRemaining = Math.Max(0.01f, lifetime),
+      InitialSpeed = velocity.Length(),
+      MetroAtSpawn = MathF.Max(0.0001f, metroAtSpawn),
       BounceCount = 0,
       PenetrationCount = 0,
       LastColliderId = 0,
@@ -810,18 +889,117 @@ public partial class BulletManager : Node3D
                 {
                   if (collider is Enemy enemy)
                   {
-                    enemy.TakeDamage(b.Damage);
-                    // Emit damage event for default knockback scaling
+                    // Compute speed scaling if enabled
+                    float ratio = 1.0f;
+                    if (arch.SpeedScaleEnabled)
+                    {
+                      float baseline = arch.UseInitialSpeedAsBaseline ? b.InitialSpeed : (b.InitialSpeed > 0.0001f ? b.InitialSpeed : b.Velocity.Length());
+                      if (baseline > 0.0001f)
+                        ratio = b.Velocity.Length() / baseline;
+                    }
+                    float dmgScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.DamagePerSpeedFactor)) : 1.0f;
+                    float kbScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.KnockbackPerSpeedFactor)) : 1.0f;
+
+                    // Apply Metronome multiplier as of this hit (before notifying)
+                    float metroMult = 1.0f;
+                    var weaponOwner = arch.OwnerWeapon;
+                    if (weaponOwner != null && IsInstanceValid(weaponOwner))
+                    {
+                      if (weaponOwner.ImmutableModules != null)
+                      {
+                        foreach (var m in weaponOwner.ImmutableModules)
+                        {
+                          if (m is MetronomeModule mm)
+                            metroMult *= mm.GetCurrentMultiplier();
+                        }
+                      }
+                      if (weaponOwner.Modules != null)
+                      {
+                        foreach (var m in weaponOwner.Modules)
+                        {
+                          if (m is MetronomeModule mm)
+                            metroMult *= mm.GetCurrentMultiplier();
+                        }
+                      }
+                    }
+
+                    float hpBefore = enemy.CurrentHealth;
+                    // Uplift damage if current Metro multiplier exceeds the value at spawn time
+                    float metroRatio = MathF.Max(1.0f, metroMult / MathF.Max(0.0001f, b.MetroAtSpawn));
+                    float dmg = b.Damage * dmgScale * metroRatio;
+                    enemy.TakeDamage(dmg);
+                    // Emit damage event for knockback scaling
                     Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
                     dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-                    GlobalEvents.Instance?.EmitDamageDealt(enemy, b.Damage, dir * DefaultKnockback);
+                    GlobalEvents.Instance?.EmitDamageDealt(enemy, dmg, dir * DefaultKnockback * kbScale);
+
+                    if (arch.CursedSkullEnabled)
+                    {
+                      float leftover = dmg - hpBefore;
+                      if (leftover > 0.0f)
+                      {
+                        Node3D? neighbor = FindNearestEnemy(enemy.GlobalTransform.Origin, arch.CursedTransferRadius);
+                        if (neighbor != null && neighbor != enemy && IsInstanceValid(neighbor))
+                        {
+                          try
+                          {
+                            if (neighbor is Enemy en)
+                              en.TakeDamage(leftover);
+                            else
+                              neighbor.CallDeferred("take_damage", leftover);
+
+                            FloatingNumber3D.Spawn(this, neighbor, leftover);
+                            GlobalEvents.Instance?.EmitDamageDealt(neighbor, leftover, dir * DefaultKnockback * kbScale);
+                          }
+                          catch (Exception e)
+                          {
+                            GD.PrintErr($"CursedSkull transfer failed: {e.Message}");
+                          }
+                        }
+                      }
+                    }
+                    // Notify Metronome modules on successful enemy hit
+                    try
+                    {
+                      var owner = arch.OwnerWeapon;
+                      if (owner != null && IsInstanceValid(owner))
+                      {
+                        if (owner.ImmutableModules != null)
+                        {
+                          foreach (var m in owner.ImmutableModules)
+                          {
+                            if (m is MetronomeModule mm) mm.NotifyHit();
+                          }
+                        }
+                        if (owner.Modules != null)
+                        {
+                          foreach (var m in owner.Modules)
+                          {
+                            if (m is MetronomeModule mm) mm.NotifyHit();
+                          }
+                        }
+                      }
+                    }
+                    catch { }
                   }
                   else if (collider != null)
                   {
-                    collider.CallDeferred("take_damage", b.Damage);
+                    // Non-Enemy node (must implement take_damage)
+                    float ratio = 1.0f;
+                    if (arch.SpeedScaleEnabled)
+                    {
+                      float baseline = arch.UseInitialSpeedAsBaseline ? b.InitialSpeed : (b.InitialSpeed > 0.0001f ? b.InitialSpeed : b.Velocity.Length());
+                      if (baseline > 0.0001f)
+                        ratio = b.Velocity.Length() / baseline;
+                    }
+                    float dmgScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.DamagePerSpeedFactor)) : 1.0f;
+                    float kbScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.KnockbackPerSpeedFactor)) : 1.0f;
+
+                    float dmg = b.Damage * dmgScale;
+                    collider.CallDeferred("take_damage", dmg);
                     Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
                     dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-                    GlobalEvents.Instance?.EmitDamageDealt(collider, b.Damage, dir * DefaultKnockback);
+                    GlobalEvents.Instance?.EmitDamageDealt(collider, dmg, dir * DefaultKnockback * kbScale);
                   }
                 }
                 catch (Exception e)
@@ -831,7 +1009,30 @@ public partial class BulletManager : Node3D
 
                 // Visual feedback: damage number above enemy
                 if (collider != null)
-                  FloatingNumber3D.Spawn(this, collider, b.Damage);
+                {
+                  float ratio = 1.0f;
+                  if (arch.SpeedScaleEnabled)
+                  {
+                    float baseline = arch.UseInitialSpeedAsBaseline ? b.InitialSpeed : (b.InitialSpeed > 0.0001f ? b.InitialSpeed : b.Velocity.Length());
+                    if (baseline > 0.0001f)
+                      ratio = b.Velocity.Length() / baseline;
+                  }
+                  float dmgScale = arch.SpeedScaleEnabled ? (1.0f + (ratio - 1.0f) * MathF.Max(0.0f, arch.DamagePerSpeedFactor)) : 1.0f;
+                  // Visual: apply the same metro uplift ratio
+                  float metroMultVis = 1.0f;
+                  var wown = arch.OwnerWeapon;
+                  if (wown != null && IsInstanceValid(wown))
+                  {
+                    if (wown.ImmutableModules != null)
+                      foreach (var m in wown.ImmutableModules)
+                        if (m is MetronomeModule mm) metroMultVis *= mm.GetCurrentMultiplier();
+                    if (wown.Modules != null)
+                      foreach (var m in wown.Modules)
+                        if (m is MetronomeModule mm) metroMultVis *= mm.GetCurrentMultiplier();
+                  }
+                  float metroRatioVis = MathF.Max(1.0f, metroMultVis / MathF.Max(0.0001f, b.MetroAtSpawn));
+                  FloatingNumber3D.Spawn(this, collider, b.Damage * dmgScale * metroRatioVis);
+                }
               }
 
               // Broadcast impact for FX and other listeners

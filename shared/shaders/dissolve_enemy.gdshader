@@ -11,6 +11,11 @@ uniform bool use_albedo_texture = false;
 uniform sampler2D albedo_texture : source_color;
 uniform vec4 burn_color_1 : source_color = vec4(1.0, 0.66, 0.2, 1.0);
 uniform vec4 burn_color_2 : source_color = vec4(1.0, 0.32, 0.05, 1.0);
+// When true, bias dissolve towards UV borders (Balatro-like). When false, dissolve uniformly.
+uniform bool edge_bias = false;
+// Per-instance randomization controls
+uniform float rand_seed = 0.0;    // random seed per instance
+uniform float uv_angle = 0.0;     // rotation (radians) for dissolve field only
 
 float adjusted_dissolve(float t)
 {
@@ -39,15 +44,21 @@ void fragment()
     float cell = max(0.0005, pixel_size);
     float jitter_scale = max(0.0, pixel_jitter);
 
+    // Keep seam positioning stable in mesh UV space; do not rotate or randomly shift the seam.
     vec2 uv_wrapped = fract(uv + seam_offset);
     vec2 uv_pixel = floor(uv_wrapped / cell) * cell;
 
-    float time_term = TIME * 10.0 + 2003.0;
+    float time_term = TIME * 10.0 + 2003.0 + rand_seed * 111.0;
     vec2 uv_scaled_centered = (uv_pixel - vec2(0.5)) * (jitter_scale / cell);
+    // Rotate the field sampling only (after pixel quantization) to vary the breakup without moving the seam.
+    float ca = cos(uv_angle);
+    float sa = sin(uv_angle);
+    vec2 field_uv = vec2(ca * uv_scaled_centered.x - sa * uv_scaled_centered.y,
+                         sa * uv_scaled_centered.x + ca * uv_scaled_centered.y);
 
-    vec2 field_part1 = uv_scaled_centered + 50.0 * vec2(sin(-time_term / 143.6340), cos(-time_term / 99.4324));
-    vec2 field_part2 = uv_scaled_centered + 50.0 * vec2(cos(time_term / 53.1532), cos(time_term / 61.4532));
-    vec2 field_part3 = uv_scaled_centered + 50.0 * vec2(sin(-time_term / 87.53218), sin(-time_term / 49.0));
+    vec2 field_part1 = field_uv + 50.0 * vec2(sin(-time_term / 143.6340 + rand_seed * 0.13), cos(-time_term / 99.4324 + rand_seed * 0.21));
+    vec2 field_part2 = field_uv + 50.0 * vec2(cos(time_term / 53.1532 + rand_seed * 0.31), cos(time_term / 61.4532 + rand_seed * 0.37));
+    vec2 field_part3 = field_uv + 50.0 * vec2(sin(-time_term / 87.53218 + rand_seed * 0.19), sin(-time_term / 49.0 + rand_seed * 0.27));
 
     float field = (1.0 + (
         cos(length(field_part1) / 19.483) +
@@ -57,10 +68,14 @@ void fragment()
     vec2 borders = vec2(0.2, 0.8);
 
     float res = 0.5 + 0.5 * cos((adj) / 82.612 + (field - 0.5) * PI);
-    res -= (uv_pixel.x > borders.y ? (uv_pixel.x - borders.y) * (5.0 + 5.0 * dissolve) : 0.0) * dissolve;
-    res -= (uv_pixel.y > borders.y ? (uv_pixel.y - borders.y) * (5.0 + 5.0 * dissolve) : 0.0) * dissolve;
-    res -= (uv_pixel.x < borders.x ? (borders.x - uv_pixel.x) * (5.0 + 5.0 * dissolve) : 0.0) * dissolve;
-    res -= (uv_pixel.y < borders.x ? (borders.x - uv_pixel.y) * (5.0 + 5.0 * dissolve) : 0.0) * dissolve;
+    // Optional edge bias (disabled by default to keep dissolve uniform)
+    if (edge_bias)
+    {
+        res -= (uv_pixel.x > borders.y ? (uv_pixel.x - borders.y) * (5.0 + 5.0 * dissolve) : 0.0) * dissolve;
+        res -= (uv_pixel.y > borders.y ? (uv_pixel.y - borders.y) * (5.0 + 5.0 * dissolve) : 0.0) * dissolve;
+        res -= (uv_pixel.x < borders.x ? (borders.x - uv_pixel.x) * (5.0 + 5.0 * dissolve) : 0.0) * dissolve;
+        res -= (uv_pixel.y < borders.x ? (borders.x - uv_pixel.y) * (5.0 + 5.0 * dissolve) : 0.0) * dissolve;
+    }
 
     if (dissolve > 0.01)
     {

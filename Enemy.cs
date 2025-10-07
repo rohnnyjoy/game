@@ -31,13 +31,14 @@ public partial class Enemy : CharacterBody3D
 
   // Variables
   private float health = 100;
+  public float CurrentHealth => health;
   private Node3D target = null;
   private float startX;
   private int direction = 1;
   private float speedMultiplier = 1.0f;
   private bool _isDying = false;
 
-  [Export(PropertyHint.Range, "0.1,5.0,0.05")] public float DissolveDuration { get; set; } = 0.9f;
+  [Export(PropertyHint.Range, "0.1,5.0,0.05")] public float DissolveDuration { get; set; } = 0.35f;
   [Export] public Color DissolveBurnColorInner { get; set; } = new Color(0.215686f, 0.258823f, 0.266667f, 1f);
   [Export] public Color DissolveBurnColorOuter { get; set; } = new Color(0.992156f, 0.635294f, 0f, 1f);
   [Export] public Vector2 DissolveSeamOffset { get; set; } = new Vector2(0.5f, 0f);
@@ -420,7 +421,7 @@ public partial class Enemy : CharacterBody3D
     var spawnXform = GlobalTransform;
     spawnXform.Origin += spawnXform.Basis * center;
 
-    DissolveBurst.Spawn(parent, spawnXform, palette, halfExtents);
+    DissolveBurst.Spawn(parent, spawnXform, palette, halfExtents, DissolveDuration);
   }
 
   private (Vector3 center, Vector3 halfExtents) ComputeDissolveBounds()
@@ -520,6 +521,10 @@ public partial class Enemy : CharacterBody3D
     }
 
     float duration = MathF.Max(0.1f, DissolveDuration);
+#if DEBUG
+    // Slow down dissolve significantly in Debug for inspection
+    duration *= 3.5f;
+#endif
     var tween = CreateTween();
     foreach (var mat in materials)
     {
@@ -595,6 +600,8 @@ public partial class Enemy : CharacterBody3D
     Color baseColor = Colors.White;
     float alpha = 1f;
     bool hasTexture = false;
+    var rng = new RandomNumberGenerator();
+    rng.Randomize();
 
     if (source is BaseMaterial3D baseMat)
     {
@@ -622,6 +629,15 @@ public partial class Enemy : CharacterBody3D
     mat.SetShaderParameter("dissolve", 0.0f);
     mat.SetShaderParameter("edge_softness", 0f);
     mat.SetShaderParameter("seam_offset", DissolveSeamOffset);
+    // Per-instance randomization to avoid identical-looking dissolves
+    mat.SetShaderParameter("edge_bias", false);
+    mat.SetShaderParameter("rand_seed", rng.RandfRange(0f, 10000f));
+    mat.SetShaderParameter("uv_angle", rng.RandfRange(0f, Mathf.Tau));
+    // Slight variation in pixelization characteristics
+    float pixelSize = Mathf.Clamp(0.02f * rng.RandfRange(0.85f, 1.25f), 0.002f, 0.2f);
+    float pixelJitter = Mathf.Clamp(2.3f * rng.RandfRange(0.9f, 1.2f), 0.5f, 4.0f);
+    mat.SetShaderParameter("pixel_size", pixelSize);
+    mat.SetShaderParameter("pixel_jitter", pixelJitter);
 
     return mat;
   }

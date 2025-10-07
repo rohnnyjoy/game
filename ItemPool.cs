@@ -22,6 +22,9 @@ public partial class ItemPool : Node
       new BouncingModule(),
       new FastModule(),
       new SlowModule(),
+      new WeightedGloveModule(),
+      new MetronomeModule(),
+      new CursedSkullModule(),
     };
     Instance = this;
   }

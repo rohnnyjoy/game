@@ -108,3 +108,9 @@ res://world2.tscn
 res://enemy.tscn
 res://world.tscn
 res://shared/effects/DissolveBurst.tscn
+res://bullets/modifiers/SpeedScaledImpactModifier.cs
+res://bullets/modifiers/MetronomeOnHitModifier.cs
+res://modules/WeightedGloveModule.cs
+res://bullets/modifiers/CursedSkullBulletModifier.cs
+res://modules/CursedSkullModule.cs
+res://modules/MetronomeModule.cs

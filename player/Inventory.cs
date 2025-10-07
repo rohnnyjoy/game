@@ -19,6 +19,9 @@ public partial class Inventory : Node
         new BouncingModule(),
         new StickyModule(),
         new FastModule(),
+        new WeightedGloveModule(),
+        new MetronomeModule(),
+        new CursedSkullModule(),
     };
 
   public Weapon PrimaryWeapon
