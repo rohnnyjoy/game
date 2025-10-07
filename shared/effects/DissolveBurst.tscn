@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://vwmj2nqc1kfh"]
+
+[ext_resource type="Script" uid="uid://cn0f6rej8kr6a" path="res://shared/effects/DissolveBurst.cs" id="1"]
+
+[node name="DissolveBurst" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Particles" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 90
+one_shot = true
+draw_order = 1

@@ -1,10 +1,8 @@
 shader_type spatial;
 render_mode blend_mix, depth_prepass_alpha;
 
-// Balatro-inspired dissolve tuned for pixelated UV-space masking with burn rims.
-
-uniform float dissolve : hint_range(0.0, 1.0) = 0.0;
-uniform float edge_softness : hint_range(0.0005, 0.5, 0.0005) = 0.02;
+uniform float dissolve : hint_range(0.0, 1.0, 0.001) = 0.0;
+uniform float edge_softness : hint_range(0.0, 0.2, 0.002) = 0.0;
 uniform float pixel_size : hint_range(0.002, 0.2, 0.002) = 0.02;
 uniform float pixel_jitter : hint_range(0.5, 4.0, 0.05) = 2.3;
 uniform vec2 seam_offset = vec2(0.5, 0.0);
@@ -35,22 +33,21 @@ vec4 sample_base(vec2 uv)
 void fragment()
 {
     vec2 uv = UV;
-    vec4 base = sample_base(uv);
+    vec4 tex = sample_base(uv);
     float adj = adjusted_dissolve(dissolve);
 
     float cell = max(0.0005, pixel_size);
     float jitter_scale = max(0.0, pixel_jitter);
 
     vec2 uv_wrapped = fract(uv + seam_offset);
-
     vec2 uv_pixel = floor(uv_wrapped / cell) * cell;
 
-    float t = TIME * 10.0 + 2003.0;
+    float time_term = TIME * 10.0 + 2003.0;
     vec2 uv_scaled_centered = (uv_pixel - vec2(0.5)) * (jitter_scale / cell);
 
-    vec2 field_part1 = uv_scaled_centered + 50.0 * vec2(sin(-t / 143.6340), cos(-t / 99.4324));
-    vec2 field_part2 = uv_scaled_centered + 50.0 * vec2(cos(t / 53.1532), cos(t / 61.4532));
-    vec2 field_part3 = uv_scaled_centered + 50.0 * vec2(sin(-t / 87.53218), sin(-t / 49.0));
+    vec2 field_part1 = uv_scaled_centered + 50.0 * vec2(sin(-time_term / 143.6340), cos(-time_term / 99.4324));
+    vec2 field_part2 = uv_scaled_centered + 50.0 * vec2(cos(time_term / 53.1532), cos(time_term / 61.4532));
+    vec2 field_part3 = uv_scaled_centered + 50.0 * vec2(sin(-time_term / 87.53218), sin(-time_term / 49.0));
 
     float field = (1.0 + (
         cos(length(field_part1) / 19.483) +
@@ -65,44 +62,48 @@ void fragment()
     res -= (uv_pixel.x < borders.x ? (borders.x - uv_pixel.x) * (5.0 + 5.0 * dissolve) : 0.0) * dissolve;
     res -= (uv_pixel.y < borders.x ? (borders.x - uv_pixel.y) * (5.0 + 5.0 * dissolve) : 0.0) * dissolve;
 
-    vec3 colour = base.rgb;
-
     if (dissolve > 0.01)
     {
         if (burn_color_2.a > 0.01)
         {
-            colour = mix(colour, burn_color_2.rgb, 0.6 * dissolve);
+            tex.rgb = tex.rgb * (1.0 - 0.6 * dissolve) + burn_color_2.rgb * (0.6 * dissolve);
         }
         else if (burn_color_1.a > 0.01)
         {
-            colour = mix(colour, burn_color_1.rgb, 0.6 * dissolve);
+            tex.rgb = tex.rgb * (1.0 - 0.6 * dissolve) + burn_color_1.rgb * (0.6 * dissolve);
         }
     }
 
-    float rim_window = 0.5 - abs(adj - 0.5);
-    if (base.a > 0.01 && burn_color_1.a > 0.01 && res < adj + 0.8 * rim_window && res > adj)
+    float mid_window = 0.5 - abs(adj - 0.5);
+    if (tex.a > 0.01 && burn_color_1.a > 0.01 && res < adj + 0.8 * mid_window && res > adj)
     {
-        if (res < adj + 0.5 * rim_window && res > adj)
+        if (res < adj + 0.5 * mid_window && res > adj)
         {
-            colour = burn_color_1.rgb;
+            tex.rgb = burn_color_1.rgb;
         }
         else if (burn_color_2.a > 0.01)
         {
-            colour = burn_color_2.rgb;
+            tex.rgb = burn_color_2.rgb;
         }
     }
 
-    float width = max(0.0005, edge_softness);
-    float mask = smoothstep(adj - width, adj + width, res);
-    float alpha = base.a * mask;
-
+    float alpha;
+    if (edge_softness <= 0.0001)
+    {
+        alpha = (res > adj) ? tex.a : 0.0;
+    }
+    else
+    {
+        float mask = smoothstep(adj - edge_softness, adj + edge_softness, res);
+        alpha = tex.a * mask;
+    }
     if (alpha <= 0.001)
     {
         discard;
     }
 
-    ALBEDO = colour;
+    ALBEDO = tex.rgb;
     ALPHA = alpha;
-    SPECULAR = 0.2;
-    ROUGHNESS = 0.75;
+    SPECULAR = 0.0;
+    ROUGHNESS = 1.0;
 }

@@ -2,6 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using Combat;
+using Shared.Effects;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 public partial class Enemy : CharacterBody3D
@@ -36,11 +38,8 @@ public partial class Enemy : CharacterBody3D
   private bool _isDying = false;
 
   [Export(PropertyHint.Range, "0.1,5.0,0.05")] public float DissolveDuration { get; set; } = 0.9f;
-  [Export] public Color DissolveBurnColorInner { get; set; } = new Color(1f, 0.66f, 0.2f);
-  [Export] public Color DissolveBurnColorOuter { get; set; } = new Color(1f, 0.32f, 0.04f);
-  [Export(PropertyHint.Range, "0.005,0.2,0.005")] public float DissolveEdgeWidth { get; set; } = 0.02f;
-  [Export(PropertyHint.Range, "0.002,0.2,0.002")] public float DissolvePixelSize { get; set; } = 0.02f;
-  [Export(PropertyHint.Range, "0.5,4.0,0.05")] public float DissolvePixelJitter { get; set; } = 2.3f;
+  [Export] public Color DissolveBurnColorInner { get; set; } = new Color(0.215686f, 0.258823f, 0.266667f, 1f);
+  [Export] public Color DissolveBurnColorOuter { get; set; } = new Color(0.992156f, 0.635294f, 0f, 1f);
   [Export] public Vector2 DissolveSeamOffset { get; set; } = new Vector2(0.5f, 0f);
 
   [Export]
@@ -59,6 +58,14 @@ public partial class Enemy : CharacterBody3D
   private readonly List<MeshInstance3D> _dissolveMeshes = new();
   private static Shader _dissolveShader;
   private const string DissolveShaderPath = "res://shared/shaders/dissolve_enemy.gdshader";
+  private static readonly Color[] DefaultDissolvePalette =
+  {
+    new Color(0.215686f, 0.258823f, 0.266667f, 1f),           // BLACK
+    new Color(0.992156f, 0.635294f, 0f, 1f),                   // ORANGE
+    new Color(0.996078f, 0.372549f, 0.333333f, 1f),            // RED
+    new Color(0.917647f, 0.752941f, 0.345098f, 1f),            // GOLD
+    new Color(0.74902f, 0.780392f, 0.835294f, 1f)              // JOKER_GREY
+  };
 
   // Contact damage to player
   [Export] public float ContactDamage { get; set; } = 10f;
@@ -279,6 +286,8 @@ public partial class Enemy : CharacterBody3D
     // Spawn loot from table (e.g., health potion drop)
     LootOnDeath?.SpawnDrops(GlobalTransform.Origin, GetParent());
 
+    SpawnDissolveParticles();
+
     _ = RunDeathDissolveAsync();
   }
 
@@ -393,6 +402,68 @@ public partial class Enemy : CharacterBody3D
     Vector3 normal = (-dir).Normalized();
     Vector3 hitPos = player.GlobalTransform.Origin + Vector3.Up * 0.5f;
     ImpactSprite.Spawn(this, hitPos, normal);
+  }
+
+  private void SpawnDissolveParticles()
+  {
+    var parent = GetParent();
+    if (parent == null || !IsInstanceValid(parent))
+      return;
+
+    var palette = new List<Color>(DefaultDissolvePalette);
+    if (DissolveBurnColorInner.A > 0.01f)
+      palette.Insert(0, DissolveBurnColorInner);
+    if (DissolveBurnColorOuter.A > 0.01f)
+      palette.Insert(0, DissolveBurnColorOuter);
+
+    var (center, halfExtents) = ComputeDissolveBounds();
+    var spawnXform = GlobalTransform;
+    spawnXform.Origin += spawnXform.Basis * center;
+
+    DissolveBurst.Spawn(parent, spawnXform, palette, halfExtents);
+  }
+
+  private (Vector3 center, Vector3 halfExtents) ComputeDissolveBounds()
+  {
+    if (_dissolveMeshes.Count == 0)
+      return (Vector3.Zero, new Vector3(0.5f, 0.5f, 0.5f));
+
+    Vector3 min = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
+    Vector3 max = new Vector3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
+
+    foreach (var mesh in _dissolveMeshes)
+    {
+      if (mesh == null || !IsInstanceValid(mesh)) continue;
+      Aabb aabb = mesh.GetAabb();
+      for (int ix = 0; ix <= 1; ix++)
+      {
+        for (int iy = 0; iy <= 1; iy++)
+        {
+          for (int iz = 0; iz <= 1; iz++)
+          {
+            Vector3 corner = aabb.Position + new Vector3(aabb.Size.X * ix, aabb.Size.Y * iy, aabb.Size.Z * iz);
+            corner = mesh.Transform * corner;
+            min = new Vector3(MathF.Min(min.X, corner.X), MathF.Min(min.Y, corner.Y), MathF.Min(min.Z, corner.Z));
+            max = new Vector3(MathF.Max(max.X, corner.X), MathF.Max(max.Y, corner.Y), MathF.Max(max.Z, corner.Z));
+          }
+        }
+      }
+    }
+
+    if (!IsFinite(min) || !IsFinite(max))
+      return (Vector3.Zero, new Vector3(0.5f, 0.5f, 0.5f));
+
+    Vector3 center = (min + max) * 0.5f;
+    Vector3 halfExtents = (max - min) * 0.5f;
+    halfExtents.X = MathF.Max(halfExtents.X, 0.2f);
+    halfExtents.Y = MathF.Max(halfExtents.Y, 0.2f);
+    halfExtents.Z = MathF.Max(halfExtents.Z, 0.2f);
+    return (center, halfExtents);
+  }
+
+  private static bool IsFinite(Vector3 v)
+  {
+    return float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
   }
 
   private void CollectDissolveMeshes(Node node)
@@ -533,16 +604,23 @@ public partial class Enemy : CharacterBody3D
       {
         hasTexture = true;
         mat.SetShaderParameter("albedo_texture", tex);
+        float w = tex.GetWidth();
+        float h = tex.GetHeight();
+        mat.SetShaderParameter("texture_details", new Vector4(0f, 0f, w, h));
+        mat.SetShaderParameter("image_details", new Vector2(w, h));
       }
+    }
+    if (!hasTexture)
+    {
+      mat.SetShaderParameter("texture_details", new Vector4(0f, 0f, 256f, 256f));
+      mat.SetShaderParameter("image_details", new Vector2(256f, 256f));
     }
     mat.SetShaderParameter("base_color", new Color(baseColor.R, baseColor.G, baseColor.B, alpha));
     mat.SetShaderParameter("use_albedo_texture", hasTexture);
     mat.SetShaderParameter("burn_color_1", DissolveBurnColorInner);
     mat.SetShaderParameter("burn_color_2", DissolveBurnColorOuter);
     mat.SetShaderParameter("dissolve", 0.0f);
-    mat.SetShaderParameter("edge_softness", DissolveEdgeWidth);
-    mat.SetShaderParameter("pixel_size", DissolvePixelSize);
-    mat.SetShaderParameter("pixel_jitter", DissolvePixelJitter);
+    mat.SetShaderParameter("edge_softness", 0f);
     mat.SetShaderParameter("seam_offset", DissolveSeamOffset);
 
     return mat;

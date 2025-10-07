@@ -203,28 +203,61 @@ public partial class MoneyComboUi : Control
     GlobalPosition = pos;
   }
 
-  private void RegisterComboActivity(string cause = null)
+  private bool RegisterComboActivity(string cause = null)
   {
     _lastActivityAt = Now();
 
     if (text == null || cfg == null)
-      return;
+      return false;
 
-    if (!_poppedIn)
+    bool freshPop = !_poppedIn;
+    if (freshPop)
     {
       cfg.PopDelay = ComboPopDelay;
       cfg.PopInStartAt = 0f;
       text.Init(cfg);
-      text.TriggerPulse(0.26f, 2.5f, 40f);
       Visible = true;
       _poppedIn = true;
     }
     else
     {
       text.CancelPopOut(restorePopIn: true);
+      Visible = true;
     }
 
     _popGen++;
+    return freshPop;
+  }
+
+  private void ApplyComboJuice(int comboValue, bool allowTilt = true)
+  {
+    if (text == null) return;
+
+    int absVal = Math.Max(1, comboValue);
+    float logVal = MathF.Log10(absVal);
+    float maxLog = JuiceScaleMaxValue > 1 ? MathF.Log10(MathF.Max(2f, JuiceScaleMaxValue)) : 1f;
+    float intensity = maxLog <= 0f ? 1f : Mathf.Clamp(logVal / maxLog, 0f, 1f);
+
+    float pulse = PulseBase + PulseMaxExtra * intensity;
+    if (pulse > 0f)
+    {
+      text.TriggerPulse(pulse, 2.5f, 40f);
+    }
+
+    float quiverAmt = QuiverMax * intensity;
+    if (quiverAmt > 0f)
+    {
+      text.SetQuiver(quiverAmt, 0.5f, 0.5f + 0.3f * intensity);
+    }
+
+    if (allowTilt)
+    {
+      float tiltAmt = TiltMax * intensity;
+      if (tiltAmt > 0f)
+      {
+        text.TriggerTilt(tiltAmt);
+      }
+    }
   }
 
   private async Task ArmPopOutIfIdle()
@@ -268,21 +301,8 @@ public partial class MoneyComboUi : Control
 
     // Accumulate into a pending bucket; if a drain is active, we do not change the visible text mid-drain
     pendingCombo += delta;
-
-    float quiverAmt = 0f;
-    float pulseAmt = 0f;
-    float newScale = ScaleBase;
-    if (!draining)
-    {
-      int absVal = Math.Max(1, Math.Abs(pendingCombo));
-      display = pendingCombo > 0 ? $"+${pendingCombo}" : "";
-      int power = (int)MathF.Max(0f, MathF.Floor(MathF.Log10(absVal)));
-      quiverAmt = 0.03f * power;       // Balatro: set_quiver(0.03 * amount)
-      pulseAmt = 0.3f + 0.08f * power; // Balatro: pulse(0.3 + 0.08 * amount)
-      newScale = ScaleNumber(absVal, ScaleBase, ScaleClampMax);
-    }
-
-    RegisterComboActivity("money-updated");
+    int absVal = Math.Max(1, Math.Abs(pendingCombo));
+    bool freshPop = RegisterComboActivity("money-updated");
 
     // Play fill SFX on increment (coin1), slight pitch variance for texture
     if (_coinFill != null && delta != 0)
@@ -294,10 +314,10 @@ public partial class MoneyComboUi : Control
     // If not currently draining, reflect the pending total in the UI immediately (Balatro: set chip_total before ease)
     if (!draining)
     {
-      if (quiverAmt > 0f) text.SetQuiver(quiverAmt, 0.5f, 0.5f);
-      text.TriggerPulse(pulseAmt);
+      display = pendingCombo > 0 ? $"+${pendingCombo}" : "";
+      float newScale = ScaleNumber(absVal, ScaleBase, ScaleClampMax);
       text.SetScale(newScale);
-
+      ApplyComboJuice(absVal, allowTilt: true);
       // Add Balatro-style jiggle on coin gain; strength scales gently with delta
       if (delta != 0)
       {
@@ -312,6 +332,10 @@ public partial class MoneyComboUi : Control
         waitingToDrain = true;
         _ = WaitAndDrain();
       }
+    }
+    else if (freshPop)
+    {
+      ApplyComboJuice(absVal, allowTilt: true);
     }
   }
 
@@ -334,13 +358,9 @@ public partial class MoneyComboUi : Control
       // Show newly pending amount immediately, then coalesce again
       int absVal = Math.Max(1, Math.Abs(pendingCombo));
       display = pendingCombo > 0 ? $"+${pendingCombo}" : "";
-      int power = (int)MathF.Max(0f, MathF.Floor(MathF.Log10(absVal)));
-      float quiverAmt = 0.03f * power;
-      float pulseAmt = 0.3f + 0.08f * power;
-      if (quiverAmt > 0f) text.SetQuiver(quiverAmt, 0.5f, 0.5f);
-      text.TriggerPulse(pulseAmt);
-      text.SetScale(ScaleNumber(absVal, ScaleBase, ScaleClampMax));
       RegisterComboActivity("post-drain-new-pending");
+      text.SetScale(ScaleNumber(absVal, ScaleBase, ScaleClampMax));
+      ApplyComboJuice(absVal, allowTilt: true);
       // Nudge on subsequent batches too
       GameUi.Instance?.AddJiggle(Mathf.Clamp(0.15f + 0.01f * absVal, 0.1f, 1.0f));
       GlobalEvents.Instance?.ClaimMoneyDrainStartAt(DrainDelay);
