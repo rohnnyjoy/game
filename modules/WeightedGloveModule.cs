@@ -13,12 +13,6 @@ public partial class WeightedGloveModule : WeaponModule, IDamagePreStepProvider
     ModuleName = "Weighted Glove";
     ModuleDescription = "Damage and knockback scale with projectile speed.";
     Rarity = Rarity.Uncommon;
-    BulletModifiers.Add(new SpeedScaledImpactModifier
-    {
-      DamagePerSpeedFactor = DamagePerSpeedFactor,
-      KnockbackPerSpeedFactor = KnockbackPerSpeedFactor,
-      UseInitialSpeedAsBaseline = UseInitialSpeedAsBaseline,
-    });
   }
 
   public IEnumerable<DamagePreStepConfig> GetDamagePreSteps()

@@ -1,6 +1,6 @@
 using Godot;
 
-public partial class FastModule : WeaponModule
+public partial class FastModule : WeaponModule, IStatModifier
 {
   [Export]
   public float default_trail_width = 0.5f; // Fallback width if bullet.trail is null.
@@ -14,8 +14,8 @@ public partial class FastModule : WeaponModule
     ModuleDescription = "Bullets move faster";
   }
 
-  public override float GetModifiedBulletSpeed(float bulletSpeed)
+  public void Modify(ref WeaponStats stats)
   {
-    return bulletSpeed * 2.0f;
+    stats.BulletSpeed *= 2.0f;
   }
 }

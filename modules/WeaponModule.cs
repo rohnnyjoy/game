@@ -35,37 +35,44 @@ public partial class WeaponModule : Resource
     OnReloadEnd = () => { prevLogic.Invoke(); newLogic.Invoke(); };
   }
 
-  // This base module can be extended to modify bullets or weapons.
+  // This legacy hook is deprecated in favor of provider patterns and WeaponStats snapshots.
+  [Obsolete("ModifyBullet is deprecated. Prefer provider interfaces and manager pipelines.")]
   public virtual Bullet ModifyBullet(Bullet bullet)
   {
     return bullet;
   }
 
+  [Obsolete("GetModifiedReloadSpeed is deprecated. Implement IStatModifier.Modify instead.")]
   public virtual float GetModifiedReloadSpeed(float reloadSpeed)
   {
     return reloadSpeed;
   }
 
+  [Obsolete("GetModifiedFireRate is deprecated. Implement IStatModifier.Modify instead.")]
   public virtual float GetModifiedFireRate(float fireRate)
   {
     return fireRate;
   }
 
+  [Obsolete("GetModifiedBulletSpeed is deprecated. Implement IStatModifier.Modify instead.")]
   public virtual float GetModifiedBulletSpeed(float bulletSpeed)
   {
     return bulletSpeed;
   }
 
+  [Obsolete("GetModifiedAmmo is deprecated. Implement IStatModifier.Modify instead.")]
   public virtual int GetModifiedAmmo(int ammo)
   {
     return ammo;
   }
 
+  [Obsolete("GetModifiedDamage is deprecated. Implement IStatModifier.Modify instead.")]
   public virtual float GetModifiedDamage(float damage)
   {
     return damage;
   }
 
+  [Obsolete("GetModifiedAccuracy is deprecated. Implement IStatModifier.Modify instead.")]
   public virtual float GetModifiedAccuracy(float accuracy)
   {
     return accuracy;

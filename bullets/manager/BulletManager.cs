@@ -57,7 +57,6 @@ public partial class BulletManager : Node3D
 
     public BulletBehaviorConfig BehaviorConfig = BulletBehaviorConfig.None;
     public List<CollisionActionType> CollisionOrder = new List<CollisionActionType>();
-    public List<IBulletEffect>? Effects;
 
     public DamagePreStep[] DamagePreSteps = System.Array.Empty<DamagePreStep>();
     public DamagePostStep[] DamagePostSteps = System.Array.Empty<DamagePostStep>();
@@ -200,40 +199,13 @@ public partial class BulletManager : Node3D
     if (bw == null || !IsInstanceValid(bw)) return;
     if (!bw.UseBulletManager) return;
 
-    bool bounceEnabled = false;
-    float bounceDamageReduction = 0.2f;
-    float bounceBounciness = 0.8f;
-    int bounceMaxBounces = 0;
-
-    bool pierceEnabled = false;
-    float pierceDamageReduction = 0.2f;
-    float pierceVelocityFactor = 0.9f;
-    int pierceMaxPenetrations = 0;
-    float pierceCooldown = 0.2f;
-
-    bool homingEnabled = false;
-    float homingRadius = 10.0f;
-    float homingStrength = 0.04f;
-
-    bool trackingEnabled = false;
-    float trackingStrength = 0.1f;
-    float trackingMaxRay = 1000.0f;
-
-    bool aimbotEnabled = false;
-    float aimbotConeAngle = Mathf.DegToRad(120.0f);
-    float aimbotVerticalOffset = 0.0f;
-    // Increase default aimbot range substantially so it triggers at long distances
-    float aimbotRadius = 1000.0f;
-    float aimbotLineWidth = 0.1f;
-    float aimbotLineDuration = 0.05f;
-
-    bool explosiveEnabled = false;
-    float explosiveRadius = 2.5f;
-    float explosiveDamageMultiplier = 0.25f;
-
-    bool stickyEnabled = false;
-    float stickyDuration = 1.0f;
-    float stickyCollisionDamage = 1.0f;
+    BounceConfig? bounceConfig = null;
+    PierceConfig? pierceConfig = null;
+    HomingConfig? homingConfig = null;
+    TrackingConfig? trackingConfig = null;
+    AimbotConfig? aimbotConfig = null;
+    ExplosiveConfig? explosiveConfig = null;
+    StickyConfig? stickyConfig = null;
 
     var preStepConfigs = new List<(DamagePreStepConfig Config, int Order)>();
     var postStepConfigs = new List<(DamagePostStepConfig Config, int Order)>();
@@ -244,39 +216,33 @@ public partial class BulletManager : Node3D
     {
       if (module == null)
         return;
-
-      if (module is BouncingModule bounceModule)
+      if (module is IBounceProvider bounceProvider && bounceProvider.TryGetBounceConfig(out var bounceCfg) && bounceCfg.MaxBounces > 0)
       {
-        bounceEnabled = true;
-        bounceDamageReduction = bounceModule.DamageReduction;
-        bounceBounciness = bounceModule.Bounciness;
-        bounceMaxBounces = bounceModule.MaxBounces;
+        bounceConfig = new BounceConfig(bounceCfg.DamageReduction, bounceCfg.Bounciness, bounceCfg.MaxBounces);
       }
-      else if (module is HomingModule homingModule)
+      if (module is IPierceProvider pierceProvider && pierceProvider.TryGetPierceConfig(out var pierceCfg) && pierceCfg.MaxPenetrations > 0)
       {
-        homingEnabled = true;
-        homingRadius = homingModule.HomingRadius;
-        homingStrength = homingModule.TrackingStrength;
+        pierceConfig = new PierceConfig(pierceCfg.DamageReduction, pierceCfg.VelocityFactor, pierceCfg.MaxPenetrations, pierceCfg.Cooldown);
       }
-      else if (module is TrackingModule)
+      if (module is IHomingProvider homingProvider && homingProvider.TryGetHomingConfig(out var homingCfg) && homingCfg.Strength > 0.0f && homingCfg.Radius > 0.0f)
       {
-        trackingEnabled = true;
+        homingConfig = new HomingConfig(homingCfg.Radius, homingCfg.Strength);
       }
-      else if (module is AimbotModule)
+      if (module is ITrackingProvider trackingProvider && trackingProvider.TryGetTrackingConfig(out var trackingCfg) && trackingCfg.Strength > 0.0f)
       {
-        aimbotEnabled = true;
+        trackingConfig = new TrackingConfig(trackingCfg.Strength, trackingCfg.MaxRayDistance);
       }
-      else if (module is ExplosiveModule explosiveModule)
+      if (module is IAimbotProvider aimbotProvider && aimbotProvider.TryGetAimbotConfig(out var aimbotCfg))
       {
-        explosiveEnabled = true;
-        explosiveRadius = explosiveModule.ExplosionRadius;
-        explosiveDamageMultiplier = explosiveModule.ExplosionDamageMultiplier;
+        aimbotConfig = new AimbotConfig(aimbotCfg.ConeAngle, aimbotCfg.VerticalOffset, aimbotCfg.Radius, aimbotCfg.LineWidth, aimbotCfg.LineDuration);
       }
-      else if (module is StickyModule stickyModule)
+      if (module is IExplosiveProvider explosiveProvider && explosiveProvider.TryGetExplosiveConfig(out var explosiveCfg))
       {
-        stickyEnabled = true;
-        stickyDuration = stickyModule.StickDuration;
-        stickyCollisionDamage = stickyModule.CollisionDamage;
+        explosiveConfig = new ExplosiveConfig(explosiveCfg.Radius, explosiveCfg.DamageMultiplier);
+      }
+      if (module is IStickyProvider stickyProvider && stickyProvider.TryGetStickyConfig(out var stickyCfg))
+      {
+        stickyConfig = new StickyConfig(stickyCfg.Duration, stickyCfg.CollisionDamage);
       }
       if (module is IDamagePreStepProvider preProvider)
       {
@@ -292,58 +258,6 @@ public partial class BulletManager : Node3D
           postStepConfigs.Add((cfg, postOrder++));
         }
       }
-      foreach (var modifierObj in module.BulletModifiers)
-      {
-        if (modifierObj is BouncingBulletModifier bounceMod)
-        {
-          bounceEnabled = true;
-          bounceDamageReduction = bounceMod.DamageReduction;
-          bounceBounciness = bounceMod.Bounciness;
-          bounceMaxBounces = bounceMod.MaxBounces;
-        }
-        else if (modifierObj is PiercingBulletModifier pierceMod)
-        {
-          pierceEnabled = true;
-          pierceDamageReduction = pierceMod.DamageReduction;
-          pierceVelocityFactor = pierceMod.VelocityFactor;
-          pierceMaxPenetrations = pierceMod.MaxPenetrations;
-          pierceCooldown = pierceMod.CollisionCooldown;
-        }
-        else if (modifierObj is HomingBulletModifier homingMod)
-        {
-          homingEnabled = true;
-          homingRadius = homingMod.HomingRadius;
-          homingStrength = homingMod.TrackingStrength;
-        }
-        else if (modifierObj is TrackingBulletModifier trackingMod)
-        {
-          trackingEnabled = true;
-          trackingStrength = trackingMod.tracking_strength;
-          trackingMaxRay = trackingMod.max_ray_distance;
-        }
-        else if (modifierObj is AimbotBulletModifier aimbotMod)
-        {
-          aimbotEnabled = true;
-          aimbotConeAngle = aimbotMod.aim_cone_angle;
-          aimbotVerticalOffset = aimbotMod.vertical_offset;
-          aimbotLineWidth = aimbotMod.target_line_width;
-          aimbotLineDuration = aimbotMod.target_line_duration;
-          // Use a large radius to allow long-range target acquisition
-          aimbotRadius = 1000.0f;
-        }
-        else if (modifierObj is ExplosiveBulletModifier explosiveMod)
-        {
-          explosiveEnabled = true;
-          explosiveRadius = explosiveMod.ExplosionRadius;
-          explosiveDamageMultiplier = explosiveMod.ExplosionDamageMultiplier;
-        }
-        else if (modifierObj is StickyBulletModifier stickyMod)
-        {
-          stickyEnabled = true;
-          stickyDuration = stickyMod.StickDuration;
-          stickyCollisionDamage = stickyMod.CollisionDamage;
-        }
-      }
     }
 
     if (bw.ImmutableModules != null)
@@ -353,23 +267,10 @@ public partial class BulletManager : Node3D
       foreach (WeaponModule module in bw.Modules)
         InspectModule(module);
 
-    BounceConfig? bounceConfig = (bounceEnabled && bounceMaxBounces > 0)
-      ? new BounceConfig(bounceDamageReduction, bounceBounciness, bounceMaxBounces)
-      : null;
-    PierceConfig? pierceConfig = (pierceEnabled && pierceMaxPenetrations > 0)
-      ? new PierceConfig(pierceDamageReduction, pierceVelocityFactor, pierceMaxPenetrations, pierceCooldown)
-      : null;
-    HomingConfig? homingConfig = homingEnabled ? new HomingConfig(homingRadius, homingStrength) : null;
-    TrackingConfig? trackingConfig = trackingEnabled ? new TrackingConfig(trackingStrength, trackingMaxRay) : null;
-    AimbotConfig? aimbotConfig = aimbotEnabled ? new AimbotConfig(aimbotConeAngle, aimbotVerticalOffset, aimbotRadius, aimbotLineWidth, aimbotLineDuration) : null;
-    ExplosiveConfig? explosiveConfig = explosiveEnabled ? new ExplosiveConfig(explosiveRadius, explosiveDamageMultiplier) : null;
-    StickyConfig? stickyConfig = stickyEnabled ? new StickyConfig(stickyDuration, stickyCollisionDamage) : null;
-
     if (bw.BulletArchetypeId >= 0 && _archetypes.TryGetValue(bw.BulletArchetypeId, out var existingArch))
     {
       existingArch.BehaviorConfig = BulletBehaviorConfig.Create(bounceConfig, pierceConfig, homingConfig, trackingConfig, aimbotConfig, explosiveConfig, stickyConfig);
       existingArch.CollisionOrder = BuildCollisionOrder(bw);
-      existingArch.Effects = BuildEffectsList(this, existingArch.CollisionOrder, bounceConfig, pierceConfig, explosiveConfig);
       existingArch.OwnerWeapon = bw;
       BuildDamagePipelines(existingArch, preStepConfigs, postStepConfigs);
       _weaponArchetypes[bw] = existingArch;
@@ -421,7 +322,6 @@ public partial class BulletManager : Node3D
     {
       newArch.BehaviorConfig = BulletBehaviorConfig.Create(bounceConfig, pierceConfig, homingConfig, trackingConfig, aimbotConfig, explosiveConfig, stickyConfig);
       newArch.CollisionOrder = BuildCollisionOrder(bw);
-      newArch.Effects = BuildEffectsList(this, newArch.CollisionOrder, bounceConfig, pierceConfig, explosiveConfig);
       newArch.OwnerWeapon = bw;
       BuildDamagePipelines(newArch, preStepConfigs, postStepConfigs);
       _weaponArchetypes[bw] = newArch;
@@ -439,55 +339,16 @@ public partial class BulletManager : Node3D
     void Inspect(WeaponModule m)
     {
       if (m == null) return;
-      if (m is PiercingModule) Add(CollisionActionType.Pierce);
-      else if (m is BouncingModule) Add(CollisionActionType.Bounce);
-      else if (m is StickyModule) Add(CollisionActionType.Sticky);
-      else if (m is ExplosiveModule) Add(CollisionActionType.Explode);
-      foreach (var mod in m.BulletModifiers)
-      {
-        switch (mod)
-        {
-          case PiercingBulletModifier:
-            Add(CollisionActionType.Pierce);
-            break;
-          case BouncingBulletModifier:
-            Add(CollisionActionType.Bounce);
-            break;
-          case StickyBulletModifier:
-            Add(CollisionActionType.Sticky);
-            break;
-          case ExplosiveBulletModifier:
-            Add(CollisionActionType.Explode);
-            break;
-        }
-      }
+      if (m is IPierceProvider pierce && pierce.TryGetPierceConfig(out var pierceCfg) && pierceCfg.MaxPenetrations > 0) Add(CollisionActionType.Pierce);
+      if (m is IBounceProvider bounce && bounce.TryGetBounceConfig(out var bounceCfg) && bounceCfg.MaxBounces > 0) Add(CollisionActionType.Bounce);
+      if (m is IStickyProvider sticky && sticky.TryGetStickyConfig(out _)) Add(CollisionActionType.Sticky);
+      if (m is IExplosiveProvider explode && explode.TryGetExplosiveConfig(out var explosiveCfg) && explosiveCfg.Radius > 0.0f && explosiveCfg.DamageMultiplier > 0.0f) Add(CollisionActionType.Explode);
     }
     if (bw.ImmutableModules != null)
       foreach (WeaponModule m in bw.ImmutableModules) Inspect(m);
     if (bw.Modules != null)
       foreach (WeaponModule m in bw.Modules) Inspect(m);
     return order;
-  }
-
-  private List<IBulletEffect> BuildEffectsList(BulletManager owner, List<CollisionActionType> order, BounceConfig? bounce, PierceConfig? pierce, ExplosiveConfig? explode)
-  {
-    var list = new List<IBulletEffect>(order.Count);
-    foreach (var act in order)
-    {
-      switch (act)
-      {
-        case CollisionActionType.Bounce:
-          if (bounce != null) list.Add(new BounceEffect(bounce));
-          break;
-        case CollisionActionType.Pierce:
-          if (pierce != null) list.Add(new PierceEffect(pierce));
-          break;
-        case CollisionActionType.Explode:
-          if (explode != null) list.Add(new ExplodeEffect(owner, explode));
-          break;
-      }
-    }
-    return list;
   }
 
   private static void BuildDamagePipelines(Archetype arch, List<(DamagePreStepConfig Config, int Order)> preConfigs, List<(DamagePostStepConfig Config, int Order)> postConfigs)
@@ -601,9 +462,9 @@ public partial class BulletManager : Node3D
       {
         case DamagePreStepKind.SpeedScale:
         {
-          float baseline = step.Flag
-            ? bullet.InitialSpeed
-            : (bullet.InitialSpeed > 0.0001f ? bullet.InitialSpeed : (currentSpeed > 0.0001f ? currentSpeed : 1.0f));
+          float baseline = step.Flag ? bullet.InitialSpeed : bullet.InitialSpeed;
+          if (baseline <= 0.0001f)
+            baseline = currentSpeed > 0.0001f ? currentSpeed : 1.0f;
           float ratio = baseline > 0.0001f ? currentSpeed / baseline : 1.0f;
           float damageScale = 1.0f + (ratio - 1.0f) * MathF.Max(0.0f, step.ParamA);
           float knockScale = 1.0f + (ratio - 1.0f) * MathF.Max(0.0f, step.ParamB);
@@ -1941,17 +1802,8 @@ public partial class BulletManager
 
   private void ApplyExplosionAOE(Vector3 center, ExplosiveConfig cfg, float baseDamage)
   {
-    // Visual
-    try
-    {
-      var vis = new ExplosiveBulletModifier();
-      vis.SpawnExplosion(center, GetTree());
-    }
-    catch (Exception e)
-    {
-      GD.PrintErr($"Explosion visual failed: {e.Message}");
-    }
-
+    // Emit VFX event to allow batched rendering and other listeners
+    GlobalEvents.Instance?.EmitExplosionOccurred(center, cfg.Radius);
     float radius = cfg.Radius;
     float damage = baseDamage * cfg.DamageMultiplier;
     foreach (Node node in GetTree().GetNodesInGroup("enemies"))

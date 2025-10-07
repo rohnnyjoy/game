@@ -1,9 +1,5 @@
 using Godot;
-using System;
-using System.Threading.Tasks;
-using Godot.Collections;
-
-public partial class AimbotModule : WeaponModule
+public partial class AimbotModule : WeaponModule, IAimbotProvider
 {
   [Export]
   public float aim_cone_angle { get; set; } = (float)(120 * Math.PI / 180.0); // 120° in radians
@@ -23,6 +19,17 @@ public partial class AimbotModule : WeaponModule
     ModuleName = "Mechanical Lens";
     Rarity = Rarity.Epic;
     ModuleDescription = "Attacks reorient mid-flight toward the nearest enemy across a large range (within a wide 120° cone).";
-    BulletModifiers.Add(new AimbotBulletModifier());
+  }
+
+  public bool TryGetAimbotConfig(out AimbotProviderConfig config)
+  {
+    config = new AimbotProviderConfig(
+      Mathf.Max(0.0f, aim_cone_angle),
+      vertical_offset,
+      1000.0f,
+      Mathf.Max(0.0f, target_line_width),
+      Mathf.Max(0.0f, target_line_duration)
+    );
+    return true;
   }
 }

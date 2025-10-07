@@ -11,6 +11,8 @@ public partial class Weapon : Node3D
   private Array<WeaponModule> _modules = new();
   public event Action ModulesChanged;
   public event Action StatsUpdated;
+  private bool _statsDirty = true;
+  private WeaponStats _statsCache;
 
   [Export]
   public Array<WeaponModule> Modules
@@ -22,6 +24,7 @@ public partial class Weapon : Node3D
       DebugTrace.Log($"Weapon.Modules set count={_modules.Count}");
       ModulesChanged?.Invoke();
       StatsUpdated?.Invoke();
+      _statsDirty = true;
     }
   }
   private float _fireRate = 0.5f;
@@ -40,6 +43,7 @@ public partial class Weapon : Node3D
       if (_fireRate == value) return;
       _fireRate = value;
       StatsUpdated?.Invoke();
+      _statsDirty = true;
     }
   }
 
@@ -52,6 +56,7 @@ public partial class Weapon : Node3D
       if (_reloadSpeed == value) return;
       _reloadSpeed = value;
       StatsUpdated?.Invoke();
+      _statsDirty = true;
     }
   }
 
@@ -64,6 +69,7 @@ public partial class Weapon : Node3D
       if (_ammo == value) return;
       _ammo = value;
       StatsUpdated?.Invoke();
+      _statsDirty = true;
     }
   }
 
@@ -76,6 +82,7 @@ public partial class Weapon : Node3D
       if (_damage == value) return;
       _damage = value;
       StatsUpdated?.Invoke();
+      _statsDirty = true;
     }
   }
 
@@ -88,6 +95,7 @@ public partial class Weapon : Node3D
       if (_accuracy == value) return;
       _accuracy = value;
       StatsUpdated?.Invoke();
+      _statsDirty = true;
     }
   }
 
@@ -100,6 +108,7 @@ public partial class Weapon : Node3D
       if (_bulletSpeed == value) return;
       _bulletSpeed = value;
       StatsUpdated?.Invoke();
+      _statsDirty = true;
     }
   }
 
@@ -111,6 +120,7 @@ public partial class Weapon : Node3D
     CurrentAmmo = GetAmmo();
     // Allow managers to discover weapons generically
     AddToGroup("weapons");
+    RecomputeStats();
   }
 
   public virtual void OnPress()
@@ -123,21 +133,44 @@ public partial class Weapon : Node3D
     GD.Print("OnRelease not implemented");
   }
 
-  public float GetReloadSpeed() => ImmutableModules.Concat(Modules)
-        .Aggregate(ReloadSpeed, (speed, module) => module.GetModifiedReloadSpeed(speed));
+  private void RecomputeStats()
+  {
+    _statsCache = new WeaponStats
+    {
+      Damage = _damage,
+      FireRate = _fireRate,
+      BulletSpeed = _bulletSpeed,
+      Accuracy = _accuracy,
+      ReloadSpeed = _reloadSpeed,
+      Ammo = _ammo,
+    };
 
-  public float GetFireRate() => ImmutableModules.Concat(Modules)
-      .Aggregate(FireRate, (rate, module) => module.GetModifiedFireRate(rate));
+    void ApplyMods(Array<WeaponModule> list)
+    {
+      if (list == null) return;
+      foreach (var m in list)
+      {
+        if (m is IStatModifier sm)
+        {
+          sm.Modify(ref _statsCache);
+        }
+      }
+    }
 
-  public float GetDamage() => ImmutableModules.Concat(Modules)
-      .Aggregate(Damage, (damage, module) => module.GetModifiedDamage(damage));
+    ApplyMods(ImmutableModules);
+    ApplyMods(Modules);
+    _statsDirty = false;
+  }
 
-  public int GetAmmo() => ImmutableModules.Concat(Modules)
-      .Aggregate(Ammo, (ammo, module) => module.GetModifiedAmmo(ammo));
+  private void EnsureStats()
+  {
+    if (_statsDirty) RecomputeStats();
+  }
 
-  public float GetAccuracy() => ImmutableModules.Concat(Modules)
-      .Aggregate(Accuracy, (accuracy, module) => module.GetModifiedAccuracy(accuracy));
-
-  public float GetBulletSpeed() => ImmutableModules.Concat(Modules)
-      .Aggregate(BulletSpeed, (speed, module) => module.GetModifiedBulletSpeed(speed));
+  public float GetReloadSpeed() { EnsureStats(); return _statsCache.ReloadSpeed; }
+  public float GetFireRate() { EnsureStats(); return _statsCache.FireRate; }
+  public float GetDamage() { EnsureStats(); return _statsCache.Damage; }
+  public int GetAmmo() { EnsureStats(); return _statsCache.Ammo; }
+  public float GetAccuracy() { EnsureStats(); return _statsCache.Accuracy; }
+  public float GetBulletSpeed() { EnsureStats(); return _statsCache.BulletSpeed; }
 }

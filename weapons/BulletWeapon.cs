@@ -209,18 +209,7 @@ public partial class BulletWeapon : Weapon
       bullet.Damage = GetDamage();
       bullet.Visible = true;
 
-      // Apply module modifications.
-      foreach (var module in ImmutableModules + Modules)
-      {
-        bullet = module.ModifyBullet(bullet);
-      }
-      foreach (var module in ImmutableModules + Modules)
-      {
-        foreach (var modifier in module.BulletModifiers)
-        {
-          bullet.Modifiers.Add(modifier);
-        }
-      }
+      // Legacy per-bullet modifications removed; runtime behavior is provided via manager pipelines/providers.
 
       // Ensure the bullet is parented to the scene root.
       if (bullet.GetParent() != GetTree().CurrentScene)
@@ -444,24 +433,12 @@ public partial class BulletWeapon
 
     void InspectModule(WeaponModule m)
     {
-      if (m is ScatterModule s)
+      if (m is IScatterProvider provider && provider.TryGetScatterConfig(out var cfg) && cfg.DuplicationCount > 1)
       {
-        count = Math.Max(1, s.DuplicationCount);
-        angle = s.SpreadAngle;
-        factor = s.BulletDamageFactor;
+        count = Math.Max(1, cfg.DuplicationCount);
+        angle = cfg.SpreadAngle;
+        factor = cfg.DamageFactor;
         found = true;
-        return;
-      }
-      foreach (var mod in m.BulletModifiers)
-      {
-        if (mod is ScatterBulletModifier sb)
-        {
-          count = Math.Max(1, sb.DuplicationCount);
-          angle = sb.SpreadAngle;
-          factor = sb.BulletDamageFactor;
-          found = true;
-          break;
-        }
       }
     }
 

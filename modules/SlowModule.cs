@@ -1,6 +1,6 @@
 using Godot;
 
-public partial class SlowModule : WeaponModule
+public partial class SlowModule : WeaponModule, IStatModifier
 {
   [Export]
   public float default_trail_width = 0.5f; // Fallback width if bullet.trail is null.
@@ -15,13 +15,9 @@ public partial class SlowModule : WeaponModule
   }
 
 
-  public override float GetModifiedBulletSpeed(float bulletSpeed)
+  public void Modify(ref WeaponStats stats)
   {
-    return bulletSpeed * 0.2f;
-  }
-
-  public override float GetModifiedDamage(float damage)
-  {
-    return damage * 1.5f;
+    stats.BulletSpeed *= 0.2f;
+    stats.Damage *= 1.5f;
   }
 }

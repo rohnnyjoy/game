@@ -11,11 +11,6 @@ public partial class CursedSkullModule : WeaponModule, IDamagePostStepProvider
     ModuleName = "Cursed Skull";
     ModuleDescription = "Excess damage on kill chains to the closest enemy.";
     Rarity = Rarity.Legendary;
-
-    BulletModifiers.Add(new CursedSkullBulletModifier
-    {
-      TransferRadius = TransferRadius
-    });
   }
 
   public IEnumerable<DamagePostStepConfig> GetDamagePostSteps()

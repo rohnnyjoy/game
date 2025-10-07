@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Godot;
 
-public partial class HomingModule : WeaponModule
+public partial class HomingModule : WeaponModule, IHomingProvider
 {
   [Export]
   public float HomingRadius { get; set; } = 10.0f;
@@ -15,6 +15,11 @@ public partial class HomingModule : WeaponModule
     ModuleName = "Neuron Capsule";
     ModuleDescription = "Attacks home in on the nearest enemy within 10m.";
     Rarity = Rarity.Legendary;
-    BulletModifiers.Add(new HomingBulletModifier());
+  }
+
+  public bool TryGetHomingConfig(out HomingProviderConfig config)
+  {
+    config = new HomingProviderConfig(Mathf.Max(0.0f, HomingRadius), Mathf.Clamp(TrackingStrength, 0.0f, 1.0f));
+    return config.Radius > 0.0f && config.Strength > 0.0f;
   }
 }

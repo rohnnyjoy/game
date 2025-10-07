@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Godot;
 
-public partial class MicrogunModule : WeaponModule
+public partial class MicrogunModule : WeaponModule, IStatModifier
 {
   // Configurable properties:
   [Export]
@@ -47,50 +47,21 @@ public partial class MicrogunModule : WeaponModule
     _currentAccuracy = Mathf.Min(MaxAccuracy, _currentAccuracy + AccuracyIncreasePerShot);
   }
 
-  public override Bullet ModifyBullet(Bullet bullet)
-  {
-    // Increase accuracy for each shot.
-    OnShotFired();
-
-    bullet.Gravity = 1;
-    bullet.Radius = 0.05f;
-    return bullet;
-  }
-
   public override async Task OnReload()
   {
     _currentAccuracy = BaselineAccuracy;
     await Task.CompletedTask;
   }
 
-  public override float GetModifiedDamage(float damage)
+  public void Modify(ref WeaponStats stats)
   {
-    return 2;
-  }
-
-  // Return the current accuracy (modified by continuous fire and decay).
-  public override float GetModifiedAccuracy(float accuracy)
-  {
-    return _currentAccuracy;
-  }
-
-  public override float GetModifiedFireRate(float fireRate)
-  {
-    return 0.0015f;
-  }
-
-  public override float GetModifiedBulletSpeed(float bulletSpeed)
-  {
-    return 200;
-  }
-
-  public override int GetModifiedAmmo(int ammo)
-  {
-    return 800;
-  }
-
-  public override float GetModifiedReloadSpeed(float reloadSpeed)
-  {
-    return 1;
+    // Static baseline for snapshot. Dynamic accuracy changes still occur via _currentAccuracy,
+    // but snapshot returns the configured baseline value.
+    stats.Damage = 2.0f;
+    stats.Accuracy = BaselineAccuracy;
+    stats.FireRate = 0.0015f;
+    stats.BulletSpeed = 200.0f;
+    stats.Ammo = 800;
+    stats.ReloadSpeed = 1.0f;
   }
 }

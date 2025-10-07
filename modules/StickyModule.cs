@@ -1,8 +1,5 @@
 using Godot;
-using System.Threading.Tasks;
-using Godot.Collections;
-
-public partial class StickyModule : WeaponModule
+public partial class StickyModule : WeaponModule, IStickyProvider
 {
   [Export]
   public float StickDuration { get; set; } = 1.0f;
@@ -10,15 +7,17 @@ public partial class StickyModule : WeaponModule
   [Export]
   public float CollisionDamage { get; set; } = 1.0f;
 
-  // Cache a shared RandomNumberGenerator.
-  private static RandomNumberGenerator _rng = new RandomNumberGenerator();
-
   public StickyModule()
   {
     CardTexture = IconAtlas.MakeItemsIcon(4); // sticky
     ModuleName = "Gelmantle Core";
     ModuleDescription = "Bullets stick to surfaces and enemies, detonating after a short delay.";
     Rarity = Rarity.Common;
-    BulletModifiers.Add(new StickyBulletModifier());
+  }
+
+  public bool TryGetStickyConfig(out StickyProviderConfig config)
+  {
+    config = new StickyProviderConfig(Mathf.Max(0.0f, StickDuration), Math.Max(0.0f, CollisionDamage));
+    return config.Duration > 0.0f;
   }
 }

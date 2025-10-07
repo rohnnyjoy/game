@@ -1,9 +1,5 @@
 using Godot;
-using System;
-using System.Threading.Tasks;
-using static Godot.BaseMaterial3D;
-
-public partial class ExplosiveModule : WeaponModule
+public partial class ExplosiveModule : WeaponModule, IExplosiveProvider
 {
   [Export]
   public float ExplosionRadius { get; set; } = 2.5f;
@@ -18,6 +14,14 @@ public partial class ExplosiveModule : WeaponModule
     ModuleName = "Boom Juice";
     ModuleDescription = "Attacks explode on impact, dealing 25% damage in a 2-meter radius.";
     Rarity = Rarity.Uncommon;
-    BulletModifiers.Add(new ExplosiveBulletModifier());
+  }
+
+  public bool TryGetExplosiveConfig(out ExplosiveProviderConfig config)
+  {
+    config = new ExplosiveProviderConfig(
+      Mathf.Max(0.0f, ExplosionRadius),
+      Mathf.Max(0.0f, ExplosionDamageMultiplier)
+    );
+    return config.Radius > 0.0f && config.DamageMultiplier > 0.0f;
   }
 }

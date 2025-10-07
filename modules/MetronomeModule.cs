@@ -21,7 +21,6 @@ public partial class MetronomeModule : WeaponModule, IDamagePreStepProvider
     ModuleName = "Metronome";
     ModuleDescription = "Each successful hit powers the next shot.";
     Rarity = Rarity.Rare;
-    BulletModifiers.Add(new MetronomeOnHitModifier { Owner = this });
   }
 
   public IEnumerable<DamagePreStepConfig> GetDamagePreSteps()
@@ -114,11 +113,7 @@ public partial class MetronomeModule : WeaponModule, IDamagePreStepProvider
     _lastEnemyId = 0;
   }
 
-  public override float GetModifiedDamage(float damage)
-  {
-    // Leave base damage unchanged; multipliers are applied at hit time.
-    return damage;
-  }
+  // No per-stat overrides; damage multipliers apply at hit time via pipeline.
 
   public override Task OnReload()
   {

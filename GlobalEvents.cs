@@ -21,6 +21,9 @@ public partial class GlobalEvents : Node
   [Signal]
   public delegate void ImpactOccurredEventHandler(Vector3 position, Vector3 normal, Vector3 direction);
 
+  [Signal]
+  public delegate void ExplosionOccurredEventHandler(Vector3 position, float radius);
+
   // (Reverted) No generic screen shake signal here
 
   // Helper method to emit the enemy death event.
@@ -83,10 +86,17 @@ public partial class GlobalEvents : Node
       var ir = new ItemRenderer();
       AddChild(ir);
     }
+    // Ensure an ExplosionVfxManager exists for batched explosion rendering
+    if (ExplosionVfxManager.Instance == null)
+    {
+      var ex = new ExplosionVfxManager();
+      AddChild(ex);
+    }
 
     // Wire global listeners
     Connect(nameof(DamageDealt), new Callable(this, nameof(OnDamageDealt)));
     Connect(nameof(ImpactOccurred), new Callable(this, nameof(OnImpactOccurred)));
+    Connect(nameof(ExplosionOccurred), new Callable(this, nameof(OnExplosionOccurred)));
     // (Reverted) No UI shake hookup on money updates
   }
 
@@ -115,12 +125,22 @@ public partial class GlobalEvents : Node
     EmitSignal(nameof(ImpactOccurred), position, normal, direction);
   }
 
+  public void EmitExplosionOccurred(Vector3 position, float radius)
+  {
+    EmitSignal(nameof(ExplosionOccurred), position, radius);
+  }
+
   private void OnImpactOccurred(Vector3 position, Vector3 normal, Vector3 direction)
   {
     // Default FX responders
     ImpactSprite.Spawn(this, position, normal);
     ImpactSound.Play(this, position);
     // (Reverted) No global screen shake trigger here
+  }
+
+  private void OnExplosionOccurred(Vector3 position, float radius)
+  {
+    ExplosionVfxManager.Instance?.Spawn(position, radius);
   }
 
   // (Reverted) No money-based or generic screen shake methods

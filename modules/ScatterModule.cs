@@ -1,10 +1,8 @@
 using Godot;
 using Godot.Collections;
 using System;
-using System.Threading.Tasks;
-
 [Tool]
-public partial class ScatterModule : WeaponModule
+public partial class ScatterModule : WeaponModule, IScatterProvider
 {
   [Export]
   public int DuplicationCount { get; set; } = 5; // Total bullets (original + duplicates)
@@ -15,11 +13,6 @@ public partial class ScatterModule : WeaponModule
   // Spread angle in radians. Bullets will scatter randomly within ±SpreadAngle/2 both horizontally and vertically.
   [Export]
   public float SpreadAngle { get; set; } = Mathf.DegToRad(15.0f);
-
-  [Export]
-  public override Array<BulletModifier> BulletModifiers { get; set; } = new Array<BulletModifier>(){
-    new ScatterBulletModifier()
-  };
 
   [Export]
   public override string ModuleName { get; set; } = "Shrapnel Chamber";
@@ -36,5 +29,13 @@ public partial class ScatterModule : WeaponModule
   public ScatterModule()
   {
     CardTexture = IconAtlas.MakeItemsIcon(3); // scatter
+  }
+
+  public bool TryGetScatterConfig(out ScatterConfig config)
+  {
+    int count = Math.Max(1, DuplicationCount);
+    float damageFactor = Mathf.Max(0.0f, BulletDamageFactor);
+    config = new ScatterConfig(count, SpreadAngle, damageFactor);
+    return count > 1;
   }
 }

@@ -1,31 +1,13 @@
 using Godot;
 
-public partial class OlReliableModule : WeaponModule
+public partial class OlReliableModule : WeaponModule, IStatModifier
 {
-  public override Bullet ModifyBullet(Bullet bullet)
+  public void Modify(ref WeaponStats stats)
   {
-    bullet.Gravity = 0;
-    bullet.Radius = 0.1f;
-    return bullet;
-  }
-
-  public override float GetModifiedDamage(float damage)
-  {
-    return 40;
-  }
-
-  public override float GetModifiedAccuracy(float accuracy)
-  {
-    return 1;
-  }
-
-  public override int GetModifiedAmmo(int ammo)
-  {
-    return 400;
-  }
-
-  public override float GetModifiedReloadSpeed(float reloadSpeed)
-  {
-    return 1;
+    stats.Damage = 40f;
+    stats.Accuracy = 1f;
+    stats.Ammo = 400;
+    stats.ReloadSpeed = 1f;
+    // Leave BulletSpeed/FireRate unchanged; Ol' Reliable focuses on consistent baseline.
   }
 }
