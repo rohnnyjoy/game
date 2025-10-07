@@ -169,7 +169,7 @@ public partial class Player : CharacterBody3D
     _damageFeedback?.Trigger(amount);
     CameraShake?.TriggerShake(0.18f, 0.18f);
     if (amount > 0.01f)
-      DamageNumber3D.Spawn(this, this, amount, new Color(1f, 0.4f, 0.4f));
+      FloatingNumber3D.Spawn(this, this, amount, new Color(1f, 0.4f, 0.4f));
     if (Health <= 0)
     {
       // TODO: death handling (respawn, UI, etc.). For now, clamp at 0.
@@ -185,7 +185,7 @@ public partial class Player : CharacterBody3D
     float delta = Health - old;
     if (delta > 0.01f)
     {
-      DamageNumber3D.Spawn(this, this, delta, new Color(0.4f, 1f, 0.4f));
+      FloatingNumber3D.Spawn(this, this, delta, new Color(0.4f, 1f, 0.4f));
       GameUi.Instance?.SetHealth(Health, MaxHealth);
     }
   }

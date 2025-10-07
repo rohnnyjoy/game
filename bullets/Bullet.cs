@@ -287,7 +287,7 @@ public partial class Bullet : Node3D
         // Do not trigger UI shake on impact; UI shake reserved for gold increments
 
         // Spawn damage number above the enemy
-        DamageNumber3D.Spawn(this, enemy, collision.TotalDamageDealt);
+        FloatingNumber3D.Spawn(this, enemy, collision.TotalDamageDealt);
       }
     }
     catch (Exception e)

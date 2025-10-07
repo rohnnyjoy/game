@@ -1,13 +1,14 @@
-[gd_resource type="StackLayoutConfig" load_steps=2 format=3 uid="uid://cgockfowvkrrv"]
+[gd_resource type="Resource" load_steps=3 format=3 uid="uid://cgockfowvkrrv"]
 
-[ext_resource type="Texture2D" uid="uid://dl2exy6bsks5w" path="res://assets/ui/3x/ninepatch.png" id="1_r42ya"]
+[ext_resource type="Script" path="res://inventory/ui/StackLayoutConfig.cs" id="1_wbm1s"]
+[ext_resource type="Texture2D" uid="uid://2v1w6sn4e18n" path="res://assets/ui/ninepatch.png" id="2_r19va"]
 
 [resource]
-resource_local_to_scene = false
-resource_name = ""
-offset = 80.0
-padding = 0.0
-vertical_padding = 0.0
-slot_padding = 4.0
-slot_nine_patch_margin = 18
-slot_nine_patch_texture = ExtResource("1_r42ya")
+script = ExtResource("1_wbm1s")
+Offset = 80.0
+Gap = 0.0
+Padding = 100.0
+VerticalPadding = 100.0
+SlotPadding = 1000.0
+SlotNinePatchMargin = 180
+SlotNinePatchTexture = ExtResource("2_r19va")

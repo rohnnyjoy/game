@@ -305,6 +305,24 @@ public partial class DynaText : Node2D
     };
   }
 
+  public void CancelPopOut(bool restorePopIn = false)
+  {
+    _popOutActive = false;
+    _popCyclePending = false;
+    _popOutRate = 0f;
+    _popOutStartTime = 0f;
+    if (restorePopIn && _built.Count > 0)
+    {
+      var line = _built[Mathf.Clamp(_focusedIndex, 0, _built.Count - 1)];
+      for (int i = 0; i < line.Letters.Count; i++)
+      {
+        var letter = line.Letters[i];
+        letter.PopIn = 1f;
+        line.Letters[i] = letter;
+      }
+    }
+  }
+
   public void SetQuiver(float amount, float speed, float duration)
   {
     _cfg.Quiver = new QuiverSpec { Amount = amount, Speed = speed };

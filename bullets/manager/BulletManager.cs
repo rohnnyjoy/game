@@ -831,7 +831,7 @@ public partial class BulletManager : Node3D
 
                 // Visual feedback: damage number above enemy
                 if (collider != null)
-                  DamageNumber3D.Spawn(this, collider, b.Damage);
+                  FloatingNumber3D.Spawn(this, collider, b.Damage);
               }
 
               // Broadcast impact for FX and other listeners
@@ -1211,7 +1211,7 @@ public partial class BulletManager
               }
               // Visual: damage number above the enemy at impact
               if (collider != null)
-                DamageNumber3D.Spawn(this, collider, stickyCfg.CollisionDamage);
+                FloatingNumber3D.Spawn(this, collider, stickyCfg.CollisionDamage);
             }
             b.Position = hitPos;
             b.PrevPosition = b.Position;
@@ -1368,7 +1368,7 @@ public partial class BulletManager
         }
         // Visual: damage number above the enemy at the initial sticky impact
         if (collider != null)
-          DamageNumber3D.Spawn(this, collider, stickyFirst.CollisionDamage);
+          FloatingNumber3D.Spawn(this, collider, stickyFirst.CollisionDamage);
       }
       b.Position = hitPos;
       b.PrevPosition = b.Position;
@@ -1643,7 +1643,7 @@ public partial class BulletManager
         }
 
         // Visual: damage number above the enemy on explosion hit
-        DamageNumber3D.Spawn(this, enemyNode, damage);
+        FloatingNumber3D.Spawn(this, enemyNode, damage);
 
         // Emit global damage for knockback with simple radial falloff
         Vector3 radial = (enemyNode.GlobalTransform.Origin - center);

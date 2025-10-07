@@ -700,9 +700,9 @@ public partial class AttentionText3D : Node3D
   }
 
   // ── Convenience factory (legacy) ───────────────────────────────────────────
-  [Obsolete("Use DamageNumber3D.Spawn(context, target, amount, color)")]
+  [Obsolete("Use FloatingNumber3D.Spawn(context, target, amount, color)")]
   public static void SpawnForDamage(Node context, Node3D target, float amount, Color? color = null)
   {
-    DamageNumber3D.Spawn(context, target, amount, color);
+    FloatingNumber3D.Spawn(context, target, amount, color);
   }
 }

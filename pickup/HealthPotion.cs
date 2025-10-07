@@ -70,6 +70,7 @@ public partial class HealthPotion : Area3D
     _sprite.SpriteFrames = GetSharedFrames();
     _sprite.Animation = "idle";
     _sprite.SpeedScale = MathF.Max(0.01f, AnimationFps / 10.0f);
+    _sprite.Billboard = BaseMaterial3D.BillboardModeEnum.FixedY;
     _sprite.Play();
     _sprite.FlipH = false;
     _sprite.Position = new Vector3(0, 0.2f, 0);
@@ -82,15 +83,6 @@ public partial class HealthPotion : Area3D
     AddChild(_collision);
 
     BodyEntered += OnBodyEntered;
-  }
-
-  public override void _Process(double delta)
-  {
-    var cam = GetViewport()?.GetCamera3D();
-    if (cam != null && IsInstanceValid(_sprite))
-    {
-      _sprite.LookAt(cam.GlobalTransform.Origin, Vector3.Up);
-    }
   }
 
   private void OnBodyEntered(Node3D body)

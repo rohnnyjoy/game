@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 public partial class PrimaryWeaponInfo : PanelContainer
 {
@@ -181,46 +182,53 @@ public partial class PrimaryWeaponInfo : PanelContainer
       _nameText.Quiver(0.03f, 0.5f, 0.4f);
     }
 
+    float baseDamage = w.Damage;
     float damage = w.GetDamage();
+    int baseMag = w.Ammo;
     int mag = w.GetAmmo();
+    float baseReload = w.ReloadSpeed;
     float reload = w.GetReloadSpeed();
+    float baseFireInterval = MathF.Max(w.FireRate, 0.0001f);
     float fireInterval = MathF.Max(w.GetFireRate(), 0.0001f);
+    float baseSps = 1f / baseFireInterval;
     float sps = 1f / fireInterval;
+    float baseAcc = Mathf.Clamp(w.Accuracy, 0f, 1f) * 100f;
     float acc = Mathf.Clamp(w.GetAccuracy(), 0f, 1f) * 100f;
+    float baseBs = w.BulletSpeed;
     float bs = w.GetBulletSpeed();
 
-    string damageText = $"{damage:0.##}";
     Color damageCol = WeaponStatColorConfig.GetColour(WeaponStatKind.Damage, damage);
-    SetStatVisual(_damageVal, damageText, damageCol, ref _lastDamageText, ref _lastDamageColor, damage);
+    var damageText = FormatStat(baseDamage, damage, "0.##", damageCol);
+    SetStatVisual(_damageVal, damageText, ref _lastDamageText, ref _lastDamageColor, damage);
 
-    string accText = $"{acc:0}%";
     Color accCol = WeaponStatColorConfig.GetColour(WeaponStatKind.AccuracyPct, acc);
-    SetStatVisual(_accVal, accText, accCol, ref _lastAccText, ref _lastAccColor, acc);
+    var accText = FormatStat(baseAcc, acc, "0", accCol, "%");
+    SetStatVisual(_accVal, accText, ref _lastAccText, ref _lastAccColor, acc);
 
-    string bulletText = $"{bs:0.##}";
     Color bsCol = WeaponStatColorConfig.GetColour(WeaponStatKind.BulletSpeed, bs);
-    SetStatVisual(_bulletVal, bulletText, bsCol, ref _lastBulletText, ref _lastBulletColor, bs);
+    var bulletText = FormatStat(baseBs, bs, "0.##", bsCol);
+    SetStatVisual(_bulletVal, bulletText, ref _lastBulletText, ref _lastBulletColor, bs);
 
-    string fireText = $"{sps:0.##}/s";
     Color spsCol = WeaponStatColorConfig.GetColour(WeaponStatKind.ShotsPerSecond, sps);
-    SetStatVisual(_fireVal, fireText, spsCol, ref _lastFireText, ref _lastFireColor, sps);
+    var fireText = FormatStat(baseSps, sps, "0.##", spsCol, "/s");
+    SetStatVisual(_fireVal, fireText, ref _lastFireText, ref _lastFireColor, sps);
 
-    string reloadText = $"{reload:0.##}s";
     Color reloadCol = WeaponStatColorConfig.GetColour(WeaponStatKind.ReloadSeconds, reload);
-    SetStatVisual(_reloadVal, reloadText, reloadCol, ref _lastReloadText, ref _lastReloadColor, reload);
+    var reloadText = FormatStat(baseReload, reload, "0.##", reloadCol, "s");
+    SetStatVisual(_reloadVal, reloadText, ref _lastReloadText, ref _lastReloadColor, reload);
 
-    string magText = $"{mag}";
     Color magCol = WeaponStatColorConfig.GetColour(WeaponStatKind.Magazine, mag);
-    SetStatVisual(_magVal, magText, magCol, ref _lastMagText, ref _lastMagColor, mag);
+    var magText = FormatStat(baseMag, mag, "0", magCol);
+    SetStatVisual(_magVal, magText, ref _lastMagText, ref _lastMagColor, mag);
 
     // Snapshot current values for change detection next time
     _lastWeaponRef = w;
-    _lastDamage = damage; _lastDamageText = damageText;
-    _lastAccPct = acc; _lastAccText = accText;
-    _lastBulletSpeed = bs; _lastBulletText = bulletText;
-    _lastShotsPerSecond = sps; _lastFireText = fireText;
-    _lastReloadSec = reload; _lastReloadText = reloadText;
-    _lastMag = mag; _lastMagText = magText;
+    _lastDamage = damage; _lastDamageText = damageText.DisplayText;
+    _lastAccPct = acc; _lastAccText = accText.DisplayText;
+    _lastBulletSpeed = bs; _lastBulletText = bulletText.DisplayText;
+    _lastShotsPerSecond = sps; _lastFireText = fireText.DisplayText;
+    _lastReloadSec = reload; _lastReloadText = reloadText.DisplayText;
+    _lastMag = mag; _lastMagText = magText.DisplayText;
     _hasLastStats = true;
 
     // Module list removed; no additional UI updates required here
@@ -252,12 +260,7 @@ public partial class PrimaryWeaponInfo : PanelContainer
     };
   }
 
-  private static bool NearEqual(float a, float b, float epsilon = 0.0001f)
-  {
-    return MathF.Abs(a - b) <= epsilon;
-  }
-
-  // Track last displayed colours to avoid unnecessary SetColours (which re-inits DynaText)
+  // Track last displayed final colours so we can refresh text segments when tints change
   private Color _lastDamageColor, _lastAccColor, _lastBulletColor, _lastFireColor, _lastReloadColor, _lastMagColor;
 
   private static bool ColorsEqual(in Color a, in Color b, float eps = 0.002f)
@@ -265,20 +268,19 @@ public partial class PrimaryWeaponInfo : PanelContainer
     return MathF.Abs(a.R - b.R) <= eps && MathF.Abs(a.G - b.G) <= eps && MathF.Abs(a.B - b.B) <= eps && MathF.Abs(a.A - b.A) <= eps;
   }
 
-  private void SetStatVisual(DynaTextControl label, string text, Color colour, ref string lastText, ref Color lastColour, float numericForJuice)
+  private void SetStatVisual(DynaTextControl label, FormattedStat stat, ref string lastText, ref Color lastColour, float numericForJuice)
   {
-    bool textChanged = (text != lastText) || !_hasLastStats;
-    bool colourChanged = (!ColorsEqual(colour, lastColour)) || !_hasLastStats;
+    bool textChanged = (stat.DisplayText != lastText) || !_hasLastStats;
+    bool colourChanged = (!ColorsEqual(stat.FinalColour, lastColour)) || !_hasLastStats;
 
-    if (colourChanged)
-      label.SetColours(new List<Color> { colour });
+    if (colourChanged || textChanged)
+      label.SetTextWithPerLetterColours(stat.DisplayText, stat.Colours);
 
-    label.SetText(text);
     if (textChanged)
       ApplyJuice(label, numericForJuice);
 
-    lastText = text;
-    lastColour = colour;
+    lastText = stat.DisplayText;
+    lastColour = stat.FinalColour;
   }
 
   // Module list removed; color palette helper not needed
@@ -292,4 +294,71 @@ public partial class PrimaryWeaponInfo : PanelContainer
     if (quiverAmt > 0f) dt.Quiver(quiverAmt, 0.5f, 0.4f);
     dt.Pulse(pulseAmt);
   }
+
+  private FormattedStat FormatStat(double baseValue, double finalValue, string numericFormat, Color finalColour, string suffix = "")
+  {
+    string baseText = baseValue.ToString(numericFormat, CultureInfo.InvariantCulture);
+    string finalText = finalValue.ToString(numericFormat, CultureInfo.InvariantCulture);
+    bool sameNumeric = MathF.Abs((float)(baseValue - finalValue)) <= 0.0001f;
+    bool sameDisplay = baseText == finalText;
+
+    string finalDisplay = AppendSuffix(finalText, suffix);
+
+    if (sameNumeric || sameDisplay)
+      return new FormattedStat(finalDisplay, BuildColourList(finalDisplay, finalColour), finalColour);
+
+    string baseDisplay = AppendSuffix(baseText, suffix);
+    const string arrow = "→";
+    string combined = $"{baseDisplay} {arrow} {finalDisplay}";
+
+    var colours = new List<Color>();
+    AppendColours(baseDisplay, BaseStatColour, colours);
+    AppendColours(" ", BaseStatColour, colours);
+    AppendColours(arrow, ArrowColour, colours);
+    AppendColours(" ", ArrowColour, colours);
+    AppendColours(finalDisplay, finalColour, colours);
+
+    return new FormattedStat(combined, colours, finalColour);
+  }
+
+  private static string AppendSuffix(string value, string suffix)
+  {
+    if (string.IsNullOrEmpty(suffix))
+      return value;
+    return value + suffix;
+  }
+
+  private static List<Color> BuildColourList(string text, Color colour)
+  {
+    var colours = new List<Color>();
+    AppendColours(text, colour, colours);
+    return colours;
+  }
+
+  private static void AppendColours(string text, Color colour, List<Color> colours)
+  {
+    if (string.IsNullOrEmpty(text))
+      return;
+
+    var enumerator = StringInfo.GetTextElementEnumerator(text);
+    while (enumerator.MoveNext())
+      colours.Add(colour);
+  }
+
+  private readonly struct FormattedStat
+  {
+    public FormattedStat(string displayText, List<Color> colours, Color finalColour)
+    {
+      DisplayText = displayText;
+      Colours = colours;
+      FinalColour = finalColour;
+    }
+
+    public string DisplayText { get; }
+    public List<Color> Colours { get; }
+    public Color FinalColour { get; }
+  }
+
+  private static readonly Color BaseStatColour = new Color(0.75f, 0.75f, 0.85f, 1f);
+  private static readonly Color ArrowColour = Colors.White;
 }

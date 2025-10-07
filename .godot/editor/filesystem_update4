@@ -113,3 +113,6 @@ res://shared/text/Text3DLabel.cs
 res://ui/TopLeftHud.tscn
 res://shared/text/AttentionText3DBatched.cs
 res://shared/text/Text3DBatcher.cs
+res://shared/effects/DamageNumberBillboard.cs
+res://shared/effects/FloatingNumber3D.cs
+res://tests/MultiplayerFPSTutorial.Tests/Program.cs

@@ -9,13 +9,18 @@ public partial class HealthUi : Control
 
   [Export] public string FontPath = "res://assets/fonts/Born2bSportyV2.ttf";
   // Standardize top-left UI text size to match gold total
-  [Export] public int FontPx = 80;
+  [Export] public int FontPx = 60;
   [Export] public Color BarRed = new Color(1f, 0.24f, 0.26f);
   [Export] public Color BarBack = new Color(0f, 0f, 0f, 0.85f);
   [Export(PropertyHint.Range, "64,1200,1")] public int BarWidth = 520;
   // Make the bar tall enough to contain 80px text with comfortable padding
-  [Export(PropertyHint.Range, "8,256,1")] public int BarHeight = 120;
+  [Export(PropertyHint.Range, "8,256,1")] public int BarHeight = 90;
   [Export(PropertyHint.Range, "0,48,1")] public int BarPadding = 12;
+  // Text alignment inside the bar's inner content rect
+  // 0 = Left/Top, 1 = Center, 2 = Right/Bottom
+  [Export] public int TextHAlign = 1;
+  [Export] public int TextVAlign = 1;
+  [Export(PropertyHint.Range, "0.5,2,0.01")] public float TextHeightScale = 0.85f;
 
   public override void _Ready()
   {
@@ -60,10 +65,16 @@ public partial class HealthUi : Control
       AmbientRotate = true,
       AmbientFloat = true,
       AmbientBump = false,
-      CenterInRect = true,
+      CenterInRect = false,
       MouseFilter = MouseFilterEnum.Ignore,
       ClipContents = true,
     };
+    // Apply alignment using DynaTextControl options
+    float ax = TextHAlign <= 0 ? 0f : (TextHAlign >= 2 ? 1f : 0.5f);
+    float ay = TextVAlign <= 0 ? 0f : (TextVAlign >= 2 ? 1f : 0.5f);
+    _text.AlignX = ax;
+    _text.AlignY = ay;
+    _text.SetTextHeightScale(TextHeightScale);
     // White overlay text by default
     _text.SetColours(new List<Color> { Colors.White });
     AddChild(_text);
