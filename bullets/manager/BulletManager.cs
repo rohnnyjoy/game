@@ -61,6 +61,7 @@ public partial class BulletManager : Node3D
     public DamagePreStep[] DamagePreSteps = System.Array.Empty<DamagePreStep>();
     public DamagePostStep[] DamagePostSteps = System.Array.Empty<DamagePostStep>();
     public MetronomeState[] MetronomeStates = System.Array.Empty<MetronomeState>();
+    public SteeringOp[] SteeringOps = System.Array.Empty<SteeringOp>();
   }
 
   private struct DamagePreStep
@@ -92,6 +93,33 @@ public partial class BulletManager : Node3D
     public float LastHitAt;
     public bool HasEnemy;
     public int MaxStacks;
+  }
+
+  private enum SteeringOpKind
+  {
+    Homing,
+    Tracking,
+  }
+
+  private struct SteeringOp
+  {
+    public SteeringOpKind Kind;
+    public float ParamA;
+    public float ParamB;
+  }
+
+  private readonly struct SteeringFrameCache
+  {
+    public static readonly SteeringFrameCache Empty = new SteeringFrameCache(false, Vector3.Zero);
+
+    public bool HasTrackingTarget { get; }
+    public Vector3 TrackingTarget { get; }
+
+    public SteeringFrameCache(bool hasTrackingTarget, Vector3 trackingTarget)
+    {
+      HasTrackingTarget = hasTrackingTarget;
+      TrackingTarget = trackingTarget;
+    }
   }
 
   private struct BulletData
@@ -271,6 +299,7 @@ public partial class BulletManager : Node3D
     {
       existingArch.BehaviorConfig = BulletBehaviorConfig.Create(bounceConfig, pierceConfig, homingConfig, trackingConfig, aimbotConfig, explosiveConfig, stickyConfig);
       existingArch.CollisionOrder = BuildCollisionOrder(bw);
+      existingArch.SteeringOps = BuildSteeringOps(existingArch.BehaviorConfig);
       existingArch.OwnerWeapon = bw;
       BuildDamagePipelines(existingArch, preStepConfigs, postStepConfigs);
       _weaponArchetypes[bw] = existingArch;
@@ -322,6 +351,7 @@ public partial class BulletManager : Node3D
     {
       newArch.BehaviorConfig = BulletBehaviorConfig.Create(bounceConfig, pierceConfig, homingConfig, trackingConfig, aimbotConfig, explosiveConfig, stickyConfig);
       newArch.CollisionOrder = BuildCollisionOrder(bw);
+      newArch.SteeringOps = BuildSteeringOps(newArch.BehaviorConfig);
       newArch.OwnerWeapon = bw;
       BuildDamagePipelines(newArch, preStepConfigs, postStepConfigs);
       _weaponArchetypes[bw] = newArch;
@@ -349,6 +379,90 @@ public partial class BulletManager : Node3D
     if (bw.Modules != null)
       foreach (WeaponModule m in bw.Modules) Inspect(m);
     return order;
+  }
+
+  private static SteeringOp[] BuildSteeringOps(BulletBehaviorConfig behavior)
+  {
+    if (behavior == null || ReferenceEquals(behavior, BulletBehaviorConfig.None))
+      return System.Array.Empty<SteeringOp>();
+
+    List<SteeringOp> ops = new List<SteeringOp>(2);
+
+    if (behavior.Homing is HomingConfig homing)
+    {
+      ops.Add(new SteeringOp
+      {
+        Kind = SteeringOpKind.Homing,
+        ParamA = homing.Radius,
+        ParamB = homing.Strength,
+      });
+    }
+
+    if (behavior.Tracking is TrackingConfig tracking)
+    {
+      ops.Add(new SteeringOp
+      {
+        Kind = SteeringOpKind.Tracking,
+        ParamA = tracking.Strength,
+        ParamB = tracking.MaxRayDistance,
+      });
+    }
+
+    return ops.Count == 0 ? System.Array.Empty<SteeringOp>() : ops.ToArray();
+  }
+
+  private SteeringFrameCache PrepareSteeringFrameCache(Archetype arch, PhysicsDirectSpaceState3D? space)
+  {
+    var ops = arch.SteeringOps;
+    if (ops.Length == 0)
+      return SteeringFrameCache.Empty;
+
+    for (int i = 0; i < ops.Length; i++)
+    {
+      var op = ops[i];
+      if (op.Kind == SteeringOpKind.Tracking && TryComputeTrackingTarget(in op, space, out var target))
+        return new SteeringFrameCache(true, target);
+    }
+
+    return SteeringFrameCache.Empty;
+  }
+
+  private bool TryComputeTrackingTarget(in SteeringOp trackingOp, PhysicsDirectSpaceState3D? space, out Vector3 target)
+  {
+    target = Vector3.Zero;
+
+    var viewport = GetViewport();
+    if (viewport == null)
+      return false;
+
+    var camera = viewport.GetCamera3D();
+    if (camera == null)
+      return false;
+
+    Vector2 mouse = viewport.GetMousePosition();
+    Vector3 rayOrigin = camera.ProjectRayOrigin(mouse);
+    Vector3 rayDir = camera.ProjectRayNormal(mouse);
+    if (rayDir.LengthSquared() < 0.000001f)
+      return false;
+
+    rayDir = rayDir.Normalized();
+    float rayLength = Math.Max(0.01f, trackingOp.ParamB);
+    Vector3 rayEnd = rayOrigin + rayDir * rayLength;
+    target = rayEnd;
+
+    if (space != null)
+    {
+      var query = new PhysicsRayQueryParameters3D
+      {
+        From = rayOrigin,
+        To = rayEnd,
+      };
+      var hit = space.IntersectRay(query);
+      if (hit.Count > 0 && hit.ContainsKey("position"))
+        target = (Vector3)hit["position"];
+    }
+
+    return true;
   }
 
   private static void BuildDamagePipelines(Archetype arch, List<(DamagePreStepConfig Config, int Order)> preConfigs, List<(DamagePostStepConfig Config, int Order)> postConfigs)
@@ -728,6 +842,8 @@ public partial class BulletManager : Node3D
       ? new PierceConfig(pierceDamageReduction, pierceVelocityFactor, pierceMaxPenetrations, pierceCooldown)
       : null;
 
+    var behavior = BulletBehaviorConfig.Create(bounceConfig, pierceConfig);
+
     _archetypes[id] = new Archetype
     {
       Id = id,
@@ -751,7 +867,8 @@ public partial class BulletManager : Node3D
       TrailViewAligned = trailViewAligned,
       TrailInstance = trailMI,
       TrailBuffers = trailEnabled ? new Dictionary<uint, TrailBuffer>() : null,
-      BehaviorConfig = BulletBehaviorConfig.Create(bounceConfig, pierceConfig),
+      BehaviorConfig = behavior,
+      SteeringOps = BuildSteeringOps(behavior),
     };
     // Prewarm rendering resources to prevent first-shot hitch
     PrewarmArchetype(id);
@@ -842,6 +959,8 @@ public partial class BulletManager : Node3D
         continue;
       }
 
+      SteeringFrameCache steeringCache = PrepareSteeringFrameCache(arch, space);
+
       // We’ll compact the list in-place and collect transforms for active bullets.
       int write = 0;
       int activeCount = 0;
@@ -924,7 +1043,7 @@ public partial class BulletManager : Node3D
           // Integrate motion
           b.PrevPosition = b.Position;
           // Apply steering behaviors before gravity
-          ApplyPerTickBehaviors(ref b, arch, dt);
+          ApplyPerTickBehaviors(ref b, arch, in steeringCache);
           // Gravity is positive downward (Vector3.Down)
           if (Math.Abs(arch.Gravity) > 0.0001f)
           {
@@ -1703,57 +1822,55 @@ public partial class BulletManager
     }
   }
 
-  private void ApplyPerTickBehaviors(ref BulletData b, Archetype arch, float dt)
+  private void ApplyPerTickBehaviors(ref BulletData b, Archetype arch, in SteeringFrameCache steeringCache)
   {
-    var cfg = arch.BehaviorConfig;
-    if (cfg == null)
+    var ops = arch.SteeringOps;
+    if (ops.Length == 0)
       return;
 
     float speed = b.Velocity.Length();
     if (speed <= 0.0001f)
       speed = 0.0001f;
+
     Vector3 curDir = b.Velocity.LengthSquared() > 0.0f ? b.Velocity.Normalized() : Vector3.Forward;
 
-    // Homing toward nearest enemy
-    if (cfg.Homing is HomingConfig homing)
+    for (int i = 0; i < ops.Length; i++)
     {
-      Node3D? nearest = FindNearestEnemy(b.Position, homing.Radius);
-      if (nearest != null)
+      var op = ops[i];
+      switch (op.Kind)
       {
-        Vector3 desiredDir = (nearest.GlobalTransform.Origin - b.Position).Normalized();
-        float s = Mathf.Clamp(homing.Strength, 0f, 1f);
-        Vector3 blendedDir = BlendDirections(curDir, desiredDir, s);
-        b.Velocity = blendedDir * speed;
-        curDir = blendedDir;
-      }
-    }
-
-    // Tracking toward mouse cursor raycast hit (if camera present)
-    if (cfg.Tracking is TrackingConfig tracking)
-    {
-      var viewport = GetViewport();
-      if (viewport != null)
-      {
-        var camera = viewport.GetCamera3D();
-        if (camera != null)
+        case SteeringOpKind.Homing:
         {
-          Vector2 mouse = viewport.GetMousePosition();
-          Vector3 rayOrigin = camera.ProjectRayOrigin(mouse);
-          Vector3 rayDir = camera.ProjectRayNormal(mouse);
-          Vector3 rayEnd = rayOrigin + rayDir * tracking.MaxRayDistance;
-          var space = GetWorld3D().DirectSpaceState;
-          var ray = new PhysicsRayQueryParameters3D
+          Node3D? nearest = FindNearestEnemy(b.Position, op.ParamA);
+          if (nearest != null)
           {
-            From = rayOrigin,
-            To = rayEnd,
-          };
-          var hit = space.IntersectRay(ray);
-          Vector3 target = hit.Count > 0 && hit.ContainsKey("position") ? (Vector3)hit["position"] : rayEnd;
-          Vector3 desiredDir = (target - b.Position).Normalized();
-          float s = Mathf.Clamp(tracking.Strength, 0f, 1f);
-          Vector3 blendedDir = BlendDirections(curDir, desiredDir, s);
+            Vector3 desiredDir = nearest.GlobalTransform.Origin - b.Position;
+            if (desiredDir.LengthSquared() > 0.000001f)
+            {
+              desiredDir = desiredDir.Normalized();
+              float strength = Mathf.Clamp(op.ParamB, 0f, 1f);
+              Vector3 blendedDir = BlendDirections(curDir, desiredDir, strength);
+              b.Velocity = blendedDir * speed;
+              curDir = blendedDir;
+            }
+          }
+          break;
+        }
+        case SteeringOpKind.Tracking:
+        {
+          if (!steeringCache.HasTrackingTarget)
+            break;
+
+          Vector3 desiredDir = steeringCache.TrackingTarget - b.Position;
+          if (desiredDir.LengthSquared() < 0.000001f)
+            break;
+
+          desiredDir = desiredDir.Normalized();
+          float strength = Mathf.Clamp(op.ParamA, 0f, 1f);
+          Vector3 blendedDir = BlendDirections(curDir, desiredDir, strength);
           b.Velocity = blendedDir * speed;
           curDir = blendedDir;
+          break;
         }
       }
     }
