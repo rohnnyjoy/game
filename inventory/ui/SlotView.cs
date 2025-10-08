@@ -10,7 +10,7 @@ public partial class SlotView : Control
   private NinePatchRect _frame;
   private MarginContainer _content;
   private TextureRect _icon;
-  private DynaBadge _badge;
+  private DynaTextControl _badge;
   private ModuleVm _module;
   private Vector2 _cardSize = new Vector2(100, 100);
   private ColorRect _placeholderOverlay;
@@ -61,8 +61,11 @@ public partial class SlotView : Control
     _icon.SetAnchorsPreset(LayoutPreset.FullRect);
     _content.AddChild(_icon);
 
-    var badgeStyle = new DynaTextStyle
+    _badge = new DynaTextControl
     {
+      Name = "Badge",
+      MouseFilter = MouseFilterEnum.Ignore,
+      Visible = false,
       FontPx = 24,
       Shadow = true,
       UseShadowParallax = false,
@@ -74,18 +77,16 @@ public partial class SlotView : Control
       LetterSpacingExtraPx = 0f,
       OffsetYExtraPx = 0f,
       TextHeightScale = 1f,
-      BaseColours = new Godot.Collections.Array<Color> { Colors.White },
-    };
-    _badge = new DynaBadge
-    {
-      Name = "Badge",
-      MouseFilter = MouseFilterEnum.Ignore,
-      Visible = false,
-      Style = badgeStyle,
-      AnchorCorner = DynaBadge.Corner.BottomRight,
-      Padding = 2,
+      CenterInRect = false,
+      AlignX = 1f,
+      AlignY = 1f
     };
     _badge.SetAnchorsPreset(LayoutPreset.FullRect);
+    int pad = 2;
+    _badge.AddThemeConstantOverride("margin_left", pad);
+    _badge.AddThemeConstantOverride("margin_top", pad);
+    _badge.AddThemeConstantOverride("margin_right", pad);
+    _badge.AddThemeConstantOverride("margin_bottom", pad);
     AddChild(_badge);
 
     _placeholderOverlay = new ColorRect

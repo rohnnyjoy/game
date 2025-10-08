@@ -122,3 +122,11 @@ res://shared/effects/BeamStyleResource.cs
 res://shared/effects/BeamVfxManager.cs
 res://modules/CursedSkullOverkillHandler.cs
 res://MenuCanvas.gd
+res://ui/DynaBadge.cs
+res://ui/DynaTextStyle.cs
+res://ui/DynaTextHost.cs
+res://ui/ProfilerOverlay.cs
+res://ui/DynaFloatWrapper.cs
+res://ui/DifficultyDisplay.cs
+res://ui/RunTimerDisplay.cs
+res://ui/KillCountDisplay.cs

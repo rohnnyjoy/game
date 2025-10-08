@@ -9,6 +9,7 @@ public sealed partial class CursedSkullOverkillHandler : Node
   public static CursedSkullOverkillHandler? Instance { get; private set; }
 
   private const float DefaultKnockback = 3.5f;
+  private const float BeamWidthScale = 1.5f;
   private static readonly Vector3 DefaultBeamVerticalOffset = Vector3.Up * 0.9f;
 
   public override void _EnterTree()
@@ -49,7 +50,8 @@ public sealed partial class CursedSkullOverkillHandler : Node
       try
       {
         float beamStrength = Mathf.Clamp(0.35f + overkillAmount * 0.05f, 0.35f, 2.5f);
-        float beamWidth = Mathf.Clamp(0.45f + overkillAmount * 0.01f, 0.45f, 1.35f);
+        float baseBeamWidth = 0.45f + overkillAmount * 0.01f;
+        float beamWidth = Mathf.Clamp(baseBeamWidth * BeamWidthScale, 0.45f * BeamWidthScale, 1.35f * BeamWidthScale);
         Vector3 originOffset = CalculateBeamVerticalOffset(victim);
         Vector3 targetOffset = CalculateBeamVerticalOffset(neighbor);
         BeamVfxManager.Spawn(victim, originOffset, neighbor, targetOffset, beamStrength, widthOverride: beamWidth);

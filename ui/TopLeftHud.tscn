@@ -1,12 +1,35 @@
-[gd_scene load_steps=3 format=3 uid="uid://dd5kikeo2d1dx"]
+[gd_scene load_steps=5 format=3 uid="uid://dd5kikeo2d1dx"]
 
 [ext_resource type="Script" uid="uid://bvrbdf3ge55dd" path="res://ui/HealthUi.cs" id="1_buv8e"]
 [ext_resource type="Script" path="res://ui/HudModuleBar.cs" id="2_j1m1w"]
+[ext_resource type="Script" uid="uid://47f30dfa58b54230bff69e94d4a7b3e1" path="res://ui/DifficultyDisplay.cs" id="3_difhp"]
+[ext_resource type="Script" uid="uid://fc76d43259f64bf8b8b52faef0baed37" path="res://ui/RunTimerDisplay.cs" id="4_rl6tk"]
+[ext_resource type="Script" uid="uid://ca755cb52fd44495975b87541dafd5a3" path="res://ui/KillCountDisplay.cs" id="5_k4pv2"]
 
 [node name="TopLeftHud" type="VBoxContainer"]
 offset_left = 16.0
 offset_top = 16.0
 theme_override_constants/separation = 8
+
+[node name="RunStats" type="HBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_constants/separation = 18
+
+[node name="Difficulty" type="Control" parent="RunStats"]
+layout_mode = 2
+size_flags_horizontal = 0
+script = ExtResource("3_difhp")
+
+[node name="Timer" type="Control" parent="RunStats"]
+layout_mode = 2
+size_flags_horizontal = 0
+script = ExtResource("4_rl6tk")
+
+[node name="Kills" type="Control" parent="RunStats"]
+layout_mode = 2
+size_flags_horizontal = 0
+script = ExtResource("5_k4pv2")
 
 [node name="Health" type="Control" parent="."]
 layout_mode = 2

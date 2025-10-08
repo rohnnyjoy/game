@@ -62,6 +62,7 @@ public partial class DynaTextControl : Control
     };
     RebuildParts();
     AddChild(Inner);
+    NotifySizeChanged();
     // No ambient quiver by default; call Quiver(...) for transient juice
 
     // Apply any colours set before _Ready
@@ -126,6 +127,7 @@ public partial class DynaTextControl : Control
     _overrideColours = new List<Color>(colours);
     ApplyColoursOverride();
     Inner.Init(Config);
+    NotifySizeChanged();
   }
 
   public void Pulse(float amount = 0.22f)
@@ -172,6 +174,7 @@ public partial class DynaTextControl : Control
   public void SetScale(float scale)
   {
     Inner.SetScale(scale);
+    NotifySizeChanged();
   }
 
   public void SetTextHeightScale(float scale)
@@ -181,6 +184,7 @@ public partial class DynaTextControl : Control
     {
       Config.TextHeightScale = MathF.Max(0.5f, MathF.Min(2f, TextHeightScale));
       Inner.Init(Config);
+      NotifySizeChanged();
     }
   }
 
@@ -205,6 +209,7 @@ public partial class DynaTextControl : Control
 
     ApplyColoursOverride();
     Inner.Init(Config);
+    NotifySizeChanged();
   }
 
   private void ApplyColoursOverride()
@@ -224,5 +229,11 @@ public partial class DynaTextControl : Control
     var enumerator = System.Globalization.StringInfo.GetTextElementEnumerator(text);
     while (enumerator.MoveNext())
       colours.Add(colour);
+  }
+
+  private void NotifySizeChanged()
+  {
+    UpdateMinimumSize();
+    QueueRedraw();
   }
 }

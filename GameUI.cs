@@ -53,6 +53,7 @@ public partial class GameUi : CanvasLayer
   // Dedicated layer to render crosshair above the shake overlay
   private CanvasLayer _crosshairLayer;
   private CenterContainer _crosshairCenter;
+  private ProfilerOverlay _profiler;
 
   public override void _Ready()
   {
@@ -109,6 +110,10 @@ public partial class GameUi : CanvasLayer
       _primaryModulesUi = _topLeftHud.GetNodeOrNull<PrimaryWeaponStack>("PrimaryWeaponStack");
       // Scene/resource are the source of truth for HUD layout; avoid runtime overrides here.
     }
+
+    // Always-on lightweight profiler overlay (top-right)
+    _profiler = new ProfilerOverlay();
+    AddChild(_profiler);
     // Initialize health display early
     if (Player.Instance != null)
       _healthUi.SetHealth(Player.Instance.Health, Player.Instance.MaxHealth);
@@ -233,6 +238,15 @@ void fragment() {
         _crosshairCenter.CallDeferred(Node.MethodName.AddChild, _comboUi);
         // After reparenting, re-attach to update position against the crosshair center in the new layer.
         Callable.From(() => _comboUi.AttachToCrosshair(_crosshair)).CallDeferred();
+      }
+
+      // Ensure profiler draws above shake overlay as well
+      if (_profiler != null)
+      {
+        Node prevParent = _profiler.GetParent();
+        if (IsInstanceValid(prevParent))
+          prevParent.CallDeferred(Node.MethodName.RemoveChild, _profiler);
+        _crosshairLayer.CallDeferred(Node.MethodName.AddChild, _profiler);
       }
     }
   }
