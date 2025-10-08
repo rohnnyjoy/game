@@ -122,10 +122,10 @@ public sealed partial class CursedSkullBeamVfxManager : Node3D
       float width = beam.Width;
       var basis = new Basis(axisX * width, forward * len, axisZ);
       _multiMesh.SetInstanceTransform(i, new Transform3D(basis, center));
-      float progress = beam.Lifetime <= 0.0001f ? 1f : Mathf.Clamp((now - beam.SpawnTime) / beam.Lifetime, 0f, 1f);
       float repeatFactor = CalculateRepeatFactor(len, width);
       float pixelScale = Mathf.Max(0.0001f, width / FramePixelWidth);
-      _multiMesh.SetInstanceCustomData(i, new Color(progress, repeatFactor, pixelScale, beam.Strength));
+      float age = Mathf.Clamp(now - beam.SpawnTime, 0f, beam.Lifetime);
+      _multiMesh.SetInstanceCustomData(i, new Color(age, beam.Lifetime, repeatFactor, pixelScale));
     }
   }
 
@@ -210,7 +210,10 @@ public sealed partial class CursedSkullBeamVfxManager : Node3D
     _material.SetShaderParameter("effect_texture", texture);
     _material.SetShaderParameter("frame_count", frameCount);
     _material.SetShaderParameter("frame_pixel_width", framePixelWidth);
-    _material.SetShaderParameter("frame_index", 1.0f);
+    _material.SetShaderParameter("frame_index", -1.0f);
+    _material.SetShaderParameter("animation_fps", 22.0f);
+    _material.SetShaderParameter("frame_offset", 0.0f);
+    _material.SetShaderParameter("animate_once", true);
     _material.SetShaderParameter("texture_pixel_size", new Vector2(textureWidth, textureHeight));
     _material.SetShaderParameter("top_pixels", 48.0f);
     _material.SetShaderParameter("mid_pixels", 48.0f);

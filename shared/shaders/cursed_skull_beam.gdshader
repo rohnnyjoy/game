@@ -4,7 +4,10 @@ render_mode unshaded, cull_disabled, depth_draw_always, blend_mix;
 uniform sampler2D effect_texture;
 uniform float frame_count = 1.0;
 uniform float frame_pixel_width = 32.0;
-uniform float frame_index = 1.0;
+uniform float frame_index = -1.0;
+uniform float animation_fps = 18.0;
+uniform float frame_offset = 0.0;
+uniform bool animate_once = false;
 uniform float top_pixels = 48.0;
 uniform float mid_pixels = 48.0;
 uniform float bottom_pixels = 48.0;
@@ -29,20 +32,40 @@ float safe_divide(float a, float b, float fallback)
 void fragment()
 {
     vec4 custom = v_custom;
-    float progress = clamp(custom.x, 0.0, 1.0);
-    float repeat = max(1.0, custom.y);
-    float pixel_scale = max(0.0001, custom.z);
-    float intensity = max(0.05, custom.w);
+    float lifetime = max(0.0001, custom.y);
+    float age = clamp(custom.x, 0.0, lifetime);
+    float repeat = max(1.0, custom.z);
+    float pixel_scale = max(0.0001, custom.w);
+    float intensity = 1.0;
 
-    float fade = 1.0;
+    float progress = clamp(age / lifetime, 0.0, 1.0);
 
-    float alpha = fade;
+    float alpha = 1.0;
     vec3 color = vec3(0.0);
 
     if (progress >= 0.0)
     {
         float frames = max(1.0, frame_count);
-        float frame = clamp(frame_index, 0.0, frames - 1.0);
+        float frame;
+        if (frame_index >= 0.0)
+        {
+            frame = clamp(frame_index, 0.0, frames - 1.0);
+        }
+        else
+        {
+            float fps = max(0.01, animation_fps);
+            float raw_frame = floor(age * fps);
+            if (animate_once)
+            {
+                frame = clamp(raw_frame, 0.0, frames - 1.0);
+            }
+            else
+            {
+                frame = mod(raw_frame, frames);
+            }
+        }
+
+        frame = clamp(frame + frame_offset, 0.0, frames - 1.0);
 
         float u_min = frame / frames;
         float u_max = (frame + 1.0) / frames;
