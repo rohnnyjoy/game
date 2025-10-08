@@ -282,7 +282,18 @@ public partial class Bullet : Node3D
         // Emit damage for global knockback handling
         Vector3 dir = Velocity.LengthSquared() > 0.000001f ? Velocity.Normalized() : (enemy.GlobalTransform.Origin - GlobalTransform.Origin).Normalized();
         dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-        GlobalEvents.Instance?.EmitDamageDealt(enemy, collision.TotalDamageDealt, dir * Mathf.Max(0.0f, KnockbackStrength));
+        // Use snapshot overload to keep semantics consistent with manager-driven bullets
+        var snap = new BulletManager.ImpactSnapshot(
+          damage: collision.TotalDamageDealt,
+          knockbackScale: 1.0f,
+          enemyHit: true,
+          enemyId: (ulong)enemy.GetInstanceId(),
+          hitPosition: collision.Position,
+          hitNormal: collision.Normal,
+          isCrit: false,
+          critMultiplier: 1.0f
+        );
+        GlobalEvents.Instance?.EmitDamageDealt(enemy, snap, dir, Mathf.Max(0.0f, KnockbackStrength));
 
         // Do not trigger UI shake on impact; UI shake reserved for gold increments
 

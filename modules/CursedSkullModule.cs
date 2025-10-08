@@ -1,7 +1,7 @@
 using Godot;
 using System.Collections.Generic;
 
-public partial class CursedSkullModule : WeaponModule, IDamagePostStepProvider
+public partial class CursedSkullModule : WeaponModule
 {
   [Export] public float TransferRadius { get; set; } = 0.0f; // 0 means no range cap; find nearest anywhere
 
@@ -13,14 +13,5 @@ public partial class CursedSkullModule : WeaponModule, IDamagePostStepProvider
     Rarity = Rarity.Legendary;
   }
 
-  public IEnumerable<DamagePostStepConfig> GetDamagePostSteps()
-  {
-    yield return new DamagePostStepConfig(
-      DamagePostStepKind.OverkillTransfer,
-      priority: 0,
-      paramA: TransferRadius,
-      paramB: 0f,
-      paramC: 0f
-    );
-  }
+  // Chain logic now handled globally in CursedSkullOverkillHandler via Overkill events.
 }

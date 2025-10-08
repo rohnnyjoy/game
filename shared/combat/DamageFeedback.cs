@@ -15,6 +15,8 @@ namespace Combat
     private StandardMaterial3D _flashMaterial = default!;
     private int _flashToken = 0;
 
+    public const float DefaultFlashDuration = 0.08f;
+
     /// <summary>
     /// Optional visual root to search for MeshInstance3D. If null, uses the parent Node.
     /// </summary>
@@ -51,7 +53,7 @@ namespace Combat
     /// <summary>
     /// Call when damage is applied to the owner. Plays flash + impact sprite.
     /// </summary>
-    public void Trigger(float amount, float flashDuration = 0.08f)
+    public void Trigger(float amount, float flashDuration = DefaultFlashDuration)
     {
       // Fire-and-forget flash
       _ = FlashAsync(flashDuration);

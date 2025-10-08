@@ -24,6 +24,8 @@ public partial class BulletManager : Node3D
 {
   public static BulletManager? Instance { get; private set; }
 
+  private static readonly Vector3 DefaultBeamVerticalOffset = Vector3.Up * 0.9f;
+
   private class Archetype
   {
     public int Id;
@@ -146,10 +148,37 @@ public partial class BulletManager : Node3D
     public ulong StuckTargetId;
     public Vector3 StuckLocalOffset;
     public int PendingActionIndex;
+    public ImpactSnapshot? PendingImpactSnapshot;
     public Vector3 StuckLocalNormal;
     public Vector3 StuckWorldNormal;
     public Vector3 StuckPreVelocity;
     public float StickyCooldown;
+    public bool LastCrit;
+    public float LastCritMultiplier;
+  }
+
+  public readonly struct ImpactSnapshot
+  {
+    public float Damage { get; }
+    public float KnockbackScale { get; }
+    public bool EnemyHit { get; }
+    public ulong EnemyId { get; }
+    public Vector3 HitPosition { get; }
+    public Vector3 HitNormal { get; }
+    public bool IsCrit { get; }
+    public float CritMultiplier { get; }
+
+    public ImpactSnapshot(float damage, float knockbackScale, bool enemyHit, ulong enemyId, Vector3 hitPosition, Vector3 hitNormal, bool isCrit = false, float critMultiplier = 1.0f)
+    {
+      Damage = damage;
+      KnockbackScale = knockbackScale;
+      EnemyHit = enemyHit;
+      EnemyId = enemyId;
+      HitPosition = hitPosition;
+      HitNormal = hitNormal;
+      IsCrit = isCrit;
+      CritMultiplier = critMultiplier;
+    }
   }
 
   private enum CollisionActionType
@@ -615,6 +644,9 @@ public partial class BulletManager : Node3D
       return;
 
     float currentSpeed = bullet.Velocity.Length();
+    // Reset per-impact transient state
+    bullet.LastCrit = false;
+    bullet.LastCritMultiplier = 1.0f;
     for (int i = 0; i < steps.Length; i++)
     {
       var step = steps[i];
@@ -630,6 +662,23 @@ public partial class BulletManager : Node3D
 
           damage += extraDamage;
           knockbackScale += extraKnockback;
+          break;
+        }
+        case DamagePreStepKind.CritChance:
+        {
+          float chance = MathF.Max(0.0f, step.ParamA);
+          float mult = MathF.Max(1.0f, step.ParamB);
+          // Roll crit; apply once per impact
+          if (!bullet.LastCrit)
+          {
+            float roll = (float)GD.RandRange(0.0, 1.0);
+            if (roll < chance)
+            {
+              damage *= mult;
+              bullet.LastCrit = true;
+              bullet.LastCritMultiplier = mult;
+            }
+          }
           break;
         }
         case DamagePreStepKind.Metronome:
@@ -711,12 +760,12 @@ public partial class BulletManager : Node3D
         }
       }
 
-      Weapon owner = arch.OwnerWeapon;
+      Weapon? owner = arch.OwnerWeapon;
       if (owner == null)
         return;
 
       // Find the first MetronomeModule on the weapon
-      WeaponModule found = null;
+      WeaponModule? found = null;
       if (owner.Modules != null)
       {
         foreach (var m in owner.Modules)
@@ -743,7 +792,7 @@ public partial class BulletManager : Node3D
     catch { }
   }
 
-  private void ApplyDamagePostSteps(Archetype arch, Node3D enemy, float appliedDamage, float leftover, ref BulletData bullet)
+  private void ApplyDamagePostSteps(Archetype arch, Node3D enemy, float appliedDamage, float leftover, ref BulletData bullet, ImpactSnapshot snapshot)
   {
     var steps = arch.DamagePostSteps;
     if (steps.Length == 0)
@@ -772,9 +821,9 @@ public partial class BulletManager : Node3D
           {
             float beamStrength = Mathf.Clamp(0.35f + leftover * 0.05f, 0.35f, 2.5f);
             float beamWidth = Mathf.Clamp(0.45f + leftover * 0.01f, 0.45f, 1.35f);
-            Vector3 originOffset = Vector3.Up * 0.9f;
-            Vector3 targetOffset = Vector3.Up * 0.9f;
-            CursedSkullBeamVfxManager.Spawn(enemy, originOffset, neighbor, targetOffset, beamStrength, widthOverride: beamWidth);
+            Vector3 originOffset = CalculateBeamVerticalOffset(enemy);
+            Vector3 targetOffset = CalculateBeamVerticalOffset(neighbor);
+            BeamVfxManager.Spawn(enemy, originOffset, neighbor, targetOffset, beamStrength, widthOverride: beamWidth);
           }
           catch (Exception fxEx)
           {
@@ -797,10 +846,18 @@ public partial class BulletManager : Node3D
 
             if (applied)
             {
-              FloatingNumber3D.Spawn(this, neighbor, leftover);
-              Vector3 dir = bullet.Velocity.LengthSquared() > 0.000001f ? bullet.Velocity.Normalized() : Vector3.Forward;
-              dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-              GlobalEvents.Instance?.EmitDamageDealt(neighbor, leftover, dir * DefaultKnockback);
+            FloatingNumber3D.Spawn(this, neighbor, leftover);
+            Vector3 dir = bullet.Velocity.LengthSquared() > 0.000001f ? bullet.Velocity.Normalized() : Vector3.Forward;
+            dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
+            var leftoverSnap = new ImpactSnapshot(
+              damage: leftover,
+              knockbackScale: snapshot.KnockbackScale,
+              enemyHit: true,
+              enemyId: (ulong)neighbor.GetInstanceId(),
+              hitPosition: neighbor.GlobalTransform.Origin,
+              hitNormal: -dir
+            );
+            GlobalEvents.Instance?.EmitDamageDealt(neighbor, leftoverSnap, dir, DefaultKnockback);
               GD.Print("[CursedSkull] transfer applied");
             }
             else
@@ -814,6 +871,109 @@ public partial class BulletManager : Node3D
           }
           break;
         }
+      }
+    }
+  }
+
+  // Derive a world-space offset so beam endpoints target the visual midpoint of a node.
+  private static Vector3 CalculateBeamVerticalOffset(Node3D? node)
+  {
+    if (node == null || !GodotObject.IsInstanceValid(node))
+      return DefaultBeamVerticalOffset;
+
+    if (!TryGetVerticalBounds(node, out float minY, out float maxY))
+      return DefaultBeamVerticalOffset;
+
+    float centerY = (minY + maxY) * 0.5f;
+    float offsetY = centerY - node.GlobalTransform.Origin.Y;
+    return Vector3.Up * offsetY;
+  }
+
+  private static bool TryGetVerticalBounds(Node3D node, out float minY, out float maxY)
+  {
+    minY = float.MaxValue;
+    maxY = float.MinValue;
+    bool found = false;
+
+    AccumulateVisualExtents(node, ref minY, ref maxY, ref found);
+    AccumulateCollisionExtents(node, ref minY, ref maxY, ref found);
+
+    if (!found)
+    {
+      minY = maxY = node.GlobalTransform.Origin.Y;
+      return false;
+    }
+
+    return true;
+  }
+
+  private static void AccumulateVisualExtents(Node node, ref float minY, ref float maxY, ref bool found)
+  {
+    if (!GodotObject.IsInstanceValid(node))
+      return;
+
+    if (node is VisualInstance3D visual)
+    {
+      var aabb = visual.GetAabb();
+      ProcessAabb(visual.GlobalTransform, aabb, ref minY, ref maxY, ref found);
+    }
+
+    foreach (Node child in node.GetChildren())
+      AccumulateVisualExtents(child, ref minY, ref maxY, ref found);
+  }
+
+  private static void AccumulateCollisionExtents(Node node, ref float minY, ref float maxY, ref bool found)
+  {
+    if (!GodotObject.IsInstanceValid(node))
+      return;
+
+    if (node is CollisionShape3D collisionShape)
+    {
+      try
+      {
+        var shape = collisionShape.Shape;
+        Mesh? mesh = shape?.GetDebugMesh();
+        if (mesh != null)
+        {
+          var aabb = mesh.GetAabb();
+          ProcessAabb(collisionShape.GlobalTransform, aabb, ref minY, ref maxY, ref found);
+        }
+      }
+      catch (Exception)
+      {
+        // Ignore debug mesh failures; rely on other nodes or fall back to default offset.
+      }
+    }
+
+    foreach (Node child in node.GetChildren())
+      AccumulateCollisionExtents(child, ref minY, ref maxY, ref found);
+  }
+
+  private static void ProcessAabb(Transform3D transform, Aabb aabb, ref float minY, ref float maxY, ref bool found)
+  {
+    Vector3 basePos = aabb.Position;
+    Vector3 size = aabb.Size;
+
+    for (int i = 0; i < 8; i++)
+    {
+      Vector3 corner = new Vector3(
+        basePos.X + ((i & 1) != 0 ? size.X : 0f),
+        basePos.Y + ((i & 2) != 0 ? size.Y : 0f),
+        basePos.Z + ((i & 4) != 0 ? size.Z : 0f)
+      );
+
+      Vector3 worldCorner = transform * corner;
+      float y = worldCorner.Y;
+
+      if (!found)
+      {
+        minY = maxY = y;
+        found = true;
+      }
+      else
+      {
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
       }
     }
   }
@@ -1061,12 +1221,15 @@ public partial class BulletManager : Node3D
       CollisionCooldown = 0,
       StuckTimeLeft = 0,
       PendingActionIndex = -1,
+      PendingImpactSnapshot = null,
       StuckTargetId = 0,
       StuckLocalOffset = Vector3.Zero,
       StuckLocalNormal = Vector3.Zero,
       StuckWorldNormal = Vector3.Forward,
       StuckPreVelocity = Vector3.Zero,
       StickyCooldown = 0f,
+      LastCrit = false,
+      LastCritMultiplier = 1f,
     };
     // Spawn-time aim assist (aimbot)
     if (arch.BehaviorConfig != null && arch.BehaviorConfig.Aimbot is AimbotConfig aimCfg)
@@ -1251,6 +1414,16 @@ public partial class BulletManager : Node3D
             else
             {
               bool isEnemy = collider != null && collider.IsInGroup("enemies");
+              ImpactSnapshot impact = new ImpactSnapshot(
+                damage: b.Damage,
+                knockbackScale: 1.0f,
+                enemyHit: isEnemy,
+                enemyId: colliderId,
+                hitPosition: hitPos,
+                hitNormal: hitNormal,
+                isCrit: false,
+                critMultiplier: 1.0f
+              );
               if (isEnemy)
               {
                 try
@@ -1265,13 +1438,24 @@ public partial class BulletManager : Node3D
                     enemy.TakeDamage(damage);
                     Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
                     dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-                    GlobalEvents.Instance?.EmitDamageDealt(enemy, damage, dir * DefaultKnockback * knockbackScale);
+                    GlobalEvents.Instance?.EmitDamageDealt(enemy, impact, dir, DefaultKnockback);
 
                     float leftover = damage - hpBefore;
-                    ApplyDamagePostSteps(arch, enemy, damage, leftover, ref b);
+                    ApplyDamagePostSteps(arch, enemy, damage, leftover, ref b, impact);
 
-                    FloatingNumber3D.Spawn(this, enemy, damage);
+                    Color? numColor = (b.LastCrit ? Colors.Yellow : (Color?)null);
+                    FloatingNumber3D.Spawn(this, enemy, damage, numColor);
                     b.HasEnemyHit = true;
+                    impact = new ImpactSnapshot(
+                      damage: damage,
+                      knockbackScale: knockbackScale,
+                      enemyHit: true,
+                      enemyId: colliderId,
+                      hitPosition: hitPos,
+                      hitNormal: hitNormal,
+                      isCrit: b.LastCrit,
+                      critMultiplier: b.LastCrit ? b.LastCritMultiplier : 1.0f
+                    );
                   }
                 }
                 catch (Exception e)
@@ -1288,7 +1472,17 @@ public partial class BulletManager : Node3D
                   collider.CallDeferred("take_damage", damage);
                 Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
                 dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-                GlobalEvents.Instance?.EmitDamageDealt(collider, damage, dir * DefaultKnockback * knockbackScale);
+                GlobalEvents.Instance?.EmitDamageDealt(collider, impact, dir, DefaultKnockback);
+                impact = new ImpactSnapshot(
+                  damage: damage,
+                  knockbackScale: knockbackScale,
+                  enemyHit: false,
+                  enemyId: 0,
+                  hitPosition: hitPos,
+                  hitNormal: hitNormal,
+                  isCrit: b.LastCrit,
+                  critMultiplier: b.LastCrit ? b.LastCritMultiplier : 1.0f
+                );
               }
 
               // Broadcast impact for FX and other listeners
@@ -1299,7 +1493,7 @@ public partial class BulletManager : Node3D
                 GD.Print($"[BulletManager] impact at ({hitPos.X:0.00},{hitPos.Y:0.00},{hitPos.Z:0.00}) n=({hitNormal.X:0.00},{hitNormal.Y:0.00},{hitNormal.Z:0.00}) collider={(collider!=null?collider.Name:"null")} id={colliderId}");
               }
 
-              ProcessCollisionOrdered(ref b, arch, hitPos, hitNormal, nextPos, colliderId, isEnemy, collider);
+              ProcessCollisionOrdered(ref b, arch, hitPos, hitNormal, nextPos, colliderId, isEnemy, collider, impact);
             }
           }
           else
@@ -1576,20 +1770,29 @@ public partial class BulletManager
     Vector3 nextPos = pos + dir * MathF.Max(arch.Radius * 0.5f, 0.01f);
     bool isEnemy = collider != null && collider.IsInGroup("enemies");
 
-    ProcessCollisionOps(ref b, arch, pos, normalWorld, nextPos, b.StuckTargetId, isEnemy, collider, Math.Max(0, start));
+    ImpactSnapshot snapshot = b.PendingImpactSnapshot ?? new ImpactSnapshot(
+      damage: b.Damage,
+      knockbackScale: 1.0f,
+      enemyHit: isEnemy,
+      enemyId: b.StuckTargetId,
+      hitPosition: pos,
+      hitNormal: normalWorld,
+      isCrit: false,
+      critMultiplier: 1.0f
+    );
+    ProcessCollisionOps(ref b, arch, pos, normalWorld, nextPos, b.StuckTargetId, isEnemy, collider, Math.Max(0, start), snapshot);
     b.PendingActionIndex = -1;
+    b.PendingImpactSnapshot = null;
   }
-  private void ProcessCollisionOrdered(ref BulletData b, Archetype arch, Vector3 hitPos, Vector3 hitNormal, Vector3 nextPos, ulong colliderId, bool isEnemy, Node3D? collider)
+  private void ProcessCollisionOrdered(ref BulletData b, Archetype arch, Vector3 hitPos, Vector3 hitNormal, Vector3 nextPos, ulong colliderId, bool isEnemy, Node3D? collider, ImpactSnapshot snapshot)
   {
-    ProcessCollisionOps(ref b, arch, hitPos, hitNormal, nextPos, colliderId, isEnemy, collider, 0);
+    ProcessCollisionOps(ref b, arch, hitPos, hitNormal, nextPos, colliderId, isEnemy, collider, 0, snapshot);
   }
 
-  private void ProcessCollisionOrderedFromIndex(ref BulletData b, Archetype arch, Vector3 hitPos, Vector3 hitNormal, Vector3 nextPos, ulong colliderId, bool isEnemy, Node3D? collider, int startIndex)
-  {
-    ProcessCollisionOps(ref b, arch, hitPos, hitNormal, nextPos, colliderId, isEnemy, collider, startIndex);
-  }
+  // Note: All collision-op executions require an applied-damage snapshot.
+  // For deferred paths (e.g., sticky), callers must persist and supply it.
 
-  private void ProcessCollisionOps(ref BulletData b, Archetype arch, Vector3 hitPos, Vector3 hitNormal, Vector3 nextPos, ulong colliderId, bool isEnemy, Node3D? collider, int startIndex)
+  private void ProcessCollisionOps(ref BulletData b, Archetype arch, Vector3 hitPos, Vector3 hitNormal, Vector3 nextPos, ulong colliderId, bool isEnemy, Node3D? collider, int startIndex, ImpactSnapshot snapshot)
   {
     var state = new BulletCollisionState
     {
@@ -1624,6 +1827,7 @@ public partial class BulletManager
     bool resolvedMotion = false;
     bool keepAlive = false;
 
+    float actionDamage = snapshot.Damage;
     for (int i = Math.Max(0, startIndex); i < ops.Length; i++)
     {
       var action = ops[i].Action;
@@ -1632,7 +1836,18 @@ public partial class BulletManager
         case CollisionActionType.Explode:
           if (behavior?.Explosive is ExplosiveConfig expCfg)
           {
-            ApplyExplosionAOE(hitPos, expCfg, state.Damage);
+            // Use a snapshot carrying the adjusted actionDamage for AoE scaling
+            var aoeSnapshot = new ImpactSnapshot(
+              damage: actionDamage,
+              knockbackScale: snapshot.KnockbackScale,
+              enemyHit: snapshot.EnemyHit,
+              enemyId: snapshot.EnemyId,
+              hitPosition: snapshot.HitPosition,
+              hitNormal: snapshot.HitNormal,
+              isCrit: snapshot.IsCrit,
+              critMultiplier: snapshot.CritMultiplier
+            );
+            ApplyExplosionAOE(hitPos, expCfg, aoeSnapshot);
           }
           break;
 
@@ -1649,7 +1864,7 @@ public partial class BulletManager
                   enemyStick.TakeDamage(stickyCfg.CollisionDamage);
                   Vector3 dirK = state.Velocity.LengthSquared() > 0.000001f ? state.Velocity.Normalized() : Vector3.Forward;
                   dirK = new Vector3(dirK.X, 0.15f * dirK.Y, dirK.Z).Normalized();
-                  GlobalEvents.Instance?.EmitDamageDealt(enemyStick, stickyCfg.CollisionDamage, dirK * DefaultKnockback);
+                  GlobalEvents.Instance?.EmitDamageDealt(enemyStick, snapshot, dirK, DefaultKnockback);
                   damageTarget = enemyStick;
                 }
                 else if (collider != null && collider.HasMethod("take_damage"))
@@ -1657,7 +1872,7 @@ public partial class BulletManager
                   collider.CallDeferred("take_damage", stickyCfg.CollisionDamage);
                   Vector3 dirK = state.Velocity.LengthSquared() > 0.000001f ? state.Velocity.Normalized() : Vector3.Forward;
                   dirK = new Vector3(dirK.X, 0.15f * dirK.Y, dirK.Z).Normalized();
-                  GlobalEvents.Instance?.EmitDamageDealt(collider, stickyCfg.CollisionDamage, dirK * DefaultKnockback);
+                  GlobalEvents.Instance?.EmitDamageDealt(collider, snapshot, dirK, DefaultKnockback);
                   damageTarget = collider;
                 }
               }
@@ -1681,6 +1896,17 @@ public partial class BulletManager
             if (collider != null)
               SpawnStickyBlob(collider, hitPos, hitNormal, arch.Radius, stickyCfg.Duration);
             b.PendingActionIndex = i + 1;
+            // Carry forward any action-based damage adjustments before deferred continuation
+            b.PendingImpactSnapshot = new ImpactSnapshot(
+              damage: actionDamage,
+              knockbackScale: snapshot.KnockbackScale,
+              enemyHit: snapshot.EnemyHit,
+              enemyId: snapshot.EnemyId,
+              hitPosition: snapshot.HitPosition,
+              hitNormal: snapshot.HitNormal,
+              isCrit: snapshot.IsCrit,
+              critMultiplier: snapshot.CritMultiplier
+            );
             return;
           }
           break;
@@ -1690,6 +1916,7 @@ public partial class BulletManager
           {
             state.PenetrationCount++;
             state.Damage *= (1.0f - pierceCfg.DamageReduction);
+            actionDamage *= (1.0f - pierceCfg.DamageReduction);
             state.Velocity *= pierceCfg.VelocityFactor;
             Vector3 forward = state.Velocity.LengthSquared() > 0.0001f
               ? state.Velocity.Normalized()
@@ -1712,6 +1939,7 @@ public partial class BulletManager
             state.BounceCount++;
             state.Velocity = state.Velocity.Bounce(normal) * bounceCfg.Bounciness;
             state.Damage *= (1.0f - bounceCfg.DamageReduction);
+            actionDamage *= (1.0f - bounceCfg.DamageReduction);
             float epsilon = MathF.Max(0.01f, arch.Radius);
             state.Position = hitPos + normal * epsilon;
             state.PrevPosition = state.Position;
@@ -1796,6 +2024,7 @@ public partial class BulletManager
     }
   }
 
+
   private bool TryApplyAimbot(ref BulletData b, AimbotConfig cfg, ulong excludeId = 0)
   {
     Vector3 origin = b.Position;
@@ -1837,12 +2066,12 @@ public partial class BulletManager
     return false;
   }
 
-  private void ApplyExplosionAOE(Vector3 center, ExplosiveConfig cfg, float baseDamage)
+  private void ApplyExplosionAOE(Vector3 center, ExplosiveConfig cfg, ImpactSnapshot snapshot)
   {
     // Emit VFX event to allow batched rendering and other listeners
     GlobalEvents.Instance?.EmitExplosionOccurred(center, cfg.Radius);
     float radius = cfg.Radius;
-    float damage = baseDamage * cfg.DamageMultiplier;
+    float damage = snapshot.Damage * cfg.DamageMultiplier;
     foreach (Node node in GetTree().GetNodesInGroup("enemies"))
     {
       if (node is not Node3D enemyNode || !IsInstanceValid(enemyNode))
@@ -1864,14 +2093,15 @@ public partial class BulletManager
           GD.PrintErr($"BulletManager explosion damage failed: {e.Message}");
         }
 
-        // Visual: damage number above the enemy on explosion hit
-        FloatingNumber3D.Spawn(this, enemyNode, damage);
+        // Visual: damage number above the enemy on explosion hit (yellow on crit)
+        Color? numColor = snapshot.IsCrit ? Colors.Yellow : (Color?)null;
+        FloatingNumber3D.Spawn(this, enemyNode, damage, numColor);
 
         // Emit global damage for knockback with simple radial falloff
         Vector3 radial = (enemyNode.GlobalTransform.Origin - center);
         Vector3 dir = radial.LengthSquared() > 0.000001f ? radial.Normalized() : Vector3.Up;
         float falloff = Mathf.Clamp(1.0f - (dist / Mathf.Max(0.0001f, radius)), 0.0f, 1.0f);
-        GlobalEvents.Instance?.EmitDamageDealt(enemyNode, damage, dir * DefaultKnockback * falloff);
+        GlobalEvents.Instance?.EmitDamageDealt(enemyNode, snapshot, dir, DefaultKnockback, falloff);
       }
     }
   }

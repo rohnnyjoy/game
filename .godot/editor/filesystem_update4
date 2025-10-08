@@ -118,3 +118,7 @@ res://shared/effects/ExplosionVfxManager.cs
 res://shared/effects/CursedSkullBeamVfxManager.cs
 res://ui/HudModuleBar.cs
 res://ui/ModuleBadgeRegistry.cs
+res://shared/effects/BeamStyleResource.cs
+res://shared/effects/BeamVfxManager.cs
+res://modules/CursedSkullOverkillHandler.cs
+res://MenuCanvas.gd

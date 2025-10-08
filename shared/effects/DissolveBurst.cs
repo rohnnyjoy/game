@@ -10,7 +10,7 @@ namespace Shared.Effects
   public partial class DissolveBurst : Node3D
   {
     private const string ScenePath = "res://shared/effects/DissolveBurst.tscn";
-    private const int ParticleCount = 48; // Lowered for perf; evenly divisible across 6 faces
+    private const int ParticleCount = 24; // 50% fewer for perf; 6 faces -> ~4 per face
 #if DEBUG
     // Slow particle burst in Debug to match slow-mo dissolve
     private const float LifetimeSeconds = 1.0f;
@@ -89,10 +89,6 @@ namespace Shared.Effects
       Vector3 extents = new Vector3(Mathf.Max(halfExtents.X, 0.35f), Mathf.Max(halfExtents.Y, 0.2f), Mathf.Max(halfExtents.Z, 0.35f));
       float maxExtent = Mathf.Max(extents.X, Mathf.Max(extents.Y, extents.Z));
       float d = Mathf.Max(0.1f, dissolveDuration);
-#if DEBUG
-      // Slow down particle window in Debug to aid observation
-      d *= 3.5f;
-#endif
       float particleLifetime = 0.7f * d; // Balatro: lifespan = 0.7 * dissolve_time
 
       // We want one emission area per face and evenly mix all palette colors on each face.

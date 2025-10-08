@@ -4,6 +4,7 @@ public enum DamagePreStepKind
 {
   SpeedScale,
   Metronome,
+  CritChance,
 }
 
 public enum DamagePostStepKind

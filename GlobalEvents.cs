@@ -24,6 +24,10 @@ public partial class GlobalEvents : Node
   [Signal]
   public delegate void ExplosionOccurredEventHandler(Vector3 position, float radius);
 
+  // Emitted when an enemy is killed with leftover damage; amount is the overkill.
+  [Signal]
+  public delegate void OverkillOccurredEventHandler(Node3D victim, float overkillAmount);
+
   // (Reverted) No generic screen shake signal here
 
   // Helper method to emit the enemy death event.
@@ -42,6 +46,12 @@ public partial class GlobalEvents : Node
   public void SetMenuOpen(bool open)
   {
     MenuOpen = open;
+    // Toggle global pause so gameplay stops while menus are open.
+    var tree = GetTree();
+    if (tree != null)
+    {
+      tree.Paused = open;
+    }
     if (open)
     {
       // Ensure any ongoing weapon fire is stopped when opening menus/UI
@@ -98,11 +108,11 @@ public partial class GlobalEvents : Node
       var badges = new ModuleBadgeRegistry();
       AddChild(badges);
     }
-    // Ensure a cursed skull beam manager exists for batched transfer rendering
-    if (CursedSkullBeamVfxManager.Instance == null)
+    // Ensure a beam manager exists for batched transfer rendering
+    if (BeamVfxManager.Instance == null)
     {
-      var skull = new CursedSkullBeamVfxManager();
-      AddChild(skull);
+      var beamMgr = new BeamVfxManager();
+      AddChild(beamMgr);
     }
 
     // Wire global listeners
@@ -110,12 +120,23 @@ public partial class GlobalEvents : Node
     Connect(nameof(ImpactOccurred), new Callable(this, nameof(OnImpactOccurred)));
     Connect(nameof(ExplosionOccurred), new Callable(this, nameof(OnExplosionOccurred)));
     // (Reverted) No UI shake hookup on money updates
+
+    // Ensure an Overkill handler exists for global chain effects (e.g., Cursed Skull)
+    if (CursedSkullOverkillHandler.Instance == null)
+    {
+      var handler = new CursedSkullOverkillHandler();
+      AddChild(handler);
+    }
   }
 
-  public void EmitDamageDealt(Node3D target, float amount, Vector3 impulse)
+  // Overload that derives the impulse magnitude from a snapshot + base knockback.
+  public void EmitDamageDealt(Node3D target, BulletManager.ImpactSnapshot snapshot, Vector3 direction, float baseKnockback, float extraScale = 1.0f)
   {
     if (target == null || !IsInstanceValid(target)) return;
-    EmitSignal(nameof(DamageDealt), target, amount, impulse);
+    Vector3 dir = direction.LengthSquared() > 0.000001f ? direction.Normalized() : Vector3.Forward;
+    float scale = MathF.Max(0.0f, snapshot.KnockbackScale) * MathF.Max(0.0f, extraScale);
+    Vector3 impulse = dir * MathF.Max(0.0f, baseKnockback) * scale;
+    EmitSignal(nameof(DamageDealt), target, snapshot.Damage, impulse);
   }
 
   private void OnDamageDealt(Node3D target, float amount, Vector3 impulse)
@@ -140,6 +161,13 @@ public partial class GlobalEvents : Node
   public void EmitExplosionOccurred(Vector3 position, float radius)
   {
     EmitSignal(nameof(ExplosionOccurred), position, radius);
+  }
+
+  public void EmitOverkillOccurred(Node3D victim, float overkillAmount)
+  {
+    if (victim == null || !IsInstanceValid(victim)) return;
+    if (overkillAmount <= 0.0f) return;
+    EmitSignal(nameof(OverkillOccurred), victim, overkillAmount);
   }
 
   private void OnImpactOccurred(Vector3 position, Vector3 normal, Vector3 direction)

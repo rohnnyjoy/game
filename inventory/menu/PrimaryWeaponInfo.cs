@@ -88,6 +88,7 @@ public partial class PrimaryWeaponInfo : PanelContainer
     AddStatRow("Fire Rate:", out _fireVal);
     AddStatRow("Reload:", out _reloadVal);
     AddStatRow("Magazine:", out _magVal);
+    AddStatRow("Crit Chance:", out _critVal);
 
     // Name gradient set once
     _nameText.SetColours(GetNameColours());
@@ -105,7 +106,7 @@ public partial class PrimaryWeaponInfo : PanelContainer
     }
   }
 
-  private DynaTextControl _damageVal, _accVal, _bulletVal, _fireVal, _reloadVal, _magVal;
+  private DynaTextControl _damageVal, _accVal, _bulletVal, _fireVal, _reloadVal, _magVal, _critVal;
 
   private void AddStatRow(string key, out DynaTextControl valueLabel)
   {
@@ -221,6 +222,12 @@ public partial class PrimaryWeaponInfo : PanelContainer
     var magText = FormatStat(baseMag, mag, "0", magCol);
     SetStatVisual(_magVal, magText, ref _lastMagText, ref _lastMagColor, mag);
 
+    // Crit chance (sum from modules providing CritChance pre-steps)
+    var (critChancePct, critMult) = GetCritStats(w);
+    Color critCol = new Color(1.0f, 0.9f, 0.2f, 1f); // golden
+    var critText = FormatStat(0.0, critChancePct, "0", critCol, "%");
+    SetStatVisual(_critVal, critText, ref _lastCritText, ref _lastCritColor, (float)critChancePct);
+
     // Snapshot current values for change detection next time
     _lastWeaponRef = w;
     _lastDamage = damage; _lastDamageText = damageText.DisplayText;
@@ -261,7 +268,8 @@ public partial class PrimaryWeaponInfo : PanelContainer
   }
 
   // Track last displayed final colours so we can refresh text segments when tints change
-  private Color _lastDamageColor, _lastAccColor, _lastBulletColor, _lastFireColor, _lastReloadColor, _lastMagColor;
+  private Color _lastDamageColor, _lastAccColor, _lastBulletColor, _lastFireColor, _lastReloadColor, _lastMagColor, _lastCritColor;
+  private string _lastCritText = "";
 
   private static bool ColorsEqual(in Color a, in Color b, float eps = 0.002f)
   {
@@ -361,4 +369,34 @@ public partial class PrimaryWeaponInfo : PanelContainer
 
   private static readonly Color BaseStatColour = new Color(0.75f, 0.75f, 0.85f, 1f);
   private static readonly Color ArrowColour = Colors.White;
+
+  private static (double chancePct, double multiplier) GetCritStats(Weapon w)
+  {
+    double chance = 0.0;
+    double mult = 1.0;
+
+    void Inspect(Godot.Collections.Array<WeaponModule> list)
+    {
+      if (list == null) return;
+      foreach (var m in list)
+      {
+        if (m is IDamagePreStepProvider pre)
+        {
+          foreach (var cfg in pre.GetDamagePreSteps())
+          {
+            if (cfg.Kind == DamagePreStepKind.CritChance)
+            {
+              chance += Math.Max(0.0, cfg.ParamA * 100.0f);
+              mult = Math.Max(mult, cfg.ParamB);
+            }
+          }
+        }
+      }
+    }
+
+    Inspect(w.ImmutableModules);
+    Inspect(w.Modules);
+    chance = Math.Min(100.0, chance);
+    return (chance, mult);
+  }
 }

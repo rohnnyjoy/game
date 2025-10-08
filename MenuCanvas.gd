@@ -3,6 +3,8 @@ extends CanvasLayer
 var inventory_visible: bool = false
 
 func _ready() -> void:
+    # Ensure this UI processes both when paused and unpaused
+    process_mode = Node.PROCESS_MODE_ALWAYS
     visible = inventory_visible
     if GlobalEvents:
         GlobalEvents.SetMenuOpen(inventory_visible)

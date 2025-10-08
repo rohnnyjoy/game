@@ -40,7 +40,7 @@ public partial class Enemy : CharacterBody3D
 
   [Export(PropertyHint.Range, "0.1,5.0,0.05")] public float DissolveDuration { get; set; } = 0.35f;
   [Export] public Color DissolveBurnColorInner { get; set; } = new Color(0.215686f, 0.258823f, 0.266667f, 1f);
-  [Export] public Color DissolveBurnColorOuter { get; set; } = new Color(0.992156f, 0.635294f, 0f, 1f);
+  [Export] public Color DissolveBurnColorOuter { get; set; } = new Color(0.996078f, 0.372549f, 0.333333f, 1f);
   [Export] public Vector2 DissolveSeamOffset { get; set; } = new Vector2(0.5f, 0f);
 
   [Export]
@@ -61,11 +61,8 @@ public partial class Enemy : CharacterBody3D
   private const string DissolveShaderPath = "res://shared/shaders/dissolve_enemy.gdshader";
   private static readonly Color[] DefaultDissolvePalette =
   {
-    new Color(0.215686f, 0.258823f, 0.266667f, 1f),           // BLACK
-    new Color(0.992156f, 0.635294f, 0f, 1f),                   // ORANGE
-    new Color(0.996078f, 0.372549f, 0.333333f, 1f),            // RED
-    new Color(0.917647f, 0.752941f, 0.345098f, 1f),            // GOLD
-    new Color(0.74902f, 0.780392f, 0.835294f, 1f)              // JOKER_GREY
+    new Color(0.215686f, 0.258823f, 0.266667f, 1f),           // BLACK (#374244)
+    new Color(0.996078f, 0.372549f, 0.333333f, 1f)            // RED   (#FE5F55)
   };
 
   // Contact damage to player
@@ -234,10 +231,19 @@ public partial class Enemy : CharacterBody3D
 
   public void TakeDamage(float amount)
   {
+    float hpBefore = health;
     health -= amount;
 
     // Emit a Damaged signal for any listeners (e.g., visual FX)
     EmitSignal(nameof(Damaged), amount);
+
+    // If this damage killed the enemy, emit an Overkill event with leftover.
+    if (hpBefore > 0 && health <= 0)
+    {
+      float leftover = amount - hpBefore;
+      if (leftover > 0.0f)
+        GlobalEvents.Instance?.EmitOverkillOccurred(this, leftover);
+    }
 
     if (health <= 0)
     {
@@ -267,12 +273,6 @@ public partial class Enemy : CharacterBody3D
       _contactArea.Monitorable = false;
       _contactArea.CollisionLayer = 0;
       _contactArea.CollisionMask = 0;
-    }
-
-    if (_damageFeedback != null)
-    {
-      _damageFeedback.QueueFree();
-      _damageFeedback = null;
     }
 
     EmitSignal(nameof(EnemyDied));
@@ -397,7 +397,17 @@ public partial class Enemy : CharacterBody3D
       dir = Vector3.Forward;
     dir = dir.Normalized();
 
-    GlobalEvents.Instance?.EmitDamageDealt(player, ContactDamage, dir * MathF.Max(0f, ContactKnockbackStrength));
+    var snap = new BulletManager.ImpactSnapshot(
+      damage: ContactDamage,
+      knockbackScale: 1.0f,
+      enemyHit: true,
+      enemyId: (ulong)player.GetInstanceId(),
+      hitPosition: player.GlobalTransform.Origin,
+      hitNormal: -dir,
+      isCrit: false,
+      critMultiplier: 1.0f
+    );
+    GlobalEvents.Instance?.EmitDamageDealt(player, snap, dir, MathF.Max(0f, ContactKnockbackStrength));
 
     // Spawn a contact impact sprite on the player's surface with a normal opposing the hit direction
     Vector3 normal = (-dir).Normalized();
@@ -513,6 +523,19 @@ public partial class Enemy : CharacterBody3D
 
   private async Task RunDeathDissolveAsync()
   {
+    SceneTree tree = GetTree();
+    if (tree != null)
+    {
+      var flashHoldTimer = tree.CreateTimer(Mathf.Max(0.01f, DamageFeedback.DefaultFlashDuration));
+      await ToSignal(flashHoldTimer, "timeout");
+    }
+
+    if (_damageFeedback != null)
+    {
+      _damageFeedback.QueueFree();
+      _damageFeedback = null;
+    }
+
     var materials = SetupDissolveMaterials();
     if (materials.Count == 0)
     {
@@ -521,10 +544,6 @@ public partial class Enemy : CharacterBody3D
     }
 
     float duration = MathF.Max(0.1f, DissolveDuration);
-#if DEBUG
-    // Slow down dissolve significantly in Debug for inspection
-    duration *= 3.5f;
-#endif
     var tween = CreateTween();
     foreach (var mat in materials)
     {
