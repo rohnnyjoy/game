@@ -4,33 +4,37 @@ using System;
 public partial class CameraShake : Node3D
 {
   private Vector3 originalPosition;
-  private float shakeDuration = 0;
-  private float shakeIntensity = 0;
 
   // Current offset applied to the camera's position.
   private Vector3 currentShakeOffset = Vector3.Zero;
-  // A target offset value that is updated randomly.
-  private Vector3 targetShakeOffset = Vector3.Zero;
-
-  // Use a random number generator for non-deterministic shake.
-  private RandomNumberGenerator rng = new RandomNumberGenerator();
+  // Legacy random jitter removed; use Balatro-style sinusoidal shake exclusively.
 
   [Export] public bool FollowGameUi = true;
   // Rough mapping from pixels (UI offset) to local meters on camera rig.
   [Export] public float PixelsToMetersScale = 0.0035f;
 
+  // Balatro-style screen shake parameters
+  [Export(PropertyHint.Range, "0,100,1")] public int ScreenShakeSetting = 65;
+  [Export] public bool ReducedMotion = false;
+  // Global multiplier to quickly tune overall shake strength
+  [Export] public float PulseScale = 1.0f;
+
+  // Accumulated pulse energy; decays each tick
+  private float jiggle = 0f;
+
   public override void _Ready()
   {
     originalPosition = Transform.Origin;
-    rng.Randomize();
     SetPhysicsProcess(true);
   }
 
-  // Trigger the shake by setting the duration and intensity.
+  // Trigger the shake: map duration/intensity to a Balatro-style jiggle pulse.
   public void TriggerShake(float duration, float intensity)
   {
-    shakeDuration = duration;
-    shakeIntensity = intensity;
+    // Convert to a stronger pulse; primarily scale by intensity then duration
+    // Typical calls (weapon/impact/explosion) produce a noticeable nudge now.
+    float add = Mathf.Clamp((intensity * 1.5f + duration * 0.8f) * Mathf.Max(PulseScale, 0.01f), 0.05f, 2.5f);
+    jiggle += add;
   }
 
   public override void _PhysicsProcess(double delta)
@@ -55,7 +59,7 @@ public partial class CameraShake : Node3D
     }
     // Prefer following GameUi's shared shake so world and UI move together
     bool appliedShared = false;
-    if (FollowGameUi && GameUi.Instance != null)
+    if (FollowGameUi && GameUi.Instance != null && GameUi.Instance.EnableUiShake)
     {
       Vector2 px = GameUi.Instance.GetScreenShakeOffset();
       if (px.LengthSquared() > 0.000001f)
@@ -66,31 +70,33 @@ public partial class CameraShake : Node3D
       }
     }
 
-    if (!appliedShared && shakeDuration > 0)
+    if (!appliedShared)
     {
-      // Reduce the shake duration.
-      shakeDuration -= (float)delta;
-
-      // Pick a new random target offset for this frame.
-      // Only X and Y are shaken; Z remains 0.
-      targetShakeOffset = new Vector3(
-          rng.RandfRange(-shakeIntensity, shakeIntensity),
-          rng.RandfRange(-shakeIntensity, shakeIntensity),
-          0
-      );
-
-      // Smoothly interpolate the current offset toward the target offset.
-      // Adjust the factor (here 0.8f) to control the smoothness.
-      currentShakeOffset = currentShakeOffset.Lerp(targetShakeOffset, 0.8f);
+      // Balatro-equivalent easing/timing
+      float dt = (float)delta;
+      jiggle = Mathf.Max(0f, jiggle * (1f - 5f * dt));
+      float setting = Mathf.Clamp(ScreenShakeSetting, 0, 100);
+      float baseStrength = (ReducedMotion ? 0f : 1f) * (setting / 100f) * 3f;
+      float amp = baseStrength * Mathf.Clamp(jiggle, 0f, 1f);
+      if (amp < 0.0005f)
+      {
+        currentShakeOffset = currentShakeOffset.Lerp(Vector3.Zero, 0.8f);
+      }
+      else
+      {
+        float timeSec = (float)Time.GetTicksMsec() / 1000f;
+        Vector2 vp = GetViewport().GetVisibleRect().Size;
+        float S = Mathf.Min(vp.X, vp.Y);
+        float offsetX = amp * (0.015f * Mathf.Sin(0.913f * timeSec) + 0.01f * Mathf.Sin(19.913f * timeSec));
+        float offsetY = amp * (0.015f * Mathf.Sin(0.952f * timeSec) + 0.01f * Mathf.Sin(21.913f * timeSec));
+        Vector2 px = new Vector2(offsetX * S, offsetY * S);
+        Vector3 target = new Vector3(px.X, -px.Y, 0f) * PixelsToMetersScale;
+        currentShakeOffset = currentShakeOffset.Lerp(target, 0.8f);
+      }
     }
-    else if (!appliedShared)
-    {
-      // When shaking is done, ease the offset back to zero.
-      currentShakeOffset = currentShakeOffset.Lerp(Vector3.Zero, 0.8f);
-    }
 
-    // If there is effectively no offset and no active shake, avoid rewriting the transform.
-    if (shakeDuration <= 0 && currentShakeOffset.LengthSquared() < 1e-8f)
+    // If there is effectively no offset, avoid rewriting the transform.
+    if (currentShakeOffset.LengthSquared() < 1e-8f)
     {
       return;
     }

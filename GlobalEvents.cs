@@ -24,6 +24,10 @@ public partial class GlobalEvents : Node
   [Signal]
   public delegate void ExplosionOccurredEventHandler(Vector3 position, float radius);
 
+  // Emitted whenever a weapon successfully fires a shot.
+  [Signal]
+  public delegate void WeaponFiredEventHandler(Weapon weapon);
+
   // Emitted when an enemy is killed with leftover damage; amount is the overkill.
   [Signal]
   public delegate void OverkillOccurredEventHandler(Node3D victim, float overkillAmount);
@@ -119,6 +123,7 @@ public partial class GlobalEvents : Node
     Connect(nameof(DamageDealt), new Callable(this, nameof(OnDamageDealt)));
     Connect(nameof(ImpactOccurred), new Callable(this, nameof(OnImpactOccurred)));
     Connect(nameof(ExplosionOccurred), new Callable(this, nameof(OnExplosionOccurred)));
+    Connect(nameof(WeaponFired), new Callable(this, nameof(OnWeaponFired)));
     // (Reverted) No UI shake hookup on money updates
 
     // Ensure an Overkill handler exists for global chain effects (e.g., Cursed Skull)
@@ -163,6 +168,12 @@ public partial class GlobalEvents : Node
     EmitSignal(nameof(ExplosionOccurred), position, radius);
   }
 
+  public void EmitWeaponFired(Weapon weapon)
+  {
+    if (weapon == null || !IsInstanceValid(weapon)) return;
+    EmitSignal(nameof(WeaponFired), weapon);
+  }
+
   public void EmitOverkillOccurred(Node3D victim, float overkillAmount)
   {
     if (victim == null || !IsInstanceValid(victim)) return;
@@ -175,15 +186,36 @@ public partial class GlobalEvents : Node
     // Default FX responders
     ImpactSprite.Spawn(this, position, normal);
     ImpactSound.Play(this, position);
-    // (Reverted) No global screen shake trigger here
+    // Re-enable a subtle camera shake on any impact.
+    TryCameraShake(0.07f, 0.10f);
   }
 
   private void OnExplosionOccurred(Vector3 position, float radius)
   {
     ExplosionVfxManager.Instance?.Spawn(position, radius);
+    // Scale shake slightly by explosion radius.
+    float dur = Mathf.Clamp(0.08f + 0.02f * radius, 0.08f, 0.22f);
+    float amp = Mathf.Clamp(0.12f + 0.05f * radius, 0.12f, 0.30f);
+    TryCameraShake(dur, amp);
+  }
+
+  private void OnWeaponFired(Weapon weapon)
+  {
+    // Subtle kick on firing; lighter than impact/explosion.
+    TryCameraShake(0.05f, 0.06f);
   }
 
   // (Reverted) No money-based or generic screen shake methods
+
+  private void TryCameraShake(float duration, float intensity)
+  {
+    // Prefer world camera shake; UI shake remains reserved for money flow.
+    var player = Player.Instance;
+    if (player != null && IsInstanceValid(player))
+    {
+      player.CameraShake?.TriggerShake(duration, intensity);
+    }
+  }
 
   private async void WarmupCoinDraw()
   {

@@ -183,8 +183,9 @@ public partial class BulletWeapon : Weapon
         muzzleFlashInstance.Emitting = true;
       }
 
-      // No UI shake on gunshot; keep recoil/sfx only
+      // Play SFX and emit a global fired event for listeners (e.g., camera shake)
       PlayGunshot();
+      GlobalEvents.Instance?.EmitWeaponFired(this);
       currentRecoil = 1.0f;
       return;
     }
@@ -225,11 +226,10 @@ public partial class BulletWeapon : Weapon
         muzzleFlashInstance.Emitting = true;
       }
 
-      // No UI shake on gunshot; keep recoil/sfx only
-
       // Apply recoil effect.
       currentRecoil = 1.0f;
       PlayGunshot();
+      GlobalEvents.Instance?.EmitWeaponFired(this);
     }
     else
     {

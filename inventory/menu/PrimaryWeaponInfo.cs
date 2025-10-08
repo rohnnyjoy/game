@@ -89,6 +89,7 @@ public partial class PrimaryWeaponInfo : PanelContainer
     AddStatRow("Reload:", out _reloadVal);
     AddStatRow("Magazine:", out _magVal);
     AddStatRow("Crit Chance:", out _critVal);
+    AddStatRow("Crit Multiplier:", out _critMultVal);
 
     // Name gradient set once
     _nameText.SetColours(GetNameColours());
@@ -106,7 +107,7 @@ public partial class PrimaryWeaponInfo : PanelContainer
     }
   }
 
-  private DynaTextControl _damageVal, _accVal, _bulletVal, _fireVal, _reloadVal, _magVal, _critVal;
+  private DynaTextControl _damageVal, _accVal, _bulletVal, _fireVal, _reloadVal, _magVal, _critVal, _critMultVal;
 
   private void AddStatRow(string key, out DynaTextControl valueLabel)
   {
@@ -228,6 +229,10 @@ public partial class PrimaryWeaponInfo : PanelContainer
     var critText = FormatStat(0.0, critChancePct, "0", critCol, "%");
     SetStatVisual(_critVal, critText, ref _lastCritText, ref _lastCritColor, (float)critChancePct);
 
+    // Crit multiplier row (display as x1.0 → x2.0)
+    var critMultText = FormatStatXPrefix(1.0, critMult, "0.0#", critCol);
+    SetStatVisual(_critMultVal, critMultText, ref _lastCritMultText, ref _lastCritMultColor, (float)critMult);
+
     // Snapshot current values for change detection next time
     _lastWeaponRef = w;
     _lastDamage = damage; _lastDamageText = damageText.DisplayText;
@@ -268,8 +273,8 @@ public partial class PrimaryWeaponInfo : PanelContainer
   }
 
   // Track last displayed final colours so we can refresh text segments when tints change
-  private Color _lastDamageColor, _lastAccColor, _lastBulletColor, _lastFireColor, _lastReloadColor, _lastMagColor, _lastCritColor;
-  private string _lastCritText = "";
+  private Color _lastDamageColor, _lastAccColor, _lastBulletColor, _lastFireColor, _lastReloadColor, _lastMagColor, _lastCritColor, _lastCritMultColor;
+  private string _lastCritText = "", _lastCritMultText = "";
 
   private static bool ColorsEqual(in Color a, in Color b, float eps = 0.002f)
   {
@@ -370,6 +375,31 @@ public partial class PrimaryWeaponInfo : PanelContainer
   private static readonly Color BaseStatColour = new Color(0.75f, 0.75f, 0.85f, 1f);
   private static readonly Color ArrowColour = Colors.White;
 
+  // Formats multiplier stats with an 'x' prefix (e.g., x1.0 → x2.0)
+  private FormattedStat FormatStatXPrefix(double baseValue, double finalValue, string numericFormat, Color finalColour)
+  {
+    string baseText = baseValue.ToString(numericFormat, CultureInfo.InvariantCulture);
+    string finalText = finalValue.ToString(numericFormat, CultureInfo.InvariantCulture);
+    bool sameNumeric = MathF.Abs((float)(baseValue - finalValue)) <= 0.0001f;
+
+    string baseDisplay = "x" + baseText;
+    string finalDisplay = "x" + finalText;
+
+    if (sameNumeric)
+      return new FormattedStat(finalDisplay, BuildColourList(finalDisplay, finalColour), finalColour);
+
+    const string arrow = "→";
+    string combined = $"{baseDisplay} {arrow} {finalDisplay}";
+
+    var colours = new List<Color>();
+    AppendColours(baseDisplay, BaseStatColour, colours);
+    AppendColours(" ", BaseStatColour, colours);
+    AppendColours(arrow, ArrowColour, colours);
+    AppendColours(" ", ArrowColour, colours);
+    AppendColours(finalDisplay, finalColour, colours);
+
+    return new FormattedStat(combined, colours, finalColour);
+  }
   private static (double chancePct, double multiplier) GetCritStats(Weapon w)
   {
     double chance = 0.0;
