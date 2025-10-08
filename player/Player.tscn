@@ -146,13 +146,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
 script = ExtResource("2_83hs8")
 PlayerPath = NodePath("..")
 CameraRigPath = NodePath("CameraRig")
-InitialPitchDegrees = -18.0
-CameraOffset = Vector3(0, 1, 10)
+InitialPitchDegrees = -24.0
+CameraOffset = Vector3(0.6, 0.75, 7.5)
 CameraCollisionMask = 1048575
 CollisionMargin = 0.35
-MinDistance = 6.0
-MaxDistance = 12.0
-ZoomSpeed = 0.6
+MinDistance = 5.5
+MaxDistance = 8.5
 
 [node name="CameraRig" type="Node3D" parent="CameraPivot"]
 physics_interpolation_mode = 1

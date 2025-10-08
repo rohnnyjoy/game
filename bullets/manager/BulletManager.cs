@@ -149,7 +149,6 @@ public partial class BulletManager : Node3D
     public Vector3 StuckLocalNormal;
     public Vector3 StuckWorldNormal;
     public Vector3 StuckPreVelocity;
-    public int StuckStickyIndex;
     public float StickyCooldown;
   }
 
@@ -392,12 +391,8 @@ public partial class BulletManager : Node3D
         Add(CollisionActionType.Explode);
     }
 
-    if (bw.ImmutableModules != null)
-      foreach (WeaponModule m in bw.ImmutableModules)
-        Inspect(m);
-    if (bw.Modules != null)
-      foreach (WeaponModule m in bw.Modules)
-        Inspect(m);
+    foreach (WeaponModule module in EnumerateModulesInOrder(bw))
+      Inspect(module);
 
     if (order.Count == 0)
       return System.Array.Empty<CollisionOp>();
@@ -406,6 +401,30 @@ public partial class BulletManager : Node3D
     for (int i = 0; i < order.Count; i++)
       ops[i] = new CollisionOp { Action = order[i] };
     return ops;
+  }
+
+  private static IEnumerable<WeaponModule> EnumerateModulesInOrder(BulletWeapon bw)
+  {
+    if (bw == null)
+      yield break;
+
+    if (bw.Modules != null)
+    {
+      foreach (WeaponModule module in bw.Modules)
+      {
+        if (module != null)
+          yield return module;
+      }
+    }
+
+    if (bw.ImmutableModules != null)
+    {
+      foreach (WeaponModule module in bw.ImmutableModules)
+      {
+        if (module != null)
+          yield return module;
+      }
+    }
   }
 
   private static SteeringOp[] BuildSteeringOps(BulletBehaviorConfig behavior)
@@ -603,14 +622,14 @@ public partial class BulletManager : Node3D
       {
         case DamagePreStepKind.SpeedScale:
         {
-          float baseline = step.Flag ? bullet.InitialSpeed : bullet.InitialSpeed;
-          if (baseline <= 0.0001f)
-            baseline = currentSpeed > 0.0001f ? currentSpeed : 1.0f;
-          float ratio = baseline > 0.0001f ? currentSpeed / baseline : 1.0f;
-          float damageScale = 1.0f + (ratio - 1.0f) * MathF.Max(0.0f, step.ParamA);
-          float knockScale = 1.0f + (ratio - 1.0f) * MathF.Max(0.0f, step.ParamB);
-          damage *= damageScale;
-          knockbackScale *= knockScale;
+          if (currentSpeed <= 0.0001f)
+            break;
+
+          float extraDamage = currentSpeed * MathF.Max(0.0f, step.ParamA);
+          float extraKnockback = currentSpeed * MathF.Max(0.0f, step.ParamB);
+
+          damage += extraDamage;
+          knockbackScale += extraKnockback;
           break;
         }
         case DamagePreStepKind.Metronome:
@@ -634,6 +653,7 @@ public partial class BulletManager : Node3D
             state.LastEnemyId = 0;
             state.LastHitAt = now;
             arch.MetronomeStates[step.StateIndex] = state;
+            Instance?.UpdateMetronomeBadge(arch);
             break;
           }
 
@@ -663,10 +683,64 @@ public partial class BulletManager : Node3D
 
           state.LastHitAt = now;
           arch.MetronomeStates[step.StateIndex] = state;
+          // Update HUD badge with current multiplier snapshot
+          Instance?.UpdateMetronomeBadge(arch);
           break;
         }
       }
     }
+  }
+
+  private void UpdateMetronomeBadge(Archetype arch)
+  {
+    try
+    {
+      // Compute the highest active metronome multiplier across states
+      float mult = 1.0f;
+      var states = arch.MetronomeStates;
+      if (states != null && states.Length > 0)
+      {
+        for (int i = 0; i < states.Length; i++)
+        {
+          var s = states[i];
+          float m = 1.0f + s.StackIncrement * Math.Max(0, s.Streak);
+          if (s.MaxMultiplier > 0.0f)
+            m = MathF.Min(m, s.MaxMultiplier);
+          if (m > mult)
+            mult = m;
+        }
+      }
+
+      Weapon owner = arch.OwnerWeapon;
+      if (owner == null)
+        return;
+
+      // Find the first MetronomeModule on the weapon
+      WeaponModule found = null;
+      if (owner.Modules != null)
+      {
+        foreach (var m in owner.Modules)
+        {
+          if (m is MetronomeModule) { found = m; break; }
+        }
+      }
+      if (found == null && owner.ImmutableModules != null)
+      {
+        foreach (var m in owner.ImmutableModules)
+        {
+          if (m is MetronomeModule) { found = m; break; }
+        }
+      }
+      if (found == null)
+        return;
+
+      // Resolve module id and publish badge
+      if (found is MetronomeModule met)
+      {
+        met.PublishMultiplier(mult);
+      }
+    }
+    catch { }
   }
 
   private void ApplyDamagePostSteps(Archetype arch, Node3D enemy, float appliedDamage, float leftover, ref BulletData bullet)
@@ -682,24 +756,57 @@ public partial class BulletManager : Node3D
       {
         case DamagePostStepKind.OverkillTransfer:
         {
+          GD.Print($"[CursedSkull] leftover={leftover:0.##} enemy={(enemy != null ? enemy.Name : "null")} radius={step.ParamA:0.##}");
           if (leftover <= 0.0f || enemy == null)
             break;
 
-          Node3D? neighbor = FindNearestEnemy(enemy.GlobalTransform.Origin, step.ParamA);
+          Node3D? neighbor = FindNearestEnemy(enemy.GlobalTransform.Origin, step.ParamA, enemy);
+          GD.Print($"[CursedSkull] neighbor={(neighbor != null ? neighbor.Name : "null")}");
           if (neighbor == null || neighbor == enemy || !IsInstanceValid(neighbor))
+          {
+            GD.Print("[CursedSkull] transfer aborted (no valid neighbor)");
             break;
+          }
 
           try
           {
-            if (neighbor is Enemy en)
-              en.TakeDamage(leftover);
-            else
-              neighbor.CallDeferred("take_damage", leftover);
+            float beamStrength = Mathf.Clamp(0.35f + leftover * 0.05f, 0.35f, 2.5f);
+            float beamWidth = Mathf.Clamp(0.45f + leftover * 0.01f, 0.45f, 1.35f);
+            Vector3 originOffset = Vector3.Up * 0.9f;
+            Vector3 targetOffset = Vector3.Up * 0.9f;
+            CursedSkullBeamVfxManager.Spawn(enemy, originOffset, neighbor, targetOffset, beamStrength, widthOverride: beamWidth);
+          }
+          catch (Exception fxEx)
+          {
+            GD.PrintErr($"CursedSkull beam spawn failed: {fxEx.Message}");
+          }
 
-            FloatingNumber3D.Spawn(this, neighbor, leftover);
-            Vector3 dir = bullet.Velocity.LengthSquared() > 0.000001f ? bullet.Velocity.Normalized() : Vector3.Forward;
-            dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-            GlobalEvents.Instance?.EmitDamageDealt(neighbor, leftover, dir * DefaultKnockback);
+          try
+          {
+            bool applied = false;
+            if (neighbor is Enemy en)
+            {
+              en.TakeDamage(leftover);
+              applied = true;
+            }
+            else if (neighbor.HasMethod("take_damage"))
+            {
+              neighbor.CallDeferred("take_damage", leftover);
+              applied = true;
+            }
+
+            if (applied)
+            {
+              FloatingNumber3D.Spawn(this, neighbor, leftover);
+              Vector3 dir = bullet.Velocity.LengthSquared() > 0.000001f ? bullet.Velocity.Normalized() : Vector3.Forward;
+              dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
+              GlobalEvents.Instance?.EmitDamageDealt(neighbor, leftover, dir * DefaultKnockback);
+              GD.Print("[CursedSkull] transfer applied");
+            }
+            else
+            {
+              GD.Print("[CursedSkull] transfer aborted (neighbor lacks take_damage)");
+            }
           }
           catch (Exception e)
           {
@@ -728,6 +835,8 @@ public partial class BulletManager : Node3D
       state.HasEnemy = false;
       states[i] = state;
     }
+    // Refresh HUD after reset
+    Instance?.UpdateMetronomeBadge(arch);
   }
 
   public void NotifyWeaponReloaded(BulletWeapon weapon)
@@ -951,6 +1060,13 @@ public partial class BulletManager : Node3D
       LastColliderId = 0,
       CollisionCooldown = 0,
       StuckTimeLeft = 0,
+      PendingActionIndex = -1,
+      StuckTargetId = 0,
+      StuckLocalOffset = Vector3.Zero,
+      StuckLocalNormal = Vector3.Zero,
+      StuckWorldNormal = Vector3.Forward,
+      StuckPreVelocity = Vector3.Zero,
+      StickyCooldown = 0f,
     };
     // Spawn-time aim assist (aimbot)
     if (arch.BehaviorConfig != null && arch.BehaviorConfig.Aimbot is AimbotConfig aimCfg)
@@ -1052,13 +1168,15 @@ public partial class BulletManager : Node3D
               b.Velocity = b.StuckPreVelocity;
               // Short immunity to avoid immediately re-sticking
               b.StickyCooldown = 0.08f;
-              b.StuckTargetId = 0;
               // Resume any actions after sticky (e.g., bounce/explode), then continue simulation
               if (b.PendingActionIndex >= 0)
               {
                 PerformPendingActionsOnStickyEnd(ref b, arch);
-                b.PendingActionIndex = -1;
               }
+              b.StuckTargetId = 0;
+              b.StuckLocalOffset = Vector3.Zero;
+              b.StuckWorldNormal = Vector3.Zero;
+              b.StuckLocalNormal = Vector3.Zero;
               // Continue simulation normally this frame
             }
             // Still stuck: keep bullet alive without movement
@@ -1166,7 +1284,8 @@ public partial class BulletManager : Node3D
                 float damage = b.Damage;
                 float knockbackScale = 1.0f;
                 ApplyDamagePreSteps(arch, ref b, false, 0, ref damage, ref knockbackScale);
-                collider?.CallDeferred("take_damage", damage);
+                if (collider != null && collider.HasMethod("take_damage"))
+                  collider.CallDeferred("take_damage", damage);
                 Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
                 dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
                 GlobalEvents.Instance?.EmitDamageDealt(collider, damage, dir * DefaultKnockback * knockbackScale);
@@ -1430,9 +1549,15 @@ public partial class BulletManager
   private void PerformPendingActionsOnStickyEnd(ref BulletData b, Archetype arch)
   {
     int start = b.PendingActionIndex;
-    if (start < 0) return;
+    if (start < 0)
+      return;
 
-    // Determine current world position and a usable normal
+    if (start >= arch.CollisionOps.Length)
+    {
+      b.PendingActionIndex = -1;
+      return;
+    }
+
     Vector3 pos = b.Position;
     Vector3 normalWorld = b.StuckWorldNormal;
     Node3D? collider = null;
@@ -1447,11 +1572,12 @@ public partial class BulletManager
       }
     }
 
-    // Synthesize a collision at the release position and feed it back through the same pipeline
-    Vector3 nextPos = pos + (b.Velocity.LengthSquared() > 0 ? b.Velocity.Normalized() : Vector3.Forward) * MathF.Max(arch.Radius * 0.5f, 0.01f);
+    Vector3 dir = b.Velocity.LengthSquared() > 0.000001f ? b.Velocity.Normalized() : Vector3.Forward;
+    Vector3 nextPos = pos + dir * MathF.Max(arch.Radius * 0.5f, 0.01f);
     bool isEnemy = collider != null && collider.IsInGroup("enemies");
 
     ProcessCollisionOps(ref b, arch, pos, normalWorld, nextPos, b.StuckTargetId, isEnemy, collider, Math.Max(0, start));
+    b.PendingActionIndex = -1;
   }
   private void ProcessCollisionOrdered(ref BulletData b, Archetype arch, Vector3 hitPos, Vector3 hitNormal, Vector3 nextPos, ulong colliderId, bool isEnemy, Node3D? collider)
   {
@@ -1480,6 +1606,7 @@ public partial class BulletManager
     b.LastColliderId = colliderId;
     b.CollisionCooldown = 0.0f;
     b.PendingActionIndex = -1;
+    state.LastColliderId = colliderId;
 
     var behavior = arch.BehaviorConfig;
     var ops = arch.CollisionOps;
@@ -1497,100 +1624,51 @@ public partial class BulletManager
     bool resolvedMotion = false;
     bool keepAlive = false;
 
-    int stickyIndex = -1;
-    for (int si = startIndex; si < ops.Length; si++)
-    {
-      if (ops[si].Action == CollisionActionType.Sticky)
-      {
-        stickyIndex = si;
-        break;
-      }
-    }
-
-    if (stickyIndex >= 0 && b.StickyCooldown <= 0.0f && behavior != null && behavior.Sticky is StickyConfig stickyFirst)
-    {
-      if (isEnemy)
-      {
-        try
-        {
-          if (collider is Enemy enemyStick)
-          {
-            enemyStick.TakeDamage(stickyFirst.CollisionDamage);
-            Vector3 dirK = state.Velocity.LengthSquared() > 0.000001f ? state.Velocity.Normalized() : Vector3.Forward;
-            dirK = new Vector3(dirK.X, 0.15f * dirK.Y, dirK.Z).Normalized();
-            GlobalEvents.Instance?.EmitDamageDealt(enemyStick, stickyFirst.CollisionDamage, dirK * DefaultKnockback);
-          }
-          else if (collider != null)
-          {
-            collider.CallDeferred("take_damage", stickyFirst.CollisionDamage);
-            Vector3 dirK = state.Velocity.LengthSquared() > 0.000001f ? state.Velocity.Normalized() : Vector3.Forward;
-            dirK = new Vector3(dirK.X, 0.15f * dirK.Y, dirK.Z).Normalized();
-            GlobalEvents.Instance?.EmitDamageDealt(collider, stickyFirst.CollisionDamage, dirK * DefaultKnockback);
-          }
-        }
-        catch (Exception e)
-        {
-          GD.PrintErr($"BulletManager sticky damage call failed: {e.Message}");
-        }
-        if (collider != null)
-          FloatingNumber3D.Spawn(this, collider, stickyFirst.CollisionDamage);
-      }
-
-      b.Position = hitPos;
-      b.PrevPosition = b.Position;
-      b.StuckPreVelocity = state.Velocity;
-      b.Velocity = Vector3.Zero;
-      b.StuckTimeLeft = stickyFirst.Duration;
-      b.StuckTargetId = colliderId;
-      b.StuckLocalOffset = collider != null ? collider.ToLocal(hitPos) : Vector3.Zero;
-      b.StuckWorldNormal = hitNormal;
-      b.StuckLocalNormal = collider != null ? ToLocalNormal(collider, hitNormal) : hitNormal;
-      if (collider != null)
-        SpawnStickyBlob(collider, hitPos, hitNormal, arch.Radius, stickyFirst.Duration);
-      b.StuckStickyIndex = stickyIndex;
-      b.PendingActionIndex = stickyIndex + 1;
-      return;
-    }
-
-    for (int i = startIndex; i < ops.Length; i++)
+    for (int i = Math.Max(0, startIndex); i < ops.Length; i++)
     {
       var action = ops[i].Action;
       switch (action)
       {
         case CollisionActionType.Explode:
-          if (behavior != null && behavior.Explosive is ExplosiveConfig expCfg)
+          if (behavior?.Explosive is ExplosiveConfig expCfg)
           {
-            if (stickyIndex >= 0 && i > stickyIndex)
-            {
-              if (b.PendingActionIndex < 0)
-                b.PendingActionIndex = i;
-            }
-            else
-            {
-              ApplyExplosionAOE(hitPos, expCfg, state.Damage);
-            }
+            ApplyExplosionAOE(hitPos, expCfg, state.Damage);
           }
           break;
 
         case CollisionActionType.Sticky:
-          if (behavior != null && behavior.Sticky is StickyConfig stickyCfg)
+          if (behavior?.Sticky is StickyConfig stickyCfg && b.StickyCooldown <= 0.0f)
           {
-            if (b.StickyCooldown > 0.0f)
-              break;
             if (isEnemy)
             {
+              Node3D? damageTarget = null;
               try
               {
                 if (collider is Enemy enemyStick)
+                {
                   enemyStick.TakeDamage(stickyCfg.CollisionDamage);
-                else if (collider != null)
+                  Vector3 dirK = state.Velocity.LengthSquared() > 0.000001f ? state.Velocity.Normalized() : Vector3.Forward;
+                  dirK = new Vector3(dirK.X, 0.15f * dirK.Y, dirK.Z).Normalized();
+                  GlobalEvents.Instance?.EmitDamageDealt(enemyStick, stickyCfg.CollisionDamage, dirK * DefaultKnockback);
+                  damageTarget = enemyStick;
+                }
+                else if (collider != null && collider.HasMethod("take_damage"))
+                {
                   collider.CallDeferred("take_damage", stickyCfg.CollisionDamage);
+                  Vector3 dirK = state.Velocity.LengthSquared() > 0.000001f ? state.Velocity.Normalized() : Vector3.Forward;
+                  dirK = new Vector3(dirK.X, 0.15f * dirK.Y, dirK.Z).Normalized();
+                  GlobalEvents.Instance?.EmitDamageDealt(collider, stickyCfg.CollisionDamage, dirK * DefaultKnockback);
+                  damageTarget = collider;
+                }
               }
               catch (Exception e)
               {
                 GD.PrintErr($"BulletManager sticky damage call failed: {e.Message}");
               }
+              if (damageTarget != null)
+                FloatingNumber3D.Spawn(this, damageTarget, stickyCfg.CollisionDamage);
             }
+
             b.Position = hitPos;
             b.PrevPosition = b.Position;
             b.StuckPreVelocity = state.Velocity;
@@ -1602,55 +1680,43 @@ public partial class BulletManager
             b.StuckLocalNormal = collider != null ? ToLocalNormal(collider, hitNormal) : hitNormal;
             if (collider != null)
               SpawnStickyBlob(collider, hitPos, hitNormal, arch.Radius, stickyCfg.Duration);
-            b.StuckStickyIndex = i;
             b.PendingActionIndex = i + 1;
             return;
           }
           break;
 
         case CollisionActionType.Pierce:
-          if (behavior != null && behavior.Pierce is PierceConfig pierceCfg && !resolvedMotion)
+          if (behavior?.Pierce is PierceConfig pierceCfg && !resolvedMotion && isEnemy && state.PenetrationCount < pierceCfg.MaxPenetrations)
           {
-            if (stickyIndex >= 0)
-            {
-              if (b.PendingActionIndex < 0)
-                b.PendingActionIndex = i;
-            }
-            else
-            {
-              int before = state.PenetrationCount;
-              var ctx = new CollisionContext(hitPos, hitNormal, nextPos, colliderId, isEnemy, arch.Radius, false);
-              var cfg = BulletBehaviorConfig.Create(null, pierceCfg);
-              _ = BulletCollisionProcessor.ProcessCollision(ref state, cfg, ctx);
-              if (state.PenetrationCount > before)
-              {
-                keepAlive = true;
-                resolvedMotion = true;
-              }
-            }
+            state.PenetrationCount++;
+            state.Damage *= (1.0f - pierceCfg.DamageReduction);
+            state.Velocity *= pierceCfg.VelocityFactor;
+            Vector3 forward = state.Velocity.LengthSquared() > 0.0001f
+              ? state.Velocity.Normalized()
+              : (nextPos - state.Position).Normalized();
+            if (forward.LengthSquared() < 0.0001f)
+              forward = Vector3.Forward;
+            float epsilon = MathF.Max(0.01f, arch.Radius);
+            state.Position = hitPos + forward * epsilon;
+            state.PrevPosition = state.Position;
+            state.CollisionCooldown = pierceCfg.Cooldown;
+            keepAlive = true;
+            resolvedMotion = true;
           }
           break;
 
         case CollisionActionType.Bounce:
-          if (behavior != null && behavior.Bounce is BounceConfig bounceCfg && !resolvedMotion)
+          if (behavior?.Bounce is BounceConfig bounceCfg && !resolvedMotion && hitNormal.LengthSquared() > 0.000001f && state.BounceCount < bounceCfg.MaxBounces)
           {
-            if (stickyIndex >= 0)
-            {
-              if (b.PendingActionIndex < 0)
-                b.PendingActionIndex = i;
-            }
-            else
-            {
-              int before = state.BounceCount;
-              var ctx = new CollisionContext(hitPos, hitNormal, nextPos, colliderId, isEnemy, arch.Radius, false);
-              var cfg = BulletBehaviorConfig.Create(bounceCfg, null);
-              _ = BulletCollisionProcessor.ProcessCollision(ref state, cfg, ctx);
-              if (state.BounceCount > before)
-              {
-                keepAlive = true;
-                resolvedMotion = true;
-              }
-            }
+            Vector3 normal = hitNormal.Normalized();
+            state.BounceCount++;
+            state.Velocity = state.Velocity.Bounce(normal) * bounceCfg.Bounciness;
+            state.Damage *= (1.0f - bounceCfg.DamageReduction);
+            float epsilon = MathF.Max(0.01f, arch.Radius);
+            state.Position = hitPos + normal * epsilon;
+            state.PrevPosition = state.Position;
+            keepAlive = true;
+            resolvedMotion = true;
           }
           break;
       }
@@ -1670,7 +1736,7 @@ public partial class BulletManager
       if (arch.DestroyOnImpact)
         b.Active = false;
     }
-    else if (behavior != null && behavior.Aimbot is AimbotConfig aimCfg)
+    else if (behavior?.Aimbot is AimbotConfig aimCfg)
     {
       _ = TryApplyAimbot(ref b, aimCfg, isEnemy ? colliderId : 0);
     }
@@ -1788,8 +1854,10 @@ public partial class BulletManager
         {
           if (enemyNode is Enemy enemy)
             enemy.TakeDamage(damage);
-          else
+          else if (enemyNode.HasMethod("take_damage"))
             enemyNode.CallDeferred("take_damage", damage);
+          else
+            continue;
         }
         catch (Exception e)
         {
@@ -1808,13 +1876,15 @@ public partial class BulletManager
     }
   }
 
-  private Node3D? FindNearestEnemy(Vector3 position, float radius)
+  private Node3D? FindNearestEnemy(Vector3 position, float radius, Node3D? exclude = null)
   {
     Node3D? nearest = null;
-    float best = radius;
+    float best = radius > 0.0f ? radius : float.PositiveInfinity;
     foreach (Node node in GetTree().GetNodesInGroup("enemies"))
     {
       if (node is not Node3D enemy || !IsInstanceValid(enemy))
+        continue;
+      if (exclude != null && enemy == exclude)
         continue;
       float d = enemy.GlobalTransform.Origin.DistanceTo(position);
       if (d < best)
@@ -1831,36 +1901,87 @@ public partial class BulletManager
     try
     {
       Node parent = GetTree().CurrentScene ?? this;
-      var line = new MeshInstance3D();
-      var box = new BoxMesh();
-      float thickness = Mathf.Max(0.0f, width);
       float distance = start.DistanceTo(end);
       if (distance <= 0.0001f)
         return;
-      box.Size = new Vector3(thickness, thickness, distance);
-      line.Mesh = box;
 
+      float thickness = Mathf.Max(0.001f, width);
       Vector3 mid = (start + end) * 0.5f;
-      Transform3D t = Transform3D.Identity;
-      t.Origin = mid;
-      Vector3 dir = (end - start).Normalized();
-      t.Basis = Basis.LookingAt(dir, Vector3.Up);
-      line.Transform = t;
+      Vector3 direction = (end - start).Normalized();
+
+      Camera3D? camera = GetViewport()?.GetCamera3D();
+      Vector3 cameraVector = camera != null
+        ? (camera.GlobalTransform.Origin - mid)
+        : Vector3.Up;
+      if (cameraVector.LengthSquared() <= 0.000001f)
+        cameraVector = Vector3.Up;
+
+      Vector3 normal = direction.Cross(cameraVector);
+      if (normal.LengthSquared() <= 0.000001f)
+      {
+        normal = direction.Cross(Vector3.Up);
+        if (normal.LengthSquared() <= 0.000001f)
+          normal = direction.Cross(Vector3.Right);
+      }
+      normal = normal.Normalized();
+      Vector3 offset = normal * (thickness * 0.5f);
+
+      Vector3 startLocal = start - mid;
+      Vector3 endLocal = end - mid;
+
+      Vector3 v0 = startLocal + offset;
+      Vector3 v1 = startLocal - offset;
+      Vector3 v2 = endLocal - offset;
+      Vector3 v3 = endLocal + offset;
+
+      var st = new SurfaceTool();
+      st.Begin(Mesh.PrimitiveType.Triangles);
+
+      var color = new Color(1, 0, 0, 1);
+      st.SetColor(color);
+      st.AddVertex(v0);
+      st.SetColor(color);
+      st.AddVertex(v1);
+      st.SetColor(color);
+      st.AddVertex(v2);
+
+      st.SetColor(color);
+      st.AddVertex(v2);
+      st.SetColor(color);
+      st.AddVertex(v3);
+      st.SetColor(color);
+      st.AddVertex(v0);
+
+      ArrayMesh? mesh = st.Commit();
+      if (mesh == null)
+        return;
+
+      var line = new MeshInstance3D
+      {
+        Mesh = mesh,
+        CastShadow = GeometryInstance3D.ShadowCastingSetting.Off
+      };
 
       var mat = new StandardMaterial3D
       {
         ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
         DepthDrawMode = BaseMaterial3D.DepthDrawModeEnum.Always,
-        AlbedoColor = new Color(1, 0, 0, 1),
+        CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+        AlbedoColor = color,
         Transparency = BaseMaterial3D.TransparencyEnum.Disabled,
       };
       line.MaterialOverride = mat;
 
       parent.AddChild(line);
+      line.GlobalTransform = new Transform3D(Basis.Identity, mid);
 
       // Auto-remove after duration using a Timer
       var timer = new Godot.Timer { OneShot = true, WaitTime = Math.Max(0.01f, duration) };
-      timer.Timeout += () => { if (IsInstanceValid(line)) line.QueueFree(); if (IsInstanceValid(timer)) timer.QueueFree(); };
+      timer.Timeout += () =>
+      {
+        if (IsInstanceValid(line)) line.QueueFree();
+        if (IsInstanceValid(timer)) timer.QueueFree();
+      };
       parent.AddChild(timer);
       timer.Start();
     }

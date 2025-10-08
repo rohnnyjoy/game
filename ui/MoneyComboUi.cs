@@ -223,7 +223,7 @@ public partial class MoneyComboUi : Control
     {
       DebugLog($"Activity: {cause} -> PopIn; pending={pendingCombo}, draining={draining}, waiting={waitingToDrain}");
       cfg.PopDelay = ComboPopDelay;
-      cfg.PopInStartAt = 0f;
+      cfg.PopInStartAt = null;
       text.Init(cfg);
       Visible = true;
       _poppedIn = true;

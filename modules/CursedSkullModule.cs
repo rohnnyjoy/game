@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 public partial class CursedSkullModule : WeaponModule, IDamagePostStepProvider
 {
-  [Export] public float TransferRadius { get; set; } = 8.0f;
+  [Export] public float TransferRadius { get; set; } = 0.0f; // 0 means no range cap; find nearest anywhere
 
   public CursedSkullModule()
   {

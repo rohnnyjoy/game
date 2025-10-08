@@ -37,7 +37,7 @@ public partial class HealthPotion : Area3D
     frames.SetAnimationSpeed("idle", 10f);
 
     if (_sheet == null)
-      _sheet = GD.Load<Texture2D>("res://assets/sprites/health_potion_24x24.png");
+      _sheet = GD.Load<Texture2D>("res://assets/sprites/items/health_potion_24x24.png");
     if (_sheet == null)
       return frames;
 

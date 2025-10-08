@@ -1,8 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://dd5kikeo2d1dx"]
+[gd_scene load_steps=3 format=3 uid="uid://dd5kikeo2d1dx"]
 
 [ext_resource type="Script" uid="uid://bvrbdf3ge55dd" path="res://ui/HealthUi.cs" id="1_buv8e"]
-[ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://inventory/menu/PrimaryWeaponStack.cs" id="2_3s6yq"]
-[ext_resource type="StackLayoutConfig" uid="uid://cgockfowvkrrv" path="res://inventory/ui/layouts/hud_primary_stack.tres" id="3_2qu14"]
+[ext_resource type="Script" path="res://ui/HudModuleBar.cs" id="2_j1m1w"]
 
 [node name="TopLeftHud" type="VBoxContainer"]
 offset_left = 16.0
@@ -14,8 +13,8 @@ layout_mode = 2
 size_flags_horizontal = 0
 script = ExtResource("1_buv8e")
 
-[node name="PrimaryWeaponStack" type="Panel" parent="."]
+[node name="PrimaryModules" type="HBoxContainer" parent="."]
 layout_mode = 2
 size_flags_horizontal = 0
-Layout = ExtResource("3_2qu14")
-script = ExtResource("2_3s6yq")
+theme_override_constants/separation = 0
+script = ExtResource("2_j1m1w")

@@ -115,3 +115,6 @@ res://bullets/modifiers/CursedSkullBulletModifier.cs
 res://modules/CursedSkullModule.cs
 res://modules/MetronomeModule.cs
 res://shared/effects/ExplosionVfxManager.cs
+res://shared/effects/CursedSkullBeamVfxManager.cs
+res://ui/HudModuleBar.cs
+res://ui/ModuleBadgeRegistry.cs

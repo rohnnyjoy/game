@@ -80,7 +80,7 @@ public partial class PlayerMovement : Node
       var spawnPos = player.GlobalPosition + Vector3.Down * 0.6f;
       SpriteSheetFx.Spawn(
         player,
-        sheetPath: "res://assets/sprites/impact_2_dust_48x48.png",
+        sheetPath: "res://assets/sprites/effects/impact/impact_2_dust_48x48.png",
         frameW: 48,
         frameH: 48,
         position: spawnPos,
@@ -210,12 +210,12 @@ public partial class PlayerMovement : Node
       newHorizontalVel = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
 
       // Spawn an air-dash dust sprite effect near the player's feet.
-      // Uses the 2D sheet assets/sprites/dust_28x12.png via DashDustSprite.
+      // Uses the 2D sheet assets/sprites/effects/dust/dust_28x12.png via DashDustSprite.
       var spawnPos = player.GlobalPosition + Vector3.Down * 0.6f;
       // Use generic SpriteSheetFx: dust_28x12, billboarded and large.
       SpriteSheetFx.Spawn(
         player,
-        sheetPath: "res://assets/sprites/dust_28x12.png",
+        sheetPath: "res://assets/sprites/effects/dust/dust_28x12.png",
         frameW: 28,
         frameH: 12,
         position: spawnPos,
@@ -256,7 +256,7 @@ public partial class PlayerMovement : Node
           Vector3 hitPos = collision.GetPosition();
           SpriteSheetFx.Spawn(
             player,
-            sheetPath: "res://assets/sprites/impact_2_dust_48x48.png",
+            sheetPath: "res://assets/sprites/effects/impact/impact_2_dust_48x48.png",
             frameW: 48,
             frameH: 48,
             position: hitPos,
@@ -284,7 +284,7 @@ public partial class PlayerMovement : Node
         var spawnPos = player.GlobalPosition + Vector3.Down * 0.6f;
         SpriteSheetFx.Spawn(
           player,
-          sheetPath: "res://assets/sprites/impact_2_dust_48x48.png",
+          sheetPath: "res://assets/sprites/effects/impact/impact_2_dust_48x48.png",
           frameW: 48,
           frameH: 48,
           position: spawnPos,

@@ -3,9 +3,8 @@ using System.Collections.Generic;
 
 public partial class WeightedGloveModule : WeaponModule, IDamagePreStepProvider
 {
-  [Export] public float DamagePerSpeedFactor { get; set; } = 1.0f; // 2x damage at 2x speed by default
-  [Export] public float KnockbackPerSpeedFactor { get; set; } = 1.0f; // 2x knockback at 2x speed by default
-  [Export] public bool UseInitialSpeedAsBaseline { get; set; } = true;
+  [Export] public float DamagePerSpeedFactor { get; set; } = 1.0f;
+  [Export] public float KnockbackPerSpeedFactor { get; set; } = 0.0f;
 
   public WeightedGloveModule()
   {
@@ -23,7 +22,7 @@ public partial class WeightedGloveModule : WeaponModule, IDamagePreStepProvider
       paramA: DamagePerSpeedFactor,
       paramB: KnockbackPerSpeedFactor,
       paramC: 0f,
-      flag: UseInitialSpeedAsBaseline
+      flag: false
     );
   }
 }

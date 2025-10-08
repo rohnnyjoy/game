@@ -75,7 +75,7 @@ public partial class ItemRenderer : Node3D
       Size = new Vector2(1, 1),
     };
 
-    _sheet = GD.Load<Texture2D>("res://assets/sprites/coin_20x20.png");
+    _sheet = GD.Load<Texture2D>("res://assets/sprites/items/coin_20x20.png");
     if (_sheet != null)
     {
       _cols = Math.Max(1, _sheet.GetWidth() / 20);
@@ -522,7 +522,7 @@ public partial class ItemRenderer : Node3D
   private void EnsurePotionBatches()
   {
     if (_potionSheet == null)
-      _potionSheet = GD.Load<Texture2D>("res://assets/sprites/health_potion_24x24.png");
+      _potionSheet = GD.Load<Texture2D>("res://assets/sprites/items/health_potion_24x24.png");
     if (_potionSheet != null)
     {
       _potionCols = Math.Max(1, _potionSheet.GetWidth() / 24);

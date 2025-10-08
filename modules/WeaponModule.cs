@@ -19,6 +19,8 @@ public partial class WeaponModule : Resource
   [Export] public virtual Rarity Rarity { get; set; } = Rarity.Common;
   [Export] public virtual Array<BulletModifier> BulletModifiers { get; set; } = new Array<BulletModifier>();
 
+  public event Action<ModuleBadge?> BadgeChanged;
+
 
   public Action OnReloadStart { get; private set; } = () => { };
   public Action OnReloadEnd { get; private set; } = () => { };
@@ -77,6 +79,18 @@ public partial class WeaponModule : Resource
   {
     return accuracy;
   }
+
+  protected void SetBadge(string text, Color? textColor = null, Color? backgroundColor = null)
+  {
+    BadgeChanged?.Invoke(new ModuleBadge(text, textColor, backgroundColor));
+  }
+
+  protected void ClearBadge()
+  {
+    BadgeChanged?.Invoke(null);
+  }
+
+  public virtual ModuleBadge? GetInitialBadge() => null;
 
   public virtual async Task OnWeaponProcess(double delta)
   {

@@ -92,6 +92,18 @@ public partial class GlobalEvents : Node
       var ex = new ExplosionVfxManager();
       AddChild(ex);
     }
+    // Ensure a ModuleBadgeRegistry exists for dynamic HUD badges
+    if (ModuleBadgeRegistry.Instance == null)
+    {
+      var badges = new ModuleBadgeRegistry();
+      AddChild(badges);
+    }
+    // Ensure a cursed skull beam manager exists for batched transfer rendering
+    if (CursedSkullBeamVfxManager.Instance == null)
+    {
+      var skull = new CursedSkullBeamVfxManager();
+      AddChild(skull);
+    }
 
     // Wire global listeners
     Connect(nameof(DamageDealt), new Callable(this, nameof(OnDamageDealt)));

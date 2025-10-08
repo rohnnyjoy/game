@@ -7,7 +7,7 @@ public partial class ModuleStackView : Panel
   [Export] public StackKind Kind { get; set; } = StackKind.Inventory;
   [Export] public StackLayoutConfig Layout { get; set; }
   [Export(PropertyHint.Range, "0,16,1")] public int VisibleSlotCount { get; set; } = 4;
-  [Export] public Vector2 CardSize { get; set; } = new Vector2(100, 100);
+  [Export] public Vector2 CardSize { get; set; } = new Vector2(ModuleUiConfig.IconSize, ModuleUiConfig.IconSize);
   [Export] public Color PlaceholderColor { get; set; } = new Color(1, 1, 1, 0.65f);
   [Export] public float PlaceholderWidth { get; set; } = 0f;
   [Export] public BoxContainer.AlignmentMode SlotsAlignment { get; set; } = BoxContainer.AlignmentMode.Center;
@@ -70,12 +70,17 @@ public partial class ModuleStackView : Panel
       _store.StateChanged += OnStoreStateChanged;
       RenderCurrent();
     }
+
+    if (ModuleBadgeRegistry.Instance != null)
+      ModuleBadgeRegistry.Instance.BadgeChanged += OnBadgeChanged;
   }
 
   public override void _ExitTree()
   {
     if (_store != null)
       _store.StateChanged -= OnStoreStateChanged;
+    if (ModuleBadgeRegistry.Instance != null)
+      ModuleBadgeRegistry.Instance.BadgeChanged -= OnBadgeChanged;
     base._ExitTree();
   }
 
@@ -222,13 +227,27 @@ public partial class ModuleStackView : Panel
       slot.ConfigureVisuals(Layout.SlotNinePatchTexture, Layout.SlotNinePatchMargin, Layout.SlotPadding, CardSize);
       slot.Kind = Kind;
       if (i < modules.Length)
-        slot.SetContent(modules[i]);
+      {
+        var vm = modules[i];
+        slot.SetContent(vm);
+        // Apply badge overlay if available
+        if (ModuleBadgeRegistry.Instance != null && ModuleBadgeRegistry.Instance.TryGetBadge(vm.ModuleId, out var badge))
+          slot.SetBadge(badge.Text, badge.TextColor);
+        else
+          slot.SetBadge(string.Empty);
+      }
       else
         slot.Clear();
     }
 
     ApplyLayout(slotCount);
     HidePlaceholder();
+  }
+
+  private void OnBadgeChanged(string moduleId)
+  {
+    // Refresh current slots to update visible badges
+    RenderCurrent();
   }
 
   private void ApplyLayout(int slotCount)

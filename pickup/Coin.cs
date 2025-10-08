@@ -38,7 +38,7 @@ public partial class Coin : Area3D
     frames.SetAnimationSpeed("spin", 12f);
 
     if (_sheet == null)
-      _sheet = GD.Load<Texture2D>("res://assets/sprites/coin_20x20.png");
+      _sheet = GD.Load<Texture2D>("res://assets/sprites/items/coin_20x20.png");
     if (_sheet == null)
       return frames;
 

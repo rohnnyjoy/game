@@ -6,7 +6,7 @@ public partial class ImpactSprite : Node3D
   private const int FrameW = 48;
   private const int FrameH = 48;
   private const float FramesPerSecond = 18f;
-  private const string SheetPath = "res://assets/sprites/impact_48x48.png";
+  private const string SheetPath = "res://assets/sprites/effects/impact/impact_48x48.png";
 
   public static void Prewarm()
   {

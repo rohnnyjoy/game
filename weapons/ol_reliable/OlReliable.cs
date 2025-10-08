@@ -13,10 +13,8 @@ public partial class OlReliable : BulletWeapon
   {
     ImmutableModules = new Array<WeaponModule> { new OlReliableModule() };
     Modules = new Array<WeaponModule> {
-      // new ExplosiveModule(),
-      new PiercingModule(),
-      // new HomingModule(),
-      new AimbotModule()
+      new WeightedGloveModule(),
+      new CursedSkullModule(),
     };
     // MuzzleFlash = new GunpowderMuzzleFlash();
     // Uncomment one of the following module sets if needed:

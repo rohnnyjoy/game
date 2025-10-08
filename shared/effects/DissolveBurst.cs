@@ -97,8 +97,17 @@ namespace Shared.Effects
 
       // We want one emission area per face and evenly mix all palette colors on each face.
       int faceCount = 6;
+      if (colorTemplates.Count == 0)
+      {
+        GD.PushWarning("DissolveBurst: Scene has no GPUParticles3D templates; skipping spawn.");
+        QueueFree();
+        return;
+      }
+
       int paletteCount = palette != null && palette.Count > 0 ? palette.Count : Math.Max(1, colorTemplates.Count);
-      int perFaceAmount = Math.Max(1, ParticleCount / Math.Max(1, faceCount));
+      int perFaceAmount = Mathf.RoundToInt(ParticleCount / Math.Max(1f, faceCount));
+      if (perFaceAmount < 1)
+        perFaceAmount = 1;
 
       // Define faces: outward normal, local offset to face plane, and thin box extents (shell thickness on normal)
       float thickness = Mathf.Max(0.05f, maxExtent * 0.06f);
@@ -117,6 +126,10 @@ namespace Shared.Effects
       {
         // Select a subset of colors for this face to limit emitter count while maintaining variety.
         int colorsForFace = Math.Min(MaxColorsPerFace, Math.Max(1, paletteCount));
+        // Avoid spawning more emitters than we can give particles to; otherwise Godot errors on Amount < 1.
+        colorsForFace = Math.Max(1, Math.Min(colorsForFace, perFaceAmount));
+        int baseAmount = Math.Max(1, Mathf.FloorToInt(perFaceAmount / (float)colorsForFace));
+        int remainder = Math.Max(0, perFaceAmount - baseAmount * colorsForFace);
         int stride = 2; // good spread for odd paletteCounts like 5; OK for others too
         for (int k = 0; k < colorsForFace; k++)
         {
@@ -178,10 +191,10 @@ namespace Shared.Effects
           }
 
           // Amount distribution (add 1 to the first 'remainder' colors to account for division remainder)
-          int baseAmount = Math.Max(0, perFaceAmount / Math.Max(1, colorsForFace));
-          int remainder = perFaceAmount - baseAmount * colorsForFace;
           int amount = baseAmount + (k < remainder ? 1 : 0);
-          clone.Amount = Math.Max(0, amount);
+          if (amount < 1)
+            amount = 1;
+          clone.Amount = amount;
 
           AddChild(clone);
           _emitters.Add(clone);
@@ -193,7 +206,8 @@ namespace Shared.Effects
       {
         if (!IsInstanceValid(t)) continue;
         t.Emitting = false;
-        t.Amount = 0;
+        // Godot 4 enforces Amount >= 1, so leave hidden templates at the minimum.
+        t.Amount = 1;
         t.Visible = false;
       }
 

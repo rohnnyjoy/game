@@ -13,6 +13,8 @@ public partial class InventoryStore : Node
 
   private readonly System.Collections.Generic.Dictionary<string, ModuleData> _catalogById = new();
   private readonly System.Collections.Generic.Dictionary<WeaponModule, string> _idsByModule = new();
+  private readonly System.Collections.Generic.Dictionary<WeaponModule, Action<ModuleBadge?>> _badgeHandlers = new();
+  private readonly System.Collections.Generic.Dictionary<WeaponModule, ModuleBadge?> _lastBadges = new();
   private readonly List<string> _inventoryOrder = new();
   private readonly List<string> _primaryWeaponOrder = new();
   private Weapon _primaryWeapon;
@@ -64,6 +66,8 @@ public partial class InventoryStore : Node
 
     CommitState(origin);
   }
+
+  
 
   public ModuleVm[] GetModules(StackKind kind)
   {
@@ -251,12 +255,16 @@ public partial class InventoryStore : Node
   private string EnsureModuleRegistered(WeaponModule module)
   {
     if (_idsByModule.TryGetValue(module, out string existingId))
+    {
+      HookModuleBadge(module, existingId);
       return existingId;
+    }
 
     string id = Guid.NewGuid().ToString("N");
     var entry = new ModuleData(id, module);
     _idsByModule[module] = id;
     _catalogById[id] = entry;
+    HookModuleBadge(module, id);
     return id;
   }
 
@@ -310,8 +318,54 @@ public partial class InventoryStore : Node
       if (_catalogById.TryGetValue(id, out ModuleData data) && data.Module != null)
       {
         _idsByModule.Remove(data.Module);
+        if (_badgeHandlers.TryGetValue(data.Module, out var handler))
+        {
+          data.Module.BadgeChanged -= handler;
+          _badgeHandlers.Remove(data.Module);
+        }
+        _lastBadges.Remove(data.Module);
+        ModuleBadgeRegistry.Instance?.ClearBadge(id);
       }
       _catalogById.Remove(id);
+    }
+  }
+
+  private void HookModuleBadge(WeaponModule module, string moduleId)
+  {
+    if (module == null || string.IsNullOrEmpty(moduleId))
+      return;
+
+    if (_badgeHandlers.ContainsKey(module))
+      return;
+
+    Action<ModuleBadge?> handler = badge =>
+    {
+      _lastBadges[module] = badge;
+      if (ModuleBadgeRegistry.Instance == null)
+        return;
+      if (badge.HasValue && !string.IsNullOrEmpty(badge.Value.Text))
+        ModuleBadgeRegistry.Instance.SetBadge(moduleId, badge.Value);
+      else
+        ModuleBadgeRegistry.Instance.ClearBadge(moduleId);
+    };
+
+    _badgeHandlers[module] = handler;
+    module.BadgeChanged += handler;
+
+    ModuleBadge? initial = module.GetInitialBadge();
+    _lastBadges[module] = initial;
+    handler(initial);
+  }
+
+  public void ReplayModuleBadges()
+  {
+    foreach (var pair in _badgeHandlers)
+    {
+      var module = pair.Key;
+      if (_lastBadges.TryGetValue(module, out var badge))
+      {
+        pair.Value(badge);
+      }
     }
   }
 

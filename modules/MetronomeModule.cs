@@ -64,6 +64,7 @@ public partial class MetronomeModule : WeaponModule, IDamagePreStepProvider
   {
     ResetChain();
     _lastHitAt = GetNow();
+    PublishMultiplier(1f);
   }
 
   private float GetNow() => (float)Time.GetTicksMsec() / 1000f;
@@ -111,6 +112,7 @@ public partial class MetronomeModule : WeaponModule, IDamagePreStepProvider
     _streak = 0;
     _hasLastEnemy = false;
     _lastEnemyId = 0;
+    PublishMultiplier(1f);
   }
 
   // No per-stat overrides; damage multipliers apply at hit time via pipeline.
@@ -121,7 +123,16 @@ public partial class MetronomeModule : WeaponModule, IDamagePreStepProvider
     {
       ResetChain();
       _lastHitAt = GetNow();
+      PublishMultiplier(1f);
     }
     return Task.CompletedTask;
   }
+
+  public void PublishMultiplier(float multiplier)
+  {
+    string text = $"x{multiplier:0.0#}";
+    SetBadge(text);
+  }
+
+  public override ModuleBadge? GetInitialBadge() => new ModuleBadge("x1.0");
 }
