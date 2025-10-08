@@ -346,15 +346,15 @@ public partial class SlotView : Control
 
   private void OnMouseEntered()
   {
-    if (_module != null && GameUi.Instance != null)
+    if (_module != null && GameUI.Instance != null)
     {
-      GameUi.Instance.ShowTooltip(this, _module.Tooltip ?? string.Empty);
+      GameUI.Instance.ShowTooltip(this, _module.Tooltip ?? string.Empty);
     }
   }
 
   private void OnMouseExited()
   {
-    if (GameUi.Instance != null)
-      GameUi.Instance.HideTooltip();
+    if (GameUI.Instance != null)
+      GameUI.Instance.HideTooltip();
   }
 }

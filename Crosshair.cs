@@ -44,8 +44,8 @@ public partial class Crosshair : Control
   public override void _Draw()
   {
     // Draw centered; when not using full-frame overlay, cancel UI offset so the crosshair remains fixed.
-    bool fullFrame = GameUi.Instance != null && GameUi.Instance.UseFullFrameShake;
-    Vector2 shake = (!fullFrame && GameUi.Instance != null) ? GameUi.Instance.GetScreenShakeOffset() : Vector2.Zero;
+    bool fullFrame = GameUI.Instance != null && GameUI.Instance.UseFullFrameShake;
+    Vector2 shake = (!fullFrame && GameUI.Instance != null) ? GameUI.Instance.GetScreenShakeOffset() : Vector2.Zero;
     Vector2 center = (Size / 2) - shake;
 
     // Define crosshair properties.

@@ -203,8 +203,8 @@ public partial class Card2D : Button
     Tween tween = CreateTween();
     tween.TweenProperty(this, "scale", new Vector2(1.1f, 1.1f), 0.1f);
     TooltipText = "";
-    if (GameUi.Instance != null)
-      GameUi.Instance.HideTooltip();
+    if (GameUI.Instance != null)
+      GameUI.Instance.HideTooltip();
 
     // Notify containing framed stack (if any) to begin placeholder-based drag handling.
     _framedOwner = FindFramedOwner();
@@ -334,8 +334,8 @@ public partial class Card2D : Button
     if (!_pickedUp)
     {
       // Show custom tooltip immediately on hover, anchored to this control
-      if (GameUi.Instance != null)
-        GameUi.Instance.ShowTooltip(this, CardCore.CardDescription);
+      if (GameUI.Instance != null)
+        GameUI.Instance.ShowTooltip(this, CardCore.CardDescription);
     }
     Tween tween = CreateTween().SetEase(Tween.EaseType.Out)
                                  .SetTrans(Tween.TransitionType.Elastic);
@@ -346,8 +346,8 @@ public partial class Card2D : Button
   {
     if (_pickedUp)
       return;
-    if (GameUi.Instance != null)
-      GameUi.Instance.HideTooltip();
+    if (GameUI.Instance != null)
+      GameUI.Instance.HideTooltip();
     Tween tween = CreateTween().SetEase(Tween.EaseType.Out)
                                  .SetTrans(Tween.TransitionType.Back)
                                  .SetParallel(true);

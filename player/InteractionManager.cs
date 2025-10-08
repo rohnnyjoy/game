@@ -74,12 +74,12 @@ public partial class InteractionManager : Node
     }
 
     // UI may not be ready yet at startup; guard the singleton.
-    if (GameUi.Instance != null)
+    if (GameUI.Instance != null)
     {
       if (bestInteractable != null)
-        GameUi.Instance.ShowInteractionText(bestInteractable.GetInteractionText());
+        GameUI.Instance.ShowInteractionText(bestInteractable.GetInteractionText());
       else
-        GameUi.Instance.HideInteractionText();
+        GameUI.Instance.HideInteractionText();
     }
 
     return bestInteractable;
@@ -90,14 +90,14 @@ public partial class InteractionManager : Node
     IInteractable interactable = DetectInteractable();
     if (interactable != null)
     {
-      if (GameUi.Instance != null)
-        GameUi.Instance.ShowInteractionText(interactable.GetInteractionText());
+      if (GameUI.Instance != null)
+        GameUI.Instance.ShowInteractionText(interactable.GetInteractionText());
       interactable.OnInteract();
     }
     else
     {
-      if (GameUi.Instance != null)
-        GameUi.Instance.HideInteractionText();
+      if (GameUI.Instance != null)
+        GameUI.Instance.HideInteractionText();
     }
   }
 }

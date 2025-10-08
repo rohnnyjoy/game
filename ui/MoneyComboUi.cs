@@ -204,7 +204,7 @@ public partial class MoneyComboUi : Control
 
     Vector2 center = xform.Origin + size * 0.5f;
     Vector2 pos = center + CrosshairOffset;
-    var gui = GameUi.Instance;
+    var gui = GameUI.Instance;
     if (gui != null && !gui.UseFullFrameShake)
       pos -= gui.GetScreenShakeOffset();
 
@@ -330,7 +330,7 @@ public partial class MoneyComboUi : Control
       if (delta != 0)
       {
         float jiggle = Mathf.Clamp(0.2f + 0.02f * MathF.Abs(delta), 0.2f, 1.5f);
-        GameUi.Instance?.AddJiggle(jiggle);
+        GameUI.Instance?.AddJiggle(jiggle);
       }
 
       // Reserve/start a shared drain start time and wait until it elapses, handling push-outs from subsequent updates
@@ -374,7 +374,7 @@ public partial class MoneyComboUi : Control
       ApplyComboJuice(absVal, allowTilt: true);
       DebugLog($"Post-drain pending shown: '{display}'");
       // Nudge on subsequent batches too
-      GameUi.Instance?.AddJiggle(Mathf.Clamp(0.15f + 0.01f * absVal, 0.1f, 1.0f));
+      GameUI.Instance?.AddJiggle(Mathf.Clamp(0.15f + 0.01f * absVal, 0.1f, 1.0f));
       GlobalEvents.Instance?.ClaimMoneyDrainStartAt(DrainDelay);
       waitingToDrain = true;
       _ = WaitAndDrain();

@@ -1,2 +1,2 @@
-﻿55310
-/Applications/Godot_mono.app/Contents/MacOS/Godot
+﻿55983
+C:/Users/Johnny/Downloads/Godot_v4.5-stable_mono_win64/Godot_v4.5-stable_mono_win64/Godot_v4.5-stable_mono_win64.exe

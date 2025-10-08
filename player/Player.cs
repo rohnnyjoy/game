@@ -92,7 +92,7 @@ public partial class Player : CharacterBody3D
     AddChild(_damageFeedback);
 
     // Initialize health UI
-    GameUi.Instance?.SetHealth(Health, MaxHealth);
+    GameUI.Instance?.SetHealth(Health, MaxHealth);
   }
 
   public override void _UnhandledInput(InputEvent @event)
@@ -174,7 +174,7 @@ public partial class Player : CharacterBody3D
     {
       // TODO: death handling (respawn, UI, etc.). For now, clamp at 0.
     }
-    GameUi.Instance?.SetHealth(Health, MaxHealth);
+    GameUI.Instance?.SetHealth(Health, MaxHealth);
   }
 
   public void Heal(float amount)
@@ -186,7 +186,7 @@ public partial class Player : CharacterBody3D
     if (delta > 0.01f)
     {
       FloatingNumber3D.Spawn(this, this, delta, new Color(0.4f, 1f, 0.4f));
-      GameUi.Instance?.SetHealth(Health, MaxHealth);
+      GameUI.Instance?.SetHealth(Health, MaxHealth);
     }
   }
 

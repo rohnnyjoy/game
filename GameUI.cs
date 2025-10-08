@@ -1,9 +1,9 @@
 using Godot;
 using System.Threading.Tasks;
 
-public partial class GameUi : CanvasLayer
+public partial class GameUI : CanvasLayer
 {
-  public static GameUi Instance;
+  public static GameUI Instance;
   [Export] public bool UseFullFrameShake { get; set; } = false;
   [Export] public bool DriveUiOffsetFallback { get; set; } = false;
   [Export(PropertyHint.Range, "0,100,1")] public int ScreenShakeSetting { get; set; } = 50; // Balatro default when not reduced_motion

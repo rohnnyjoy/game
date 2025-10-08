@@ -9,7 +9,7 @@ public partial class CameraShake : Node3D
   private Vector3 currentShakeOffset = Vector3.Zero;
   // Legacy random jitter removed; use Balatro-style sinusoidal shake exclusively.
 
-  [Export] public bool FollowGameUi = true;
+  [Export] public bool FollowGameUI = true;
   // Rough mapping from pixels (UI offset) to local meters on camera rig.
   [Export] public float PixelsToMetersScale = 0.0035f;
 
@@ -40,7 +40,7 @@ public partial class CameraShake : Node3D
   public override void _PhysicsProcess(double delta)
   {
     // If full-frame overlay is active, let it own the shake. Keep camera steady.
-    if (GameUi.Instance != null && GameUi.Instance.UseFullFrameShake)
+    if (GameUI.Instance != null && GameUI.Instance.UseFullFrameShake)
     {
       currentShakeOffset = currentShakeOffset.Lerp(Vector3.Zero, 0.8f);
       if (currentShakeOffset.LengthSquared() > 1e-8f)
@@ -57,11 +57,11 @@ public partial class CameraShake : Node3D
       }
       return;
     }
-    // Prefer following GameUi's shared shake so world and UI move together
+    // Prefer following GameUI's shared shake so world and UI move together
     bool appliedShared = false;
-    if (FollowGameUi && GameUi.Instance != null && GameUi.Instance.EnableUiShake)
+    if (FollowGameUI && GameUI.Instance != null && GameUI.Instance.EnableUiShake)
     {
-      Vector2 px = GameUi.Instance.GetScreenShakeOffset();
+      Vector2 px = GameUI.Instance.GetScreenShakeOffset();
       if (px.LengthSquared() > 0.000001f)
       {
         Vector3 uiTarget = new Vector3(px.X, -px.Y, 0f) * PixelsToMetersScale;

@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://kadcr801fqcm" path="res://player/Player.tscn" id="5_taioi"]
 [ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://inventory/menu/PrimaryWeaponStack.cs" id="5_vq0ba"]
 [ext_resource type="Script" uid="uid://br7vpr5hwlegd" path="res://inventory/menu/InventoryStack.cs" id="6_6wwjs"]
-[ext_resource type="Script" uid="uid://cmi1g3ormcvqs" path="res://GameUi.cs" id="7_gbfbk"]
+[ext_resource type="Script" uid="uid://cmi1g3ormcvqs" path="res://GameUI.cs" id="7_gbfbk"]
 [ext_resource type="FontFile" uid="uid://cpuwdglpinmhy" path="res://shared/fonts/Pixel.ttf" id="8_ic0uy"]
 [ext_resource type="Script" uid="uid://ckhbaxtaa30xu" path="res://Crosshair.cs" id="8_ioo17"]
 [ext_resource type="PackedScene" uid="uid://dglv3r42ustwg" path="res://environment/scenes/islands.tscn" id="11_ic0uy"]

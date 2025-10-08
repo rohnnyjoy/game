@@ -2,7 +2,7 @@ using Godot;
 
 /// <summary>
 /// Custom tooltip overlay: 9-patch background with DynaTextControl for rich text + parallax shadow.
-/// Follows the mouse with no delay and clamps to viewport. Attach as a child of GameUi.
+/// Follows the mouse with no delay and clamps to viewport. Attach as a child of GameUI.
 /// </summary>
 public partial class TooltipUi : Control
 {
