@@ -130,3 +130,4 @@ res://ui/DynaFloatWrapper.cs
 res://ui/DifficultyDisplay.cs
 res://ui/RunTimerDisplay.cs
 res://ui/KillCountDisplay.cs
+res://ui/RunStatsContainer.cs

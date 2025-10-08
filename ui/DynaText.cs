@@ -102,6 +102,8 @@ public partial class DynaText : Node2D
     public float Width = 2.5f;    // Envelope width
     public float Amount = 0.2f;   // Scale delta
     public float StartTime;       // Seconds (TimeSinceStart) when pulse begins
+    public int StartGlyphIndex = 0;  // First glyph affected (0-based)
+    public int GlyphCount = -1;      // Number of glyphs affected; -1 = until end of line
   }
 
   /// <summary> Quiver animation spec (micro jitter rotation/scale). </summary>
@@ -296,12 +298,21 @@ public partial class DynaText : Node2D
   // ------------------------------
   public void TriggerPulse(float amount = 0.22f, float width = 2.5f, float speed = 40f)
   {
+    TriggerPulseRange(0, -1, amount, width, speed);
+  }
+
+  public void TriggerPulseRange(int startGlyphIndex, int glyphCount = -1, float amount = 0.22f, float width = 2.5f, float speed = 40f)
+  {
+    int start = Math.Max(0, startGlyphIndex);
+    int count = glyphCount < 0 ? -1 : Math.Max(0, glyphCount);
     _cfg.Pulse = new PulseSpec
     {
       Amount = amount,
       Width = width,
       Speed = speed,
       StartTime = TimeSinceStart,
+      StartGlyphIndex = start,
+      GlyphCount = count
     };
   }
 
@@ -659,6 +670,25 @@ public partial class DynaText : Node2D
 
     var line = _built[_focusedIndex];
     int lastIndex = line.Letters.Count - 1;
+    int pulseStartIndex = 0;
+    int pulseLastIndex = lastIndex;
+    bool pulseActive = _cfg.Pulse != null && line.Letters.Count > 0;
+    if (pulseActive)
+    {
+      var pulse = _cfg.Pulse!;
+      if (pulse.StartGlyphIndex >= line.Letters.Count)
+      {
+        pulseActive = false;
+      }
+      else
+      {
+        pulseStartIndex = Math.Clamp(pulse.StartGlyphIndex, 0, lastIndex);
+        if (pulse.GlyphCount < 0)
+          pulseLastIndex = lastIndex;
+        else
+          pulseLastIndex = Math.Clamp(pulseStartIndex + Math.Max(0, pulse.GlyphCount) - 1, pulseStartIndex, lastIndex);
+      }
+    }
 
     for (int k = 0; k < line.Letters.Count; k++)
     {
@@ -731,19 +761,34 @@ public partial class DynaText : Node2D
       }
 
       // Pulse: piecewise-linear envelope identical to Lua
-      if (_cfg.Pulse != null)
+      if (pulseActive && _cfg.Pulse != null)
       {
         var P = _cfg.Pulse;
-        float t1 = (P.StartTime - now) * P.Speed + k1 + P.Width;
-        float t2 = (now - P.StartTime) * P.Speed - k1 + P.Width + 2f;
-        float env = MathF.Max(MathF.Min(t1, t2), 0f);
-        float add = (1f / MathF.Max(0.0001f, P.Width)) * P.Amount * env;
-        letter.Scale += add;
-        float scaleDelta = letter.Scale - 1f;
-        letter.Rotation += scaleDelta * (0.02f * (-line.Letters.Count / 2f - 0.5f + k1));
-        // Clear when the pulse tail has fully passed the last glyph
-        float clearAt = P.StartTime + (line.Letters.Count + P.Width + 2f) / MathF.Max(0.0001f, P.Speed);
-        if (now >= clearAt) _cfg.Pulse = null;
+        if (P != null)
+        {
+          bool inRange = k >= pulseStartIndex && k <= pulseLastIndex;
+          if (inRange)
+          {
+            float localIndex = (k - pulseStartIndex) + 1f; // 1-based within the range
+            float t1 = (P.StartTime - now) * P.Speed + localIndex + P.Width;
+            float t2 = (now - P.StartTime) * P.Speed - localIndex + P.Width + 2f;
+            float env = MathF.Max(MathF.Min(t1, t2), 0f);
+            float add = (1f / MathF.Max(0.0001f, P.Width)) * P.Amount * env;
+            letter.Scale += add;
+            float scaleDelta = letter.Scale - 1f;
+            letter.Rotation += scaleDelta * (0.02f * (-line.Letters.Count / 2f - 0.5f + k1));
+            if (k == pulseLastIndex)
+            {
+              float rangeLetters = MathF.Max(1f, pulseLastIndex - pulseStartIndex + 1);
+              float clearAt = P.StartTime + (rangeLetters + P.Width + 2f) / MathF.Max(0.0001f, P.Speed);
+              if (now >= clearAt)
+              {
+                _cfg.Pulse = null;
+                pulseActive = false;
+              }
+            }
+          }
+        }
       }
 
       // Quiver: small extra scale + noisy rotation

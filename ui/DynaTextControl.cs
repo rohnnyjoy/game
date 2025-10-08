@@ -140,6 +140,11 @@ public partial class DynaTextControl : Control
     Inner.TriggerPulse(amount, width, speed);
   }
 
+  public void PulseRange(int startGlyphIndex, int glyphCount, float amount = 0.22f, float width = 2.5f, float speed = 40f)
+  {
+    Inner.TriggerPulseRange(startGlyphIndex, glyphCount, amount, width, speed);
+  }
+
   public void Quiver(float amount, float speed, float duration)
   {
     Inner.SetQuiver(amount, speed, duration);

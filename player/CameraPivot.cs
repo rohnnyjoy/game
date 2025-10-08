@@ -24,9 +24,6 @@ public partial class CameraPivot : Node3D
   private Player player;
   private Node3D cameraRig;
 
-  // Accumulates raw mouse deltas; consumed each render frame.
-  private Vector2 accumulatedDelta = Vector2.Zero;
-
   // Target (authoritative) view angles in radians.
   private float pitch;
   private float yaw;
@@ -55,10 +52,11 @@ public partial class CameraPivot : Node3D
       targetDistance = Mathf.Max(MinDistance, 0.1f);
 
     pitch = Mathf.Clamp(Mathf.DegToRad(InitialPitchDegrees), MinPitch, MaxPitch);
-    Rotation = new Vector3(pitch, 0f, 0f);
+    SyncPlayerYaw();
+    ApplyPivotRotation();
 
-    // We read mouse in _Input, update camera visuals in _Process,
-    // and sync the physics body in _PhysicsProcess.
+    // We read mouse in _Input for lowest latency, update camera visuals in _Process,
+    // and keep the physics body yaw in sync via _PhysicsProcess.
     SetProcessInput(true);
     SetProcess(true);
     SetPhysicsProcess(true);
@@ -74,8 +72,8 @@ public partial class CameraPivot : Node3D
     switch (@event)
     {
       case InputEventMouseMotion mouseMotion:
-        // Accumulate raw OS mouse deltas. We'll consume them on the render tick.
-        accumulatedDelta += mouseMotion.Relative;
+        if (ShouldApplyLookInput())
+          ApplyLookDelta(mouseMotion.Relative);
         break;
       case InputEventMouseButton mouseButton when mouseButton.Pressed:
         if (mouseButton.ButtonIndex == MouseButton.WheelUp)
@@ -92,25 +90,7 @@ public partial class CameraPivot : Node3D
 
   public override void _Process(double delta)
   {
-    // Consume all accumulated mouse input each render frame.
-    Vector2 deltaLocal = accumulatedDelta;
-    accumulatedDelta = Vector2.Zero;
-
-    if (deltaLocal != Vector2.Zero)
-    {
-      yaw += -deltaLocal.X * Sensitivity;
-      pitch = Mathf.Clamp(pitch - deltaLocal.Y * Sensitivity, MinPitch, MaxPitch);
-    }
-
-    // Compute visual yaw offset so the camera shows the newest yaw immediately,
-    // even if the physics body hasn't been updated yet this tick.
-    float bodyYaw = player != null ? player.Rotation.Y : 0f;
-    float yawOffset = AngleDelta(bodyYaw, yaw); // normalized shortest delta in [-π, π]
-
-    // Apply pitch and the small visual yaw offset locally on the pivot.
-    // The parent (player) supplies the bulk yaw; we only add the offset here.
-    Rotation = new Vector3(pitch, yawOffset, 0f);
-
+    ApplyPivotRotation();
     UpdateCameraPosition();
   }
 
@@ -121,9 +101,49 @@ public partial class CameraPivot : Node3D
 
     // Once per physics tick, snap the physics body's yaw to the latest target yaw.
     // This keeps movement/collisions deterministic and aligned with the view direction.
+    SyncPlayerYaw();
+  }
+
+  private bool ShouldApplyLookInput()
+  {
+    if (GlobalEvents.Instance != null && GlobalEvents.Instance.MenuOpen)
+      return false;
+    return Input.MouseMode == Input.MouseModeEnum.Captured;
+  }
+
+  private void ApplyLookDelta(Vector2 delta)
+  {
+    if (delta == Vector2.Zero)
+      return;
+
+    yaw += -delta.X * Sensitivity;
+    pitch = Mathf.Clamp(pitch - delta.Y * Sensitivity, MinPitch, MaxPitch);
+    SyncPlayerYaw();
+    ApplyPivotRotation();
+  }
+
+  private void SyncPlayerYaw()
+  {
+    if (player == null)
+      return;
+
     Vector3 pr = player.Rotation;
-    pr.Y = yaw;
-    player.Rotation = pr;
+    if (!Mathf.IsEqualApprox(pr.Y, yaw))
+    {
+      pr.Y = yaw;
+      player.Rotation = pr;
+    }
+  }
+
+  private void ApplyPivotRotation()
+  {
+    // Keep a small safety offset in case some other system temporarily overrides the body yaw.
+    float bodyYaw = player != null ? player.Rotation.Y : 0f;
+    float yawOffset = AngleDelta(bodyYaw, yaw); // normalized shortest delta in [-π, π]
+
+    // Apply pitch and the small visual yaw offset locally on the pivot.
+    // The parent (player) supplies the bulk yaw; we only add the offset here.
+    Rotation = new Vector3(pitch, yawOffset, 0f);
   }
 
   private void UpdateCameraPosition()

@@ -12,9 +12,8 @@ public partial class DifficultyDisplay : Control
   [Export] public string MultiplierFormat { get; set; } = "0.##";
   [Export(PropertyHint.Range, "0.5,2,0.01")] public float TextHeightScale { get; set; } = 0.85f;
 
-  private HBoxContainer _layout = default!;
-  private DynaTextControl _labelControl = default!;
-  private DynaTextControl _valueControl = default!;
+  private DynaTextControl _textControl = default!;
+  private string _lastValueText = string.Empty;
   private EnemySpawner? _spawner;
   private float _displayedDifficulty = -1f;
   private Callable _difficultyCallable;
@@ -28,39 +27,7 @@ public partial class DifficultyDisplay : Control
     SizeFlagsVertical = SizeFlags.ShrinkBegin;
     CustomMinimumSize = Vector2.Zero;
 
-    _layout = new HBoxContainer
-    {
-      MouseFilter = MouseFilterEnum.Ignore
-    };
-    _layout.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-    _layout.SizeFlagsVertical = SizeFlags.ShrinkBegin;
-    _layout.AddThemeConstantOverride("separation", 6);
-    AddChild(_layout);
-
-    _labelControl = new DynaTextControl
-    {
-      FontPath = FontPath,
-      FontPx = FontPx,
-      Shadow = true,
-      UseShadowParallax = true,
-      AmbientRotate = true,
-      AmbientFloat = true,
-      AmbientBump = false,
-      CenterInRect = false,
-      AlignX = 0f,
-      AlignY = 0f,
-      TextHeightScale = TextHeightScale,
-      LetterSpacingExtraPx = 0.5f,
-      OffsetYExtraPx = 0f,
-      MouseFilter = MouseFilterEnum.Ignore
-    };
-    _labelControl.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-    _labelControl.SizeFlagsVertical = SizeFlags.ShrinkBegin;
-    _labelControl.SetColours(new System.Collections.Generic.List<Color> { TextColor });
-    _labelControl.SetText(string.IsNullOrEmpty(LabelPrefix) ? string.Empty : $"{LabelPrefix}");
-    _layout.AddChild(_labelControl);
-
-    _valueControl = new DynaTextControl
+    _textControl = new DynaTextControl
     {
       FontPath = FontPath,
       FontPx = FontPx,
@@ -77,10 +44,11 @@ public partial class DifficultyDisplay : Control
       OffsetYExtraPx = 0f,
       MouseFilter = MouseFilterEnum.Ignore
     };
-    _valueControl.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-    _valueControl.SizeFlagsVertical = SizeFlags.ShrinkBegin;
-    _valueControl.SetColours(new System.Collections.Generic.List<Color> { TextColor });
-    _layout.AddChild(_valueControl);
+    _textControl.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+    _textControl.SizeFlagsVertical = SizeFlags.ShrinkBegin;
+    _textControl.CustomMinimumSize = Vector2.Zero;
+    _textControl.SetColours(new System.Collections.Generic.List<Color> { TextColor });
+    AddChild(_textControl);
 
     UpdateText(1.0f, force: true);
 
@@ -213,26 +181,29 @@ public partial class DifficultyDisplay : Control
     _displayedDifficulty = value;
     string formatted = value.ToString(MultiplierFormat, CultureInfo.InvariantCulture);
     string valueText = $"x{formatted}";
-    _valueControl.SetText(valueText);
-    if (!force)
-      _valueControl.Pulse(0.18f);
-    bool showLabel = !string.IsNullOrEmpty(LabelPrefix);
-    _labelControl.Visible = showLabel;
-    if (showLabel)
-      _labelControl.SetText(LabelPrefix);
+    string prefix = string.IsNullOrEmpty(LabelPrefix) ? string.Empty : $"{LabelPrefix} ";
+    string combined = prefix + valueText;
+    _textControl.SetText(combined);
+    if (!force && !_lastValueText.Equals(valueText, StringComparison.Ordinal))
+    {
+      int prefixGlyphs = new StringInfo(prefix).LengthInTextElements;
+      int valueGlyphs = new StringInfo(valueText).LengthInTextElements;
+      _textControl.PulseRange(prefixGlyphs, valueGlyphs);
+    }
+    _lastValueText = valueText;
     UpdateMinimumSize();
     QueueRedraw();
   }
 
   public override Vector2 _GetMinimumSize()
   {
-    if (_layout != null)
+    if (_textControl != null)
     {
-      var min = _layout.GetCombinedMinimumSize();
-      float width = Mathf.Ceil(Mathf.Max(min.X, FontPx));
+      var min = _textControl.GetMinimumSize();
+      float width = Mathf.Ceil(Mathf.Max(min.X, 0f));
       float height = Mathf.Ceil(Mathf.Max(min.Y, FontPx * 0.9f));
       return new Vector2(width, height);
     }
-    return new Vector2(FontPx, FontPx);
+    return new Vector2(FontPx, FontPx * 0.9f);
   }
 }

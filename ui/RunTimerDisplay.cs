@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using Godot;
 #nullable enable
 
@@ -9,9 +10,8 @@ public partial class RunTimerDisplay : Control
   [Export] public Color TextColor { get; set; } = new Color(0.7f, 0.85f, 1f);
   [Export] public string LabelPrefix { get; set; } = "Time";
 
-  private HBoxContainer _layout = default!;
-  private DynaTextControl _labelControl = default!;
-  private DynaTextControl _valueControl = default!;
+  private DynaTextControl _textControl = default!;
+  private string _lastValueText = string.Empty;
   private ulong _startTicks;
   private int _lastWholeSeconds = -1;
 
@@ -22,38 +22,7 @@ public partial class RunTimerDisplay : Control
     SizeFlagsVertical = SizeFlags.ShrinkBegin;
     CustomMinimumSize = Vector2.Zero;
 
-    _layout = new HBoxContainer
-    {
-      MouseFilter = MouseFilterEnum.Ignore
-    };
-    _layout.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-    _layout.SizeFlagsVertical = SizeFlags.ShrinkBegin;
-    _layout.AddThemeConstantOverride("separation", 6);
-    AddChild(_layout);
-
-    _labelControl = new DynaTextControl
-    {
-      FontPath = FontPath,
-      FontPx = FontPx,
-      Shadow = true,
-      UseShadowParallax = true,
-      AmbientRotate = true,
-      AmbientFloat = true,
-      AmbientBump = false,
-      CenterInRect = false,
-      AlignX = 0f,
-      AlignY = 0f,
-      TextHeightScale = 0.85f,
-      LetterSpacingExtraPx = 0.5f,
-      OffsetYExtraPx = 0f,
-      MouseFilter = MouseFilterEnum.Ignore
-    };
-    _labelControl.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-    _labelControl.SizeFlagsVertical = SizeFlags.ShrinkBegin;
-    _labelControl.SetColours(new System.Collections.Generic.List<Color> { TextColor });
-    _layout.AddChild(_labelControl);
-
-    _valueControl = new DynaTextControl
+    _textControl = new DynaTextControl
     {
       FontPath = FontPath,
       FontPx = FontPx,
@@ -70,13 +39,11 @@ public partial class RunTimerDisplay : Control
       OffsetYExtraPx = 0f,
       MouseFilter = MouseFilterEnum.Ignore
     };
-    _valueControl.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-    _valueControl.SizeFlagsVertical = SizeFlags.ShrinkBegin;
-    _valueControl.SetColours(new System.Collections.Generic.List<Color> { TextColor });
-    _layout.AddChild(_valueControl);
-
-    if (!string.IsNullOrEmpty(LabelPrefix))
-      _labelControl.SetText(LabelPrefix);
+    _textControl.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+    _textControl.SizeFlagsVertical = SizeFlags.ShrinkBegin;
+    _textControl.CustomMinimumSize = Vector2.Zero;
+    _textControl.SetColours(new System.Collections.Generic.List<Color> { TextColor });
+    AddChild(_textControl);
 
     _startTicks = Time.GetTicksMsec();
     UpdateDisplay(0, true);
@@ -103,26 +70,29 @@ public partial class RunTimerDisplay : Control
     string formatted = span.Hours > 0
       ? $"{span.Hours:00}:{span.Minutes:00}:{span.Seconds:00}"
       : $"{span.Minutes:00}:{span.Seconds:00}";
-    _valueControl.SetText(formatted);
-    if (!force)
-      _valueControl.Pulse(0.12f);
-    bool showLabel = !string.IsNullOrEmpty(LabelPrefix);
-    _labelControl.Visible = showLabel;
-    if (showLabel)
-      _labelControl.SetText(LabelPrefix);
+    string prefix = string.IsNullOrEmpty(LabelPrefix) ? string.Empty : $"{LabelPrefix} ";
+    string combined = prefix + formatted;
+    _textControl.SetText(combined);
+    if (!force && !_lastValueText.Equals(formatted, StringComparison.Ordinal))
+    {
+      int prefixGlyphs = new System.Globalization.StringInfo(prefix).LengthInTextElements;
+      int valueGlyphs = new System.Globalization.StringInfo(formatted).LengthInTextElements;
+      _textControl.PulseRange(prefixGlyphs, valueGlyphs, 0.12f, 2.5f, 40f);
+    }
+    _lastValueText = formatted;
     UpdateMinimumSize();
     QueueRedraw();
   }
 
   public override Vector2 _GetMinimumSize()
   {
-    if (_layout != null)
+    if (_textControl != null)
     {
-      Vector2 min = _layout.GetCombinedMinimumSize();
-      float w = Mathf.Ceil(Mathf.Max(min.X, FontPx * 1.2f));
+      Vector2 min = _textControl.GetMinimumSize();
+      float w = Mathf.Ceil(Mathf.Max(min.X, 0f));
       float h = Mathf.Ceil(Mathf.Max(min.Y, FontPx));
       return new Vector2(w, h);
     }
-    return new Vector2(FontPx * 1.2f, FontPx);
+    return new Vector2(FontPx, FontPx);
   }
 }

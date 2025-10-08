@@ -1,3 +1,5 @@
+using System;
+using System.Globalization;
 using Godot;
 #nullable enable
 
@@ -8,9 +10,8 @@ public partial class KillCountDisplay : Control
   [Export] public Color TextColor { get; set; } = new Color(1f, 0.55f, 0.55f);
   [Export] public string LabelPrefix { get; set; } = "Kills";
 
-  private HBoxContainer _layout = default!;
-  private DynaTextControl _labelControl = default!;
-  private DynaTextControl _valueControl = default!;
+  private DynaTextControl _textControl = default!;
+  private string _lastValueText = string.Empty;
   private int _killCount = 0;
   private bool _connected;
   private Callable _enemyDiedCallable;
@@ -22,40 +23,7 @@ public partial class KillCountDisplay : Control
     SizeFlagsVertical = SizeFlags.ShrinkBegin;
     CustomMinimumSize = Vector2.Zero;
 
-    _layout = new HBoxContainer
-    {
-      MouseFilter = MouseFilterEnum.Ignore
-    };
-    _layout.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-    _layout.SizeFlagsVertical = SizeFlags.ShrinkBegin;
-    _layout.AddThemeConstantOverride("separation", 6);
-    AddChild(_layout);
-
-    _labelControl = new DynaTextControl
-    {
-      FontPath = FontPath,
-      FontPx = FontPx,
-      Shadow = true,
-      UseShadowParallax = true,
-      AmbientRotate = true,
-      AmbientFloat = true,
-      AmbientBump = false,
-      CenterInRect = false,
-      AlignX = 0f,
-      AlignY = 0f,
-      TextHeightScale = 0.85f,
-      LetterSpacingExtraPx = 0.5f,
-      OffsetYExtraPx = 0f,
-      MouseFilter = MouseFilterEnum.Ignore
-    };
-    _labelControl.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-    _labelControl.SizeFlagsVertical = SizeFlags.ShrinkBegin;
-    _labelControl.SetColours(new System.Collections.Generic.List<Color> { TextColor });
-    if (!string.IsNullOrEmpty(LabelPrefix))
-      _labelControl.SetText(LabelPrefix);
-    _layout.AddChild(_labelControl);
-
-    _valueControl = new DynaTextControl
+    _textControl = new DynaTextControl
     {
       FontPath = FontPath,
       FontPx = FontPx,
@@ -72,10 +40,11 @@ public partial class KillCountDisplay : Control
       OffsetYExtraPx = 0f,
       MouseFilter = MouseFilterEnum.Ignore
     };
-    _valueControl.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
-    _valueControl.SizeFlagsVertical = SizeFlags.ShrinkBegin;
-    _valueControl.SetColours(new System.Collections.Generic.List<Color> { TextColor });
-    _layout.AddChild(_valueControl);
+    _textControl.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+    _textControl.SizeFlagsVertical = SizeFlags.ShrinkBegin;
+    _textControl.CustomMinimumSize = Vector2.Zero;
+    _textControl.SetColours(new System.Collections.Generic.List<Color> { TextColor });
+    AddChild(_textControl);
     UpdateDisplay(true);
 
     _enemyDiedCallable = new Callable(this, nameof(OnEnemyDied));
@@ -113,23 +82,27 @@ public partial class KillCountDisplay : Control
 
   private void UpdateDisplay(bool force)
   {
-    _valueControl.SetText(_killCount.ToString());
-    if (!force)
-      _valueControl.Pulse(0.18f);
-    bool showLabel = !string.IsNullOrEmpty(LabelPrefix);
-    _labelControl.Visible = showLabel;
-    if (showLabel)
-      _labelControl.SetText(LabelPrefix);
+    string valueText = _killCount.ToString();
+    string prefix = string.IsNullOrEmpty(LabelPrefix) ? string.Empty : $"{LabelPrefix} ";
+    string combined = prefix + valueText;
+    _textControl.SetText(combined);
+    if (!force && !_lastValueText.Equals(valueText, System.StringComparison.Ordinal))
+    {
+      int prefixGlyphs = new System.Globalization.StringInfo(prefix).LengthInTextElements;
+      int valueGlyphs = new System.Globalization.StringInfo(valueText).LengthInTextElements;
+      _textControl.PulseRange(prefixGlyphs, valueGlyphs);
+    }
+    _lastValueText = valueText;
     UpdateMinimumSize();
     QueueRedraw();
   }
 
   public override Vector2 _GetMinimumSize()
   {
-    if (_layout != null)
+    if (_textControl != null)
     {
-      Vector2 min = _layout.GetCombinedMinimumSize();
-      float w = Mathf.Ceil(Mathf.Max(min.X, FontPx));
+      Vector2 min = _textControl.GetMinimumSize();
+      float w = Mathf.Ceil(Mathf.Max(min.X, 0f));
       float h = Mathf.Ceil(Mathf.Max(min.Y, FontPx));
       return new Vector2(w, h);
     }

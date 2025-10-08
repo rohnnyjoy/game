@@ -10,21 +10,34 @@
 offset_left = 16.0
 offset_top = 16.0
 theme_override_constants/separation = 8
+size_flags_horizontal = 3
+size_flags_vertical = 0
 
 [node name="RunStats" type="HBoxContainer" parent="."]
 layout_mode = 2
-size_flags_horizontal = 0
-theme_override_constants/separation = 18
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+custom_minimum_size = Vector2(780, 0)
 
 [node name="Difficulty" type="Control" parent="RunStats"]
 layout_mode = 2
 size_flags_horizontal = 0
 script = ExtResource("3_difhp")
 
+[node name="Spacer1" type="Control" parent="RunStats"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+
 [node name="Timer" type="Control" parent="RunStats"]
 layout_mode = 2
 size_flags_horizontal = 0
 script = ExtResource("4_rl6tk")
+
+[node name="Spacer2" type="Control" parent="RunStats"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
 
 [node name="Kills" type="Control" parent="RunStats"]
 layout_mode = 2
