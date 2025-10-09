@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 public partial class GameUI : CanvasLayer
@@ -23,6 +24,8 @@ public partial class GameUI : CanvasLayer
   private HealthUi _healthUi;
   private PrimaryWeaponStack _primaryModulesUi;
   private Control _topLeftHud;
+  private string _activeInteractionText = string.Empty;
+  private bool _interactionVisible;
 
   // Running values.
   private int moneyBank = 0;           // Finalized banked money.
@@ -356,17 +359,49 @@ void fragment() {
       _comboUi.AttachToCrosshair(_crosshair);
   }
 
-  public void ShowInteractionText(string text)
+  public void ShowInteractionLines(IReadOnlyList<string> lines)
   {
     if (_interactionUi == null) return;
-    _interactionUi.SetText(text);
-    _interactionUi.ShowPrompt();
+    if (lines == null || lines.Count == 0)
+    {
+      HideInteractionText();
+      return;
+    }
+
+    string joined = string.Join('\n', lines);
+    bool textChanged = !_activeInteractionText.Equals(joined);
+    if (textChanged)
+    {
+      _activeInteractionText = joined;
+      _interactionUi.SetLines(lines);
+    }
+
+    if (!_interactionVisible)
+    {
+      _interactionUi.ShowPrompt();
+      _interactionVisible = true;
+    }
+  }
+
+  public void ShowInteractionText(string text)
+  {
+    if (string.IsNullOrEmpty(text))
+    {
+      HideInteractionText();
+      return;
+    }
+
+    ShowInteractionLines(new[] { text });
   }
 
   public void HideInteractionText()
   {
     if (_interactionUi == null) return;
+    if (!_interactionVisible)
+      return;
     _interactionUi.HidePrompt();
+    _interactionVisible = false;
+    _activeInteractionText = string.Empty;
   }
 
   private void SetupUi()

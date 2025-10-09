@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Johnny\\game\\MultiplayerFPSTutorial.csproj": {}
+    "/Users/johnroy/Development/game/MultiplayerFPSTutorial.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Johnny\\game\\MultiplayerFPSTutorial.csproj": {
+    "/Users/johnroy/Development/game/MultiplayerFPSTutorial.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Johnny\\game\\MultiplayerFPSTutorial.csproj",
+        "projectUniqueName": "/Users/johnroy/Development/game/MultiplayerFPSTutorial.csproj",
         "projectName": "MultiplayerFPSTutorial",
-        "projectPath": "C:\\Users\\Johnny\\game\\MultiplayerFPSTutorial.csproj",
-        "packagesPath": "C:\\Users\\Johnny\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Johnny\\game\\.godot\\mono\\temp\\obj\\",
+        "projectPath": "/Users/johnroy/Development/game/MultiplayerFPSTutorial.csproj",
+        "packagesPath": "/Users/johnroy/.nuget/packages/",
+        "outputPath": "/Users/johnroy/Development/game/.godot/mono/temp/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\Johnny\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "/Users/johnroy/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
@@ -79,10 +79,6 @@
             {
               "name": "Microsoft.NETCore.App.Ref",
               "version": "[8.0.20, 8.0.20]"
-            },
-            {
-              "name": "Microsoft.WindowsDesktop.App.Ref",
-              "version": "[8.0.20, 8.0.20]"
             }
           ],
           "frameworkReferences": {
@@ -90,7 +86,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.305/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

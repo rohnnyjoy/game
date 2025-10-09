@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Combat;
 using Shared.Effects;
+using Shared.Runtime;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -24,6 +25,23 @@ public partial class Enemy : CharacterBody3D
   [Export]
   public bool Move { get; set; } = true;
 
+  [Export(PropertyHint.Layers3DPhysics)]
+  public uint RestrictedCollisionLayers
+  {
+    get => _restrictedCollisionLayers;
+    set
+    {
+      if (_restrictedCollisionLayers == value)
+        return;
+      _restrictedCollisionLayers = value;
+      if (_collisionProfileInitialized)
+        RefreshCollisionMask();
+    }
+  }
+
+  [Export(PropertyHint.Range, "0.0,5.0,0.05")] public float RestrictedVolumePadding { get; set; } = 0.35f;
+  [Export] public bool EnforceRestrictedVolumes { get; set; } = true;
+
   // Constants
   private const float SPEED = 5.0f;
   private const float MOVE_DISTANCE = 10.0f;
@@ -37,6 +55,10 @@ public partial class Enemy : CharacterBody3D
   private int direction = 1;
   private float speedMultiplier = 1.0f;
   private bool _isDying = false;
+  private uint _baseCollisionMask;
+  private uint _baseCollisionLayers;
+  private uint _restrictedCollisionLayers = PhysicsLayers.Mask(PhysicsLayers.Layer.SafeZone);
+  private bool _collisionProfileInitialized;
 
   [Export(PropertyHint.Range, "0.1,5.0,0.05")] public float DissolveDuration { get; set; } = 0.35f;
   [Export] public Color DissolveBurnColorInner { get; set; } = new Color(0.215686f, 0.258823f, 0.266667f, 1f);
@@ -78,6 +100,7 @@ public partial class Enemy : CharacterBody3D
 
   public override void _Ready()
   {
+    ConfigureCollisionProfile();
     startX = GlobalTransform.Origin.X;
     AddToGroup("enemies");
     SetPhysicsProcess(true);
@@ -139,6 +162,7 @@ public partial class Enemy : CharacterBody3D
     // Apply and decay knockback
     Velocity += _knockbackVelocity;
     MoveAndSlide();
+    ApplyRestrictedVolumePushback();
     _knockbackVelocity = _knockbackVelocity.MoveToward(Vector3.Zero, KnockbackDamping * (float)delta);
   }
 
@@ -155,6 +179,68 @@ public partial class Enemy : CharacterBody3D
       float gravityAccel = GRAVITY * (float)Math.Sin(slopeAngle);
 
       Velocity += naturalDownhill * gravityAccel * delta;
+    }
+  }
+
+  private void ConfigureCollisionProfile()
+  {
+    _baseCollisionLayers = CollisionLayer;
+    if (_baseCollisionLayers == 0)
+      _baseCollisionLayers = PhysicsLayers.Mask(PhysicsLayers.Layer.Enemy);
+    else if (!PhysicsLayers.Contains(_baseCollisionLayers, PhysicsLayers.Layer.Enemy))
+      _baseCollisionLayers = PhysicsLayers.Add(_baseCollisionLayers, PhysicsLayers.Layer.Enemy);
+    CollisionLayer = _baseCollisionLayers;
+
+    _baseCollisionMask = CollisionMask;
+    if (_baseCollisionMask == 0)
+      _baseCollisionMask = PhysicsLayers.Mask(PhysicsLayers.Layer.World, PhysicsLayers.Layer.Player);
+
+    _collisionProfileInitialized = true;
+    RefreshCollisionMask();
+  }
+
+  private void RefreshCollisionMask()
+  {
+    if (!_collisionProfileInitialized)
+      return;
+
+    CollisionMask = _baseCollisionMask | _restrictedCollisionLayers;
+  }
+
+  private void ApplyRestrictedVolumePushback()
+  {
+    if (!EnforceRestrictedVolumes || _isDying)
+      return;
+
+    var zones = ShopSafeZone.ActiveZones;
+    if (zones == null || zones.Count == 0)
+      return;
+
+    Vector3 position = GlobalPosition;
+    Vector3 cumulativePush = Vector3.Zero;
+
+    foreach (ShopSafeZone zone in zones)
+    {
+      if (zone == null)
+        continue;
+
+      if (!zone.TryGetRepulsion(position, RestrictedVolumePadding, out Vector3 push))
+        continue;
+
+      position += push;
+      cumulativePush += push;
+    }
+
+    if (cumulativePush.LengthSquared() <= 0.000001f)
+      return;
+
+    GlobalPosition = new Vector3(position.X, GlobalPosition.Y, position.Z);
+
+    Vector3 normal = cumulativePush.Normalized();
+    if (normal.LengthSquared() > 0.000001f)
+    {
+      Velocity = Velocity.Slide(normal);
+      _knockbackVelocity = _knockbackVelocity.Slide(normal);
     }
   }
 

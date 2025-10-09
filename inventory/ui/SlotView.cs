@@ -273,8 +273,10 @@ public partial class SlotView : Control
     if (!_allowDrag)
       return false;
 
-    if (_module?.Icon == null)
+    if (_module == null || _module.Icon == null)
       return false;
+
+    ModuleDragContext.Begin(this, _module);
 
     // 1) Compute grab offset at true drag start in inner-local space.
     Rect2 inner = GetInnerRectLocal();
@@ -350,6 +352,13 @@ public partial class SlotView : Control
     {
       GameUI.Instance.ShowTooltip(this, _module.Tooltip ?? string.Empty);
     }
+  }
+
+  public override void _Notification(int what)
+  {
+    if (what == (int)Control.NotificationDragEnd)
+      ModuleDragContext.HandleDragEnd(this);
+    base._Notification(what);
   }
 
   private void OnMouseExited()

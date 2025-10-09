@@ -73,12 +73,6 @@ public partial class RunTimerDisplay : Control
     string prefix = string.IsNullOrEmpty(LabelPrefix) ? string.Empty : $"{LabelPrefix} ";
     string combined = prefix + formatted;
     _textControl.SetText(combined);
-    if (!force && !_lastValueText.Equals(formatted, StringComparison.Ordinal))
-    {
-      int prefixGlyphs = new System.Globalization.StringInfo(prefix).LengthInTextElements;
-      int valueGlyphs = new System.Globalization.StringInfo(formatted).LengthInTextElements;
-      _textControl.PulseRange(prefixGlyphs, valueGlyphs, 0.12f, 2.5f, 40f);
-    }
     _lastValueText = formatted;
     UpdateMinimumSize();
     QueueRedraw();

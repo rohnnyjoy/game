@@ -1,6 +1,6 @@
 using Godot;
 using System;
-using Godot.Collections;
+using System.Collections.Generic;
 
 public partial class InteractionManager : Node
 {
@@ -9,9 +9,13 @@ public partial class InteractionManager : Node
   [Export] public NodePath PlayerPath;
   [Export] public NodePath CameraPath;
 
-
   private Player _player;
   private Camera3D _camera;
+
+  private readonly Dictionary<string, OptionEntry> _activeOptions = new(StringComparer.OrdinalIgnoreCase);
+  private readonly List<InteractableContext> _contextBuffer = new();
+  private readonly List<OptionEntry> _sortedOptions = new();
+  private readonly List<string> _currentLines = new();
 
   public override void _Ready()
   {
@@ -21,83 +25,280 @@ public partial class InteractionManager : Node
 
   public override void _Input(InputEvent @event)
   {
-    if (@event is InputEventKey keyEvent && !keyEvent.Echo && Input.IsActionJustPressed("interact"))
+    if (_activeOptions.Count == 0)
+      return;
+
+    foreach (OptionEntry entry in _activeOptions.Values)
     {
-      ProcessInteraction();
+      string actionName = entry.Option.ActionName;
+      if (string.IsNullOrEmpty(actionName))
+        continue;
+
+      if (!@event.IsActionPressed(actionName))
+        continue;
+
+      if (@event is InputEventKey keyEvent && keyEvent.Echo)
+        continue;
+
+      ExecuteOption(actionName, entry);
+      GetViewport()?.SetInputAsHandled();
+      break;
     }
   }
 
-
   public override void _PhysicsProcess(double delta)
   {
-    DetectInteractable();
+    DetectInteractables();
   }
 
-
-  public IInteractable DetectInteractable()
+  private void DetectInteractables()
   {
     if (_player == null)
-      return null;
+    {
+      ClearInteractions();
+      return;
+    }
+
+    _contextBuffer.Clear();
 
     Vector3 origin = _player.GlobalPosition;
-
     PhysicsShapeQueryParameters3D query = new PhysicsShapeQueryParameters3D
     {
       Transform = new Transform3D(Basis.Identity, origin),
       Shape = new SphereShape3D { Radius = InteractRadius },
-      CollideWithBodies = true
+      CollideWithBodies = true,
+      CollideWithAreas = true
     };
 
     World3D world3d = _player.GetWorld3D();
     if (world3d == null)
-      return null;
+    {
+      ClearInteractions();
+      return;
+    }
 
     PhysicsDirectSpaceState3D spaceState = world3d.DirectSpaceState;
-    Array<Dictionary> results = (Array<Dictionary>)spaceState.IntersectShape(query, MaxResults);
+    var results = (Godot.Collections.Array<Godot.Collections.Dictionary>)spaceState.IntersectShape(query, MaxResults);
 
-    IInteractable bestInteractable = null;
-    float bestDistance = float.MaxValue;
-
-    foreach (Dictionary result in results)
+    foreach (Godot.Collections.Dictionary result in results)
     {
       Node colliderNode = result["collider"].As<Node>();
-      if (colliderNode is Node3D collider && collider is IInteractable interactable)
+      if (colliderNode is not Node3D collider)
+        continue;
+
+      if (collider is not IInteractable interactable)
+        continue;
+
+      Vector3 samplePosition = collider.GlobalPosition;
+      if (result.TryGetValue("point", out Variant pointVariant) && pointVariant.VariantType == Variant.Type.Vector3)
+        samplePosition = (Vector3)pointVariant;
+
+      float distance = origin.DistanceTo(samplePosition);
+      _contextBuffer.Add(new InteractableContext(interactable, distance));
+    }
+
+    ApplyContexts(_contextBuffer);
+  }
+
+  private void ApplyContexts(List<InteractableContext> contexts)
+  {
+    _activeOptions.Clear();
+
+    foreach (InteractableContext context in contexts)
+    {
+      if (context.Interactable is GodotObject godotObject && !GodotObject.IsInstanceValid(godotObject))
+        continue;
+
+      IReadOnlyList<InteractionOption> options = context.Interactable.GetInteractionOptions();
+      if (options == null)
+        continue;
+
+      foreach (InteractionOption option in options)
       {
-        float distance = origin.DistanceTo(collider.GlobalPosition);
-        Vector3 rayOrigin = _camera != null ? _camera.GlobalPosition : origin;
-        if (distance < bestDistance)
+        if (string.IsNullOrEmpty(option.ActionName))
+          continue;
+
+        InteractionOption resolvedOption = option;
+        if (string.IsNullOrEmpty(option.Description))
         {
-          bestDistance = distance;
-          bestInteractable = interactable;
+          string fallback = context.Interactable.GetInteractionText() ?? string.Empty;
+          resolvedOption = new InteractionOption(option.ActionName, fallback);
+        }
+
+        if (_activeOptions.TryGetValue(resolvedOption.ActionName, out OptionEntry existing))
+        {
+          if (context.Distance < existing.Distance)
+          {
+            _activeOptions[resolvedOption.ActionName] = new OptionEntry(resolvedOption, context.Interactable, context.Distance);
+          }
+        }
+        else
+        {
+          _activeOptions[resolvedOption.ActionName] = new OptionEntry(resolvedOption, context.Interactable, context.Distance);
         }
       }
     }
 
-    // UI may not be ready yet at startup; guard the singleton.
-    if (GameUI.Instance != null)
+    if (_activeOptions.Count == 0)
     {
-      if (bestInteractable != null)
-        GameUI.Instance.ShowInteractionText(bestInteractable.GetInteractionText());
-      else
-        GameUI.Instance.HideInteractionText();
+      UpdatePrompt(Array.Empty<string>());
+      return;
     }
 
-    return bestInteractable;
+    _sortedOptions.Clear();
+    _sortedOptions.AddRange(_activeOptions.Values);
+    _sortedOptions.Sort((a, b) => a.Distance.CompareTo(b.Distance));
+
+    List<string> lines = BuildPrompt(_sortedOptions);
+    UpdatePrompt(lines);
   }
 
-  public void ProcessInteraction()
+  private void ExecuteOption(string actionName, OptionEntry entry)
   {
-    IInteractable interactable = DetectInteractable();
-    if (interactable != null)
+    if (entry.Interactable is GodotObject godotObject && !GodotObject.IsInstanceValid(godotObject))
     {
-      if (GameUI.Instance != null)
-        GameUI.Instance.ShowInteractionText(interactable.GetInteractionText());
-      interactable.OnInteract();
+      DetectInteractables();
+      return;
     }
+
+    entry.Interactable.OnInteract(actionName);
+    DetectInteractables();
+  }
+
+  private void ClearInteractions()
+  {
+    if (_activeOptions.Count == 0 && _currentLines.Count == 0)
+      return;
+
+    _activeOptions.Clear();
+    _sortedOptions.Clear();
+    UpdatePrompt(Array.Empty<string>());
+  }
+
+  private void UpdatePrompt(IReadOnlyList<string> lines)
+  {
+    bool hasLines = lines != null && lines.Count > 0;
+    if (hasLines && LinesEqual(_currentLines, lines))
+    {
+      if (GameUI.Instance != null && _currentLines.Count > 0)
+        GameUI.Instance.ShowInteractionLines(_currentLines);
+      return;
+    }
+
+    _currentLines.Clear();
+    if (hasLines)
+      _currentLines.AddRange(lines);
+
+    if (GameUI.Instance == null)
+      return;
+
+    if (_currentLines.Count == 0)
+      GameUI.Instance.HideInteractionText();
     else
+      GameUI.Instance.ShowInteractionLines(_currentLines);
+  }
+
+  private static List<string> BuildPrompt(IReadOnlyList<OptionEntry> entries)
+  {
+    if (entries == null || entries.Count == 0)
+      return new List<string>();
+
+    List<string> lines = new(entries.Count);
+    for (int i = 0; i < entries.Count; i++)
     {
-      if (GameUI.Instance != null)
-        GameUI.Instance.HideInteractionText();
+      lines.Add(FormatOption(entries[i].Option));
     }
+
+    return lines;
+  }
+
+  private static string FormatOption(InteractionOption option)
+  {
+    string keyLabel = GetPrimaryInputLabel(option.ActionName);
+    if (!string.IsNullOrEmpty(keyLabel))
+      return $"[{keyLabel}] {option.Description}";
+
+    return option.Description;
+  }
+
+  private static string GetPrimaryInputLabel(string actionName)
+  {
+    if (string.IsNullOrEmpty(actionName) || !InputMap.HasAction(actionName))
+      return string.Empty;
+
+    Godot.Collections.Array<InputEvent> events = InputMap.ActionGetEvents(actionName);
+
+    foreach (InputEvent inputEvent in events)
+    {
+      if (inputEvent is InputEventKey keyEvent)
+      {
+        Key keycode = keyEvent.PhysicalKeycode != 0
+          ? (Key)keyEvent.PhysicalKeycode
+          : keyEvent.Keycode;
+
+        if (keycode != Key.None)
+        {
+          string label = OS.GetKeycodeString(keycode);
+          if (!string.IsNullOrEmpty(label))
+            return label.ToUpperInvariant();
+        }
+      }
+      else if (inputEvent is InputEventMouseButton mouseEvent)
+      {
+        return mouseEvent.ButtonIndex switch
+        {
+          MouseButton.Left => "LMB",
+          MouseButton.Right => "RMB",
+          MouseButton.Middle => "MMB",
+          _ => $"Mouse{(int)mouseEvent.ButtonIndex}"
+        };
+      }
+      else if (inputEvent is InputEventJoypadButton joyEvent)
+      {
+        return $"Joy {joyEvent.ButtonIndex}";
+      }
+    }
+
+    return string.Empty;
+  }
+
+  private readonly struct InteractableContext
+  {
+    public InteractableContext(IInteractable interactable, float distance)
+    {
+      Interactable = interactable;
+      Distance = distance;
+    }
+
+    public IInteractable Interactable { get; }
+    public float Distance { get; }
+  }
+
+  private readonly struct OptionEntry
+  {
+    public OptionEntry(InteractionOption option, IInteractable interactable, float distance)
+    {
+      Option = option;
+      Interactable = interactable;
+      Distance = distance;
+    }
+
+    public InteractionOption Option { get; }
+    public IInteractable Interactable { get; }
+    public float Distance { get; }
+  }
+
+  private static bool LinesEqual(List<string> current, IReadOnlyList<string> incoming)
+  {
+    if (current.Count != incoming.Count)
+      return false;
+
+    for (int i = 0; i < current.Count; i++)
+    {
+      if (!string.Equals(current[i], incoming[i], StringComparison.Ordinal))
+        return false;
+    }
+
+    return true;
   }
 }

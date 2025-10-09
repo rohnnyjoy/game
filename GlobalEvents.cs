@@ -1,4 +1,5 @@
 using Godot;
+using Shared.Runtime;
 
 public partial class GlobalEvents : Node
 {
@@ -87,6 +88,7 @@ public partial class GlobalEvents : Node
   {
     Instance = this;
     GD.Print("GlobalEvents singleton is ready.");
+    AssetWarmup.Run(this);
     // Prewarm runtime-generated resources to avoid first-use hitches
     Coin.Prewarm();
     HealthPotion.Prewarm();
@@ -117,6 +119,13 @@ public partial class GlobalEvents : Node
     {
       var beamMgr = new BeamVfxManager();
       AddChild(beamMgr);
+    }
+
+    // Ensure a pause menu overlay exists so players can exit safely mid-run
+    if (PauseMenu.Instance == null)
+    {
+      var pauseMenu = new PauseMenu();
+      AddChild(pauseMenu);
     }
 
     // Wire global listeners

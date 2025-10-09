@@ -157,6 +157,7 @@ public partial class ModuleStackView : Panel
 
     // Clear hover state BEFORE committing so the re-render uses final state (no preview gap).
     ClearHoverState();
+    ModuleDragContext.MarkHandled(resolvedModuleId);
     _store.MoveModule(resolvedModuleId, resolvedSource, Kind, targetIndex, ChangeOrigin.UI);
   }
 
@@ -471,6 +472,7 @@ public partial class ModuleStackView : Panel
     _isDragHovering = false;
     _hoverModuleId = string.Empty;
     HidePlaceholder();
+    RenderCurrent();
   }
 
   private Vector2 GetFrameSize()

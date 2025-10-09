@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=4 uid="uid://dp7h683hqwr76"]
+[gd_scene load_steps=30 format=4 uid="uid://dp7h683hqwr76"]
 
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
 [ext_resource type="PackedScene" uid="uid://cymxvi3bjj71b" path="res://enemy.tscn" id="4_xr0ro"]
@@ -15,6 +15,7 @@
 [ext_resource type="Texture2D" uid="uid://dl2exy6bsks5w" path="res://assets/ui/3x/ninepatch.png" id="14_nptex"]
 [ext_resource type="Script" uid="uid://cogtw56d6pcwk" path="res://inventory/menu/PrimaryWeaponInfo.cs" id="16_wpnfo"]
 [ext_resource type="Script" uid="uid://cugk52p23i4y" path="res://spawning/EnemySpawner.cs" id="17_spwnr"]
+[ext_resource type="Script" uid="uid://cddsl5dv5vqa7" path="res://shop/ShopStand.cs" id="18_shop"]
 
 [sub_resource type="GDScript" id="GDScript_ic0uy"]
 script/source = "extends Node
@@ -26,6 +27,14 @@ script/source = "extends Node
 
 func _unhandled_input(_event):
 	if Input.is_action_just_pressed(\"quit\"):
+		if GlobalEvents:
+			var pause_menu = GlobalEvents.get_node_or_null(\"PauseMenu\")
+			if pause_menu:
+				var toggle = Callable(pause_menu, \"ToggleFromWorld\")
+				if toggle.is_valid():
+					toggle.call()
+					get_viewport().set_input_as_handled()
+					return
 		get_tree().quit()
 
 func _on_host_button_pressed():
@@ -175,6 +184,10 @@ script = ExtResource("3_nmfmg")
 [node name="EnemySpawner" type="Node3D" parent="."]
 script = ExtResource("17_spwnr")
 EnemyScene = ExtResource("4_xr0ro")
+
+[node name="ShopStand" type="Area3D" parent="."]
+script = ExtResource("18_shop")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 3.3, -2.5)
 
 [node name="Islands" parent="." instance=ExtResource("11_ic0uy")]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -0.168314, 0.28594, -2.15489)

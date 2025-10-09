@@ -1,69 +1,142 @@
 using Godot;
 
-public partial class ShopItem : WeaponModuleCard3D
-{
-  [Export]
-  public int Price { get; set; } = 100; // You can set the default price or adjust via the editor.
+#nullable enable
 
-  private Text3DLabel priceLabel;
+public partial class ShopItem : ModulePickup
+{
+  private const float PriceLabelHeight = 2.0f;
+  private static readonly Color SoldOutColor = new Color(0.95f, 0.35f, 0.35f);
+  private static readonly Color AffordColor = Colors.White;
+  private static readonly Color CannotAffordColor = new Color(0.85f, 0.4f, 0.4f);
+
+  [Export]
+  public int Price { get; set; } = 100;
+
+  private Text3DLabel? _priceLabel;
+  private bool _sold;
 
   public override void _Ready()
   {
-    // Call the base class _Ready to ensure the card is rendered as usual.
+    Freeze = true;
     base._Ready();
 
-    // Create a 3D text label to display the price and configure it.
-    priceLabel = new Text3DLabel
+    _priceLabel = new Text3DLabel
     {
-      Text = "$" + Price.ToString(),
+      Name = "PriceLabel",
       FontPath = "res://assets/fonts/Born2bSportyV2.ttf",
       FontSize = 40,
       PixelSize = 0.01f,
-      Color = Colors.White,
-      OutlineColor = new Color(0,0,0,1),
+      Color = AffordColor,
+      OutlineColor = new Color(0f, 0f, 0f, 1f),
       OutlineSize = 8,
       Shaded = false,
       FaceCamera = true,
       EnableShadow = true,
-      ShadowColor = new Color(0,0,0,0.35f),
-      ShadowOffset = 0.0075f
+      ShadowColor = new Color(0f, 0f, 0f, 0.35f),
+      ShadowOffset = 0.0075f,
+      EnableFloat = true,
+      FloatAmplitude = 0.1f,
+      FloatFrequency = 1.8f,
     };
-    // Adjust the position so it appears to hover above the card.
-    priceLabel.Position = new Vector3(0, 2, 0); // tweak as needed for your scene
-    AddChild(priceLabel);
+    _priceLabel.Position = new Vector3(0f, PriceLabelHeight, 0f);
+    UpdatePriceLabel();
+    AddChild(_priceLabel);
+    UpdatePriceColors();
   }
 
-  public override void OnInteract()
+  public override void _Process(double delta)
   {
-    // Check if the player has enough money to purchase this item.
-    if (Player.Instance.Inventory.Money >= Price)
+    base._Process(delta);
+    UpdatePriceColors();
+  }
+
+  public override void OnInteract(string actionName)
+  {
+    if (actionName != InteractionOption.DefaultAction)
+      return;
+
+    if (_sold)
+      return;
+
+    Inventory? inventory = Player.Instance?.Inventory;
+    if (inventory == null)
+      return;
+
+    int currentMoney = inventory.Money;
+    if (currentMoney < Price)
     {
-      // Deduct the price from the player's balance.
-      Player.Instance.Inventory.Money -= Price;
-
-      // "Unwrap" the module: if a module is set, add it to the player's inventory.
-      if (Module != null)
-      {
-        var store = InventoryStore.Instance;
-        if (store != null)
-        {
-          int insertIndex = store.State.InventoryModuleIds.Count;
-          store.AddModule(Module, StackKind.Inventory, insertIndex, ChangeOrigin.Gameplay);
-        }
-        else
-        {
-          var newModules = new Godot.Collections.Array<WeaponModule>(Player.Instance.Inventory.WeaponModules)
-                  {
-                      Module
-                  };
-          Player.Instance.Inventory.WeaponModules = newModules;
-        }
-      }
-      else { }
-
-      // Remove the shop item from the scene after purchase.
-      QueueFree();
+      IndicateCannotAfford();
+      return;
     }
-    else { }
+
+    if (!TryTransferToInventory())
+      return;
+
+    int newAmount = currentMoney - Price;
+    if (GlobalEvents.Instance != null)
+      GlobalEvents.Instance.EmitMoneyUpdated(currentMoney, newAmount);
+    inventory.Money = newAmount;
+
+    _sold = true;
+    UpdatePriceLabel();
+    QueueFree();
+  }
+
+  public override string GetInteractionText()
+  {
+    if (_sold)
+      return "Sold out";
+
+    string moduleName = Module?.ModuleName ?? Module?.GetType().Name ?? "Module";
+    Inventory? inventory = Player.Instance?.Inventory;
+    if (inventory != null && inventory.Money >= Price)
+      return $"Buy {moduleName} (${Price})";
+
+    int missing = inventory != null ? Mathf.Max(0, Price - inventory.Money) : Price;
+    return missing > 0
+      ? $"Need ${missing} more for {moduleName}"
+      : $"Buy {moduleName} (${Price})";
+  }
+
+  private void UpdatePriceLabel()
+  {
+    if (_priceLabel == null)
+      return;
+
+    if (_sold)
+    {
+      _priceLabel.SetText("SOLD");
+      _priceLabel.Color = SoldOutColor;
+      _priceLabel.EnablePulse = false;
+      return;
+    }
+
+    _priceLabel.SetText($"${Price}");
+    _priceLabel.Color = AffordColor;
+    _priceLabel.EnablePulse = false;
+  }
+
+  private void UpdatePriceColors()
+  {
+    if (_priceLabel == null || _sold)
+      return;
+
+    Inventory? inventory = Player.Instance?.Inventory;
+    bool canAfford = inventory != null && inventory.Money >= Price;
+    _priceLabel.Color = canAfford ? AffordColor : CannotAffordColor;
+
+    if (canAfford && _priceLabel.EnablePulse)
+      _priceLabel.EnablePulse = false;
+  }
+
+  private void IndicateCannotAfford()
+  {
+    if (_priceLabel == null)
+      return;
+
+    _priceLabel.Color = CannotAffordColor;
+    _priceLabel.EnablePulse = true;
+    _priceLabel.PulseAmount = 0.25f;
+    _priceLabel.PulseSpeed = 9.0f;
   }
 }

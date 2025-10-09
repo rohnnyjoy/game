@@ -15,7 +15,7 @@ public partial class HealthUi : Control
   [Export(PropertyHint.Range, "64,1200,1")] public int BarWidth = 520;
   // Make the bar tall enough to contain 80px text with comfortable padding
   [Export(PropertyHint.Range, "8,256,1")] public int BarHeight = 90;
-  [Export(PropertyHint.Range, "0,48,1")] public int BarPadding = 12;
+  [Export(PropertyHint.Range, "0,48,1")] public int BarPadding = 8;
   // Text alignment inside the bar's inner content rect
   // 0 = Left/Top, 1 = Center, 2 = Right/Bottom
   [Export] public int TextHAlign = 1;

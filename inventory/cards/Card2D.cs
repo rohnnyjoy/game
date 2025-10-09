@@ -237,10 +237,11 @@ public partial class Card2D : Button
       GD.Print($"[Card2D:{Name}] EndCardDrag by framedOwner={_framedOwner.GetType().Name} handled={handledByFramed}");
       _framedOwner = null;
     }
-    if (!handledByFramed)
+    bool dropHandled = handledByFramed;
+
+    Node framedTarget = null;
+    if (!dropHandled)
     {
-      // Try framed stacks first for cross-stack drops
-      Node framedTarget = null;
       foreach (Node stack in GetTree().GetNodesInGroup("CardStacks"))
       {
         if (stack is Control control && control.GetGlobalRect().HasPoint(GetGlobalMousePosition()))
@@ -250,39 +251,32 @@ public partial class Card2D : Button
         }
       }
 
-      bool framedHandled = false;
       if (framedTarget is IFramedCardStack fstack)
       {
         GD.Print($"[Card2D:{Name}] AcceptExternalDrop on target={framedTarget.GetType().Name}");
-        framedHandled = fstack.AcceptExternalDrop(this, GetGlobalMousePosition());
-        GD.Print($"[Card2D:{Name}] AcceptExternalDrop handled={framedHandled}");
+        dropHandled = fstack.AcceptExternalDrop(this, GetGlobalMousePosition());
+        GD.Print($"[Card2D:{Name}] AcceptExternalDrop handled={dropHandled}");
       }
-
-      if (!framedHandled)
+      else if (framedTarget is CardStack newStack)
       {
-        // If a framed stack has already restored/adopted this card during its
-        // EndCardDrag (e.g., cancel/snap-back), avoid treating this as an outside
-        // drop. In that case, we are already back under a framed owner and should
-        // not convert to 3D.
-        if (FindFramedOwner() is IFramedCardStack)
-        {
-          return;
-        }
-
-        // Fallback: legacy drop scanning for plain CardStack parents.
-        if (framedTarget is CardStack newStack)
-        {
-          GD.Print($"[Card2D:{Name}] Legacy OnCardDrop to stack={newStack.Name}");
-          Vector2 targetGlobalPos = GetGlobalMousePosition() + _offset;
-          Vector2 dropLocalPos = targetGlobalPos - newStack.GetGlobalRect().Position;
-          newStack.CallDeferred("OnCardDrop", this, dropLocalPos);
-        }
-        else if (GetParent() is CardStack parentStack)
-        {
-          GD.Print($"[Card2D:{Name}] Dropped outside stacks; calling OnDroppedOutsideStacks");
-          OnDroppedOutsideStacks();
-        }
+        GD.Print($"[Card2D:{Name}] Legacy OnCardDrop to stack={newStack.Name}");
+        Vector2 targetGlobalPos = GetGlobalMousePosition() + _offset;
+        Vector2 dropLocalPos = targetGlobalPos - newStack.GetGlobalRect().Position;
+        newStack.CallDeferred("OnCardDrop", this, dropLocalPos);
+        dropHandled = true;
       }
+    }
+
+    if (!dropHandled && FindFramedOwner() is IFramedCardStack)
+    {
+      dropHandled = true;
+    }
+
+    if (!dropHandled)
+    {
+      GD.Print($"[Card2D:{Name}] Dropped outside stacks; calling OnDroppedOutsideStacks");
+      OnDroppedOutsideStacks();
+      dropHandled = true;
     }
 
     // Return to normal hierarchy mode after drag completes
