@@ -11,7 +11,7 @@ using Shared.Runtime;
 /// push actors out of the restricted volume when needed.
 /// </summary>
 [Tool]
-public partial class ShopSafeZone : StaticBody3D
+public partial class ShopSafeZone : StaticBody3D, IDamageBarrierSurface
 {
   public const PhysicsLayers.Layer AssignedLayer = PhysicsLayers.Layer.SafeZone;
   public static readonly uint LayerMask = PhysicsLayers.Mask(AssignedLayer);
@@ -26,6 +26,30 @@ public partial class ShopSafeZone : StaticBody3D
   private MeshInstance3D? _meshInstance;
   private float _radius = 4.0f;
   private StandardMaterial3D? _material;
+  private bool _blocksDirectProjectiles = true;
+  private bool _blocksIndirectDamage = true;
+
+  [Export]
+  public bool BlocksDirectProjectiles
+  {
+    get => _blocksDirectProjectiles;
+    set
+    {
+      if (_blocksDirectProjectiles == value)
+        return;
+      _blocksDirectProjectiles = value;
+      ApplyCollisionProfile();
+    }
+  }
+
+  [Export]
+  public bool BlocksIndirectDamage
+  {
+    get => _blocksIndirectDamage;
+    set => _blocksIndirectDamage = value;
+  }
+
+  public DamageBarrierDirectionality Directionality => DamageBarrierDirectionality.Both;
 
   [Export(PropertyHint.Range, "0.5,50.0,0.1")] public float Radius
   {
@@ -83,7 +107,7 @@ public partial class ShopSafeZone : StaticBody3D
 
   public override void _Ready()
   {
-    CollisionLayer = LayerMask;
+    ApplyCollisionProfile();
     CollisionMask = 0;
     ProcessMode = ProcessModeEnum.Disabled;
 
@@ -101,13 +125,19 @@ public partial class ShopSafeZone : StaticBody3D
     if (!IsInGroup(GroupName))
       AddToGroup(GroupName);
 
+    if (!IsInGroup(DamageBarrierUtilities.GroupName))
+      AddToGroup(DamageBarrierUtilities.GroupName);
+
     if (!_activeZones.Contains(this))
       _activeZones.Add(this);
+
+    DamageBarrierRegistry.Register(this);
   }
 
   public override void _ExitTree()
   {
     _activeZones.Remove(this);
+    DamageBarrierRegistry.Unregister(this);
     base._ExitTree();
   }
 
@@ -237,5 +267,143 @@ public partial class ShopSafeZone : StaticBody3D
     push = Vector3.Zero;
     zone = null;
     return false;
+  }
+
+  public bool TryGetSegmentIntersection(Vector3 from, Vector3 to, out Vector3 hitPoint, out Vector3 normal, out float fraction)
+  {
+    hitPoint = Vector3.Zero;
+    normal = Vector3.Zero;
+    fraction = 0.0f;
+
+    Vector3 dir = to - from;
+    float lengthSquared = dir.LengthSquared();
+    if (lengthSquared <= 0.000001f)
+    {
+      if (!ContainsPoint(from))
+        return false;
+      Vector3 outward = from - GlobalPosition;
+      if (outward.LengthSquared() <= 0.000001f)
+        outward = Vector3.Up;
+      else
+        outward = outward.Normalized();
+      hitPoint = from;
+      normal = outward;
+      fraction = 0.0f;
+      return true;
+    }
+
+    float radius = _radius;
+    Vector3 m = from - GlobalPosition;
+    float a = lengthSquared;
+    float b = 2.0f * m.Dot(dir);
+    float c = m.Dot(m) - radius * radius;
+
+    float discriminant = b * b - 4.0f * a * c;
+    if (discriminant < 0.0f)
+      return false;
+
+    float sqrtDiscriminant = Mathf.Sqrt(discriminant);
+    float denom = 2.0f * a;
+
+    float t0 = (-b - sqrtDiscriminant) / denom;
+    float t1 = (-b + sqrtDiscriminant) / denom;
+
+    bool found = false;
+    float bestT = float.MaxValue;
+
+    if (t0 >= 0.0f && t0 <= 1.0f)
+    {
+      bestT = Mathf.Min(bestT, t0);
+      found = true;
+    }
+    if (t1 >= 0.0f && t1 <= 1.0f)
+    {
+      bestT = Mathf.Min(bestT, t1);
+      found = true;
+    }
+
+    if (!found)
+      return false;
+
+    Vector3 point = from + dir * bestT;
+    Vector3 outwardNormal = point - GlobalPosition;
+    if (outwardNormal.LengthSquared() <= 0.000001f)
+      outwardNormal = Vector3.Up;
+    else
+      outwardNormal = outwardNormal.Normalized();
+
+    hitPoint = point;
+    normal = outwardNormal;
+    fraction = Mathf.Clamp(bestT, 0.0f, 1.0f);
+    return true;
+  }
+
+  public Node3D BarrierNode => this;
+
+  public bool TryGetIntersection(in DamageBarrierQuery query, out DamageBarrierHit hit)
+  {
+    hit = default;
+    Vector3 from = query.OriginPosition;
+    Vector3 to = query.TargetPosition;
+    Vector3 dir = to - from;
+    float length = dir.Length();
+    if (length <= 0.000001f)
+    {
+      if (!ContainsPoint(from, query.Padding))
+        return false;
+      Vector3 outward = from - GlobalPosition;
+      if (outward.LengthSquared() <= 0.000001f)
+        outward = Vector3.Up;
+      else
+        outward = outward.Normalized();
+      hit = new DamageBarrierHit(this, from, outward, 0.0f);
+      return true;
+    }
+
+    float radius = Mathf.Max(0.0f, _radius + query.Padding);
+    Vector3 m = from - GlobalPosition;
+    float a = dir.Dot(dir);
+    float b = 2.0f * m.Dot(dir);
+    float c = m.Dot(m) - radius * radius;
+    float discriminant = b * b - 4.0f * a * c;
+    if (discriminant < 0.0f)
+      return false;
+
+    float sqrtDiscriminant = Mathf.Sqrt(discriminant);
+    float denom = 2.0f * a;
+    float t0 = (-b - sqrtDiscriminant) / denom;
+    float t1 = (-b + sqrtDiscriminant) / denom;
+
+    float bestT = float.PositiveInfinity;
+    if (t0 >= 0.0f && t0 <= 1.0f)
+      bestT = Mathf.Min(bestT, t0);
+    if (t1 >= 0.0f && t1 <= 1.0f)
+      bestT = Mathf.Min(bestT, t1);
+
+    if (float.IsNaN(bestT) || float.IsInfinity(bestT))
+      return false;
+
+    Vector3 point = from + dir * bestT;
+    Vector3 normal = point - GlobalPosition;
+    if (normal.LengthSquared() <= 0.000001f)
+      normal = Vector3.Up;
+    else
+      normal = normal.Normalized();
+
+    float distance = length * Mathf.Clamp(bestT, 0.0f, 1.0f);
+    hit = new DamageBarrierHit(this, point, normal, distance);
+    return true;
+  }
+
+  public bool ShouldBlockDamage(in DamageBarrierQuery query, in DamageBarrierHit hit)
+  {
+    if (!DamageBarrierUtilities.BlocksKind(query.Kind, _blocksDirectProjectiles, _blocksIndirectDamage))
+      return false;
+    return DamageBarrierUtilities.PassesDirection(Directionality, query.OriginPosition, query.TargetPosition, hit.Normal);
+  }
+
+  private void ApplyCollisionProfile()
+  {
+    CollisionLayer = _blocksDirectProjectiles ? LayerMask : 0;
   }
 }

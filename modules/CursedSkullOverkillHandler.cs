@@ -1,6 +1,7 @@
 using Godot;
 #nullable enable
 using Godot.Collections;
+using Shared.Runtime;
 using System;
 
 // Listens for global overkill events and applies Cursed Skull chaining to the nearest enemy.
@@ -159,6 +160,8 @@ public sealed partial class CursedSkullOverkillHandler : Node
       float d = candidate.GlobalTransform.Origin.DistanceTo(origin);
       if (d < best)
       {
+        if (DamageOcclusionService.IsBlocked(victim, origin, candidate.GlobalTransform.Origin, out _, out _))
+          continue;
         best = d;
         nearest = candidate;
       }

@@ -17,7 +17,8 @@ namespace Shared.Runtime
       Enemy = 2,
       Projectile = 3,
       Interactables = 4,
-      SafeZone = 5
+      SafeZone = 5,
+      DamageBarrier = 6,
     }
 
     /// <summary>

@@ -3,6 +3,7 @@ using Godot;
 #nullable enable
 using System;
 using System.Collections.Generic;
+using Shared.Runtime;
 
 /// <summary>
 /// Centralized bullet simulation and rendering using MultiMesh.
@@ -33,7 +34,7 @@ public partial class BulletManager : Node3D
     public Material? Material;
     public MultiMesh MultiMesh = null!;
     public MultiMeshInstance3D Instance = null!;
-    public uint CollisionMask = uint.MaxValue; // Default: collide with everything
+    public uint CollisionMask = uint.MaxValue;
     public float Gravity = 0.0f;
     public bool DestroyOnImpact = true;
     public float Radius = 0.05f;
@@ -211,6 +212,13 @@ public partial class BulletManager : Node3D
   private uint _nextBulletId = 1;
   private readonly Dictionary<BulletWeapon, Archetype> _weaponArchetypes = new();
 
+  private static readonly uint DefaultArchetypeCollisionMask = PhysicsLayers.Mask(
+    PhysicsLayers.Layer.World,
+    PhysicsLayers.Layer.Enemy,
+    PhysicsLayers.Layer.SafeZone,
+    PhysicsLayers.Layer.DamageBarrier
+  );
+
   [Export]
   public bool DebugLogCollisions { get; set; } = true;
   [Export]
@@ -334,6 +342,7 @@ public partial class BulletManager : Node3D
       existingArch.CollisionOps = BuildCollisionOps(bw);
       existingArch.SteeringOps = BuildSteeringOps(existingArch.BehaviorConfig);
       existingArch.OwnerWeapon = bw;
+      existingArch.CollisionMask = DefaultArchetypeCollisionMask;
       BuildDamagePipelines(existingArch, preStepConfigs, postStepConfigs);
       _weaponArchetypes[bw] = existingArch;
       return;
@@ -356,7 +365,7 @@ public partial class BulletManager : Node3D
       mesh,
       material,
       radius: bw.ManagerBulletRadius,
-      collisionMask: uint.MaxValue,
+      collisionMask: DefaultArchetypeCollisionMask,
       gravity: 0.0f,
       destroyOnImpact: true,
       visualScale: bw.ManagerVisualScale,
@@ -1360,11 +1369,11 @@ public partial class BulletManager : Node3D
           Vector3 nextPos = b.Position + b.Velocity * dt;
 
           // Raycast from prev to next; approximate a sphere cast using offset rays
-          Godot.Collections.Dictionary hit = new Godot.Collections.Dictionary();
           Vector3 hitPos = nextPos;
           Vector3 hitNormal = Vector3.Zero;
           Node3D? collider = null;
           ulong colliderId = 0;
+          bool hasHit = false;
 
           Vector3 seg = nextPos - b.Position;
           float segLen = seg.Length();
@@ -1377,22 +1386,56 @@ public partial class BulletManager : Node3D
             float r = MathF.Max(0.001f, arch.Radius);
 
             float bestFrac = float.MaxValue;
+
+            void ConsiderHit(Vector3 position, Vector3 normal, Node3D? hitCollider, ulong hitId, float frac)
+            {
+              if (frac < 0.0f || frac > 1.0f)
+                return;
+              if (frac >= bestFrac)
+                return;
+              bestFrac = frac;
+              hasHit = true;
+              hitPos = position;
+              hitNormal = normal;
+              collider = hitCollider;
+              colliderId = hitId;
+            }
+
+            var barrierQuery = new DamageBarrierQuery(
+              b.Position,
+              nextPos,
+              arch.Radius,
+              DamageKind.Projectile,
+              arch.OwnerWeapon as Node3D,
+              null
+            );
+
+            if (DamageBarrierRegistry.TryGetFirstBlockingHit(barrierQuery, out DamageBarrierHit barrierHit))
+            {
+              float frac = segLen > 0.000001f ? barrierHit.Distance / segLen : 0.0f;
+              ulong barrierId = (ulong)barrierHit.Barrier.GetInstanceId();
+              ConsiderHit(barrierHit.Position, barrierHit.Normal, barrierHit.Barrier, barrierId, frac);
+            }
+
             void TestRay(Vector3 from, Vector3 to)
             {
-              var q = new PhysicsRayQueryParameters3D { From = from, To = to, CollisionMask = arch.CollisionMask };
+              var q = new PhysicsRayQueryParameters3D
+              {
+                From = from,
+                To = to,
+                CollisionMask = arch.CollisionMask,
+                HitFromInside = true,
+                HitBackFaces = true,
+              };
               var h = space.IntersectRay(q);
               if (h.Count == 0) return;
               Vector3 p = h.ContainsKey("position") ? (Vector3)h["position"] : to;
-              float frac = (p - from).Length() / (to - from).Length();
-              if (frac < bestFrac)
-              {
-                bestFrac = frac;
-                hit = h;
-                hitPos = p;
-                hitNormal = h.ContainsKey("normal") ? (Vector3)h["normal"] : Vector3.Zero;
-                collider = h.ContainsKey("collider") ? h["collider"].As<Node3D>() : null;
-                colliderId = h.ContainsKey("collider_id") ? (ulong)h["collider_id"] : 0;
-              }
+              Vector3 normal = h.ContainsKey("normal") ? (Vector3)h["normal"] : Vector3.Zero;
+              Node3D? hitCollider = h.ContainsKey("collider") ? h["collider"].As<Node3D>() : null;
+              ulong hitId = h.ContainsKey("collider_id") ? (ulong)h["collider_id"] : 0;
+              float rayLen = (to - from).Length();
+              float frac = rayLen > 0.000001f ? (p - from).Length() / rayLen : 0.0f;
+              ConsiderHit(p, normal, hitCollider, hitId, frac);
             }
 
             // Center ray + four offsets roughly covering the bullet radius
@@ -1403,7 +1446,7 @@ public partial class BulletManager : Node3D
             TestRay(b.Position - v * r, nextPos - v * r);
           }
 
-          if (hit.Count > 0)
+          if (hasHit)
           {
 
             if (colliderId != 0 && colliderId == b.LastColliderId && b.CollisionCooldown > 0.0f)
@@ -2079,6 +2122,8 @@ public partial class BulletManager
       float dist = enemyNode.GlobalTransform.Origin.DistanceTo(center);
       if (dist <= radius)
       {
+        if (DamageOcclusionService.IsBlocked(this, center, enemyNode.GlobalTransform.Origin, out _, out _))
+          continue;
         try
         {
           if (enemyNode is Enemy enemy)

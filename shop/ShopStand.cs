@@ -223,6 +223,13 @@ public partial class ShopStand : Area3D, IInteractable
     _safeZone = GetNodeOrNull<ShopSafeZone>(nameof(ShopSafeZone))
       ?? CreateSafeZone();
 
+    if (_safeZone != null)
+    {
+      // Ensure runtime-created zones always block projectiles/damage by default.
+      _safeZone.BlocksDirectProjectiles = true;
+      _safeZone.BlocksIndirectDamage = true;
+    }
+
     SyncSafeZone();
   }
 
