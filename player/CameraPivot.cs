@@ -37,7 +37,7 @@ public partial class CameraPivot : Node3D
     cameraRig = GetNodeOrNull<Node3D>(CameraRigPath);
 
     // Initialize from current transforms to avoid a snap.
-    yaw = player != null ? player.Rotation.Y : 0f;
+    yaw = NormalizeAngle(player != null ? player.Rotation.Y : 0f);
 
     if (MinDistance > MaxDistance)
     {
@@ -117,6 +117,7 @@ public partial class CameraPivot : Node3D
       return;
 
     yaw += -delta.X * Sensitivity;
+    yaw = NormalizeAngle(yaw);
     pitch = Mathf.Clamp(pitch - delta.Y * Sensitivity, MinPitch, MaxPitch);
     SyncPlayerYaw();
     ApplyPivotRotation();
@@ -128,9 +129,11 @@ public partial class CameraPivot : Node3D
       return;
 
     Vector3 pr = player.Rotation;
-    if (!Mathf.IsEqualApprox(pr.Y, yaw))
+    float targetYaw = NormalizeAngle(yaw);
+    yaw = targetYaw;
+    if (!Mathf.IsEqualApprox(pr.Y, targetYaw))
     {
-      pr.Y = yaw;
+      pr.Y = targetYaw;
       player.Rotation = pr;
     }
   }
@@ -138,7 +141,7 @@ public partial class CameraPivot : Node3D
   private void ApplyPivotRotation()
   {
     // Keep a small safety offset in case some other system temporarily overrides the body yaw.
-    float bodyYaw = player != null ? player.Rotation.Y : 0f;
+    float bodyYaw = NormalizeAngle(player != null ? player.Rotation.Y : 0f);
     float yawOffset = AngleDelta(bodyYaw, yaw); // normalized shortest delta in [-π, π]
 
     // Apply pitch and the small visual yaw offset locally on the pivot.
@@ -195,6 +198,11 @@ public partial class CameraPivot : Node3D
 
   // Smallest signed angle from "from" to "to", normalized to [-π, π].
   // Prevents wrap-around jitters when computing visual yaw offsets.
+  private static float NormalizeAngle(float angle)
+  {
+    return Mathf.PosMod(angle + Mathf.Pi, Mathf.Tau) - Mathf.Pi;
+  }
+
   private static float AngleDelta(float from, float to)
   {
     float diff = to - from;

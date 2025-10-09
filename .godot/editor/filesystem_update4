@@ -98,3 +98,4 @@ res://shop/ShopStand.cs
 res://shop/ShopSafeZone.cs
 res://environment/DamageBarrierSurface.cs
 res://environment/DamageBarrierPlane.cs
+res://modules/RapidFireModule.cs

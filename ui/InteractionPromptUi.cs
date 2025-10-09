@@ -4,27 +4,31 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
+/// <summary>
+/// Bottom-aligned interaction prompt stack that renders each line with DynaText.
+/// New/changed lines animate, but existing ones stay anchored so the stack does not jump.
+/// </summary>
 public partial class InteractionPromptUi : Control
 {
   private readonly List<DynaText> _lineNodes = new();
-  private readonly List<Vector2> _lineSizes = new();
-  private readonly List<string> _cachedLines = new();
-
+  private readonly List<string> _currentLines = new();
   private Tween? _fadeTween;
   private Control? _anchor;
   private bool _layoutDirty;
-  private int _appliedFontPx;
+  private int _appliedFontPx = -1;
+  private FontFile? _font;
 
   [Export] public string FontPath = "res://assets/fonts/Born2bSportyV2.ttf";
   [Export(PropertyHint.Range, "24,96,2")] public int FontPx = 64;
-  [Export] public Color TextColor = new Color(1f, 1f, 1f);
+  [Export] public Color TextColor = new(1f, 1f, 1f);
   [Export] public bool Shadow = true;
-  [Export] public bool UseShadowParallax = true;
   [Export] public float ShadowAlpha = 0.35f;
-  [Export] public Vector2 ShadowOffset = new Vector2(0, 0);
+  [Export] public Vector2 ShadowOffset = Vector2.Zero;
+  [Export] public bool UseShadowParallax = true;
   [Export] public float ParallaxPixelScale = 0f;
-  [Export] public float TextRotation = 0.0f;
+  [Export] public float TextRotation = 0f;
   [Export] public float PulseAmount = 0.35f;
+  [Export] public float PulseDuration = 0.12f;
   [Export] public float QuiverAmount = 0.12f;
   [Export] public float QuiverSpeed = 0.6f;
   [Export] public float FadeDuration = 0.12f;
@@ -33,8 +37,8 @@ public partial class InteractionPromptUi : Control
   public override void _Ready()
   {
     Visible = false;
-    Modulate = new Color(Modulate.R, Modulate.G, Modulate.B, 0f);
-    _appliedFontPx = FontPx;
+    Modulate = Modulate with { A = 0f };
+    EnsureFontLoaded(true);
   }
 
   public void AttachTo(Control container)
@@ -52,11 +56,33 @@ public partial class InteractionPromptUi : Control
 
   public void SetLines(IReadOnlyList<string>? lines)
   {
-    _cachedLines.Clear();
-    if (lines != null)
-      _cachedLines.AddRange(lines);
+    EnsureFontLoaded();
 
-    RebuildLines();
+    int desired = lines?.Count ?? 0;
+    EnsureLineCapacity(desired);
+
+    for (int i = 0; i < desired; i++)
+    {
+      string incoming = lines![desired - 1 - i] ?? string.Empty;
+      string previous = _currentLines[i];
+      DynaText node = _lineNodes[i];
+
+      if (!string.Equals(previous, incoming, StringComparison.Ordinal))
+      {
+        ApplyLineConfig(node, incoming);
+        AnimateLine(node);
+        _currentLines[i] = incoming;
+      }
+
+      node.Visible = true;
+    }
+
+    for (int i = desired; i < _lineNodes.Count; i++)
+    {
+      _lineNodes[i].Visible = false;
+      _currentLines[i] = string.Empty;
+    }
+
     _layoutDirty = true;
   }
 
@@ -73,11 +99,10 @@ public partial class InteractionPromptUi : Control
     if (_lineNodes.Count == 0)
       return;
 
-    if (_fadeTween != null && _fadeTween.IsRunning())
-      _fadeTween.Kill();
-
+    _fadeTween?.Kill();
     Visible = true;
-    var c = Modulate; c.A = 0f; Modulate = c;
+    Modulate = Modulate with { A = 0f };
+
     _fadeTween = GetTree().CreateTween();
     _fadeTween.SetTrans(Tween.TransitionType.Linear).SetEase(Tween.EaseType.In);
     _fadeTween.TweenProperty(this, "modulate:a", 1f, MathF.Max(0.0001f, FadeDuration));
@@ -85,9 +110,7 @@ public partial class InteractionPromptUi : Control
 
   public void HidePrompt()
   {
-    if (_fadeTween != null && _fadeTween.IsRunning())
-      _fadeTween.Kill();
-
+    _fadeTween?.Kill();
     _fadeTween = GetTree().CreateTween();
     _fadeTween.SetTrans(Tween.TransitionType.Linear).SetEase(Tween.EaseType.In);
     _fadeTween.TweenProperty(this, "modulate:a", 0f, MathF.Max(0.0001f, FadeDuration));
@@ -100,12 +123,12 @@ public partial class InteractionPromptUi : Control
 
     if (_appliedFontPx != FontPx)
     {
-      _appliedFontPx = FontPx;
-      RebuildLines();
+      EnsureFontLoaded(true);
+      RefreshLineFonts();
       _layoutDirty = true;
     }
 
-    if (_layoutDirty && UpdatePlacement())
+    if (_layoutDirty && UpdateLayout())
       _layoutDirty = false;
   }
 
@@ -114,43 +137,7 @@ public partial class InteractionPromptUi : Control
     _layoutDirty = true;
   }
 
-  private void RebuildLines()
-  {
-    foreach (var node in _lineNodes)
-    {
-      if (node != null)
-      {
-        if (node.IsInsideTree())
-          RemoveChild(node);
-        node.QueueFree();
-      }
-    }
-    _lineNodes.Clear();
-
-    foreach (string line in _cachedLines)
-    {
-      var node = CreateLineNode(line ?? string.Empty);
-      AddChild(node);
-      _lineNodes.Add(node);
-    }
-  }
-
-  private DynaText CreateLineNode(string text)
-  {
-    var cfg = BuildConfig();
-    cfg.Parts.Clear();
-    cfg.Parts.Add(new DynaText.TextPart { Literal = text });
-
-    var dyn = new DynaText();
-    dyn.Init(cfg);
-    dyn.Visible = true;
-    dyn.TriggerPulse(PulseAmount);
-    dyn.SetQuiver(QuiverAmount, QuiverSpeed, 0.3f);
-    dyn.TriggerTilt(0.25f);
-    return dyn;
-  }
-
-  private bool UpdatePlacement()
+  private bool UpdateLayout()
   {
     if (_anchor == null || !IsInstanceValid(_anchor))
       return false;
@@ -158,48 +145,100 @@ public partial class InteractionPromptUi : Control
     Rect2 rect = _anchor.GetGlobalRect();
     GlobalPosition = rect.Position + rect.Size * 0.5f;
 
-    _lineSizes.Clear();
-    float totalHeight = 0f;
+    float currentY = 0f;
+    bool anyVisible = false;
 
-    for (int i = 0; i < _lineNodes.Count; i++)
-    {
-      Vector2 bounds = _lineNodes[i].GetBoundsPx();
-      _lineSizes.Add(bounds);
-      if (bounds.LengthSquared() < 0.0001f)
-        continue;
-      totalHeight += bounds.Y;
-      if (i < _lineNodes.Count - 1)
-        totalHeight += LineSpacingPx;
-    }
-
-    float currentY = -totalHeight;
     for (int i = 0; i < _lineNodes.Count; i++)
     {
       DynaText node = _lineNodes[i];
-      Vector2 bounds = _lineSizes[i];
-      if (bounds.LengthSquared() < 0.0001f)
-      {
-        node.Visible = false;
+      if (!node.Visible)
         continue;
-      }
 
-      node.Visible = true;
-      node.Position = new Vector2(-bounds.X * 0.5f, currentY);
-      currentY += bounds.Y;
-      if (i < _lineNodes.Count - 1)
-        currentY += LineSpacingPx;
+      Vector2 size = node.GetBoundsPx();
+      if (size.LengthSquared() < 0.000001f)
+        continue;
+
+      currentY -= size.Y;
+      node.Position = new Vector2(-size.X * 0.5f, currentY);
+
+      if (HasVisibleLineAbove(i))
+        currentY -= LineSpacingPx;
+
+      anyVisible = true;
     }
 
-    return true;
+    return anyVisible;
+  }
+
+  private void EnsureFontLoaded(bool force = false)
+  {
+    if (_font == null || force)
+    {
+      _font = GD.Load<FontFile>(FontPath);
+      _appliedFontPx = FontPx;
+    }
+  }
+
+  private void EnsureLineCapacity(int desired)
+  {
+    while (_lineNodes.Count < desired)
+    {
+      var node = new DynaText();
+      ApplyLineConfig(node, string.Empty);
+      node.Visible = false;
+      AddChild(node);
+      _lineNodes.Insert(0, node);
+      _currentLines.Insert(0, string.Empty);
+    }
+
+  }
+
+  private void ApplyLineConfig(DynaText node, string text)
+  {
+    var cfg = BuildConfig();
+    cfg.Parts.Clear();
+    cfg.Parts.Add(new DynaText.TextPart { Literal = text });
+    node.Init(cfg);
+  }
+
+  private void AnimateLine(DynaText node)
+  {
+    node.TriggerPulse(PulseAmount, 2.5f, 40f);
+    node.SetQuiver(QuiverAmount, QuiverSpeed, 0.3f);
+    node.TriggerTilt(0.25f);
+  }
+
+  private void RefreshLineFonts()
+  {
+    for (int i = 0; i < _lineNodes.Count; i++)
+    {
+      string text = _currentLines[i];
+      DynaText node = _lineNodes[i];
+      ApplyLineConfig(node, text);
+      node.Visible = !string.IsNullOrEmpty(text);
+    }
+  }
+
+  private bool HasVisibleLineAbove(int index)
+  {
+    for (int i = index + 1; i < _lineNodes.Count; i++)
+    {
+      var node = _lineNodes[i];
+      if (!node.Visible)
+        continue;
+      if (node.GetBoundsPx().LengthSquared() > 0.000001f)
+        return true;
+    }
+    return false;
   }
 
   private DynaText.Config BuildConfig()
   {
-    Font font = GD.Load<FontFile>(FontPath);
+    EnsureFontLoaded();
 
     return new DynaText.Config
     {
-      Font = font,
+      Font = _font!,
       FontSizePx = FontPx,
       Colours = new() { TextColor },
       Shadow = Shadow,

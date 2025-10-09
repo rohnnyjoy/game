@@ -25,6 +25,7 @@ public partial class ShopSafeZone : StaticBody3D, IDamageBarrierSurface
   private CollisionShape3D? _collisionShape;
   private MeshInstance3D? _meshInstance;
   private float _radius = 4.0f;
+  private float _barrierThickness = 0.5f;
   private StandardMaterial3D? _material;
   private bool _blocksDirectProjectiles = true;
   private bool _blocksIndirectDamage = true;
@@ -60,6 +61,21 @@ public partial class ShopSafeZone : StaticBody3D, IDamageBarrierSurface
       if (Mathf.IsEqualApprox(_radius, clamped))
         return;
       _radius = clamped;
+      RefreshCollision();
+      RefreshMesh();
+    }
+  }
+
+  [Export(PropertyHint.Range, "0.0,10.0,0.05")]
+  public float BarrierThickness
+  {
+    get => _barrierThickness;
+    set
+    {
+      float clamped = Mathf.Max(0.0f, value);
+      if (Mathf.IsEqualApprox(_barrierThickness, clamped))
+        return;
+      _barrierThickness = clamped;
       RefreshCollision();
       RefreshMesh();
     }
@@ -178,7 +194,7 @@ public partial class ShopSafeZone : StaticBody3D, IDamageBarrierSurface
       sphere = new SphereShape3D();
       _collisionShape.Shape = sphere;
     }
-    sphere.Radius = _radius;
+    sphere.Radius = GetOuterRadius();
   }
 
   private void RefreshMesh()
@@ -197,10 +213,12 @@ public partial class ShopSafeZone : StaticBody3D, IDamageBarrierSurface
       _meshInstance.Mesh = sphereMesh;
     }
 
+    float outerRadius = GetOuterRadius();
+
     sphereMesh.RadialSegments = Mathf.Clamp(RadialSegments, 6, 64);
     sphereMesh.Rings = Mathf.Clamp(Rings, 4, 32);
-    sphereMesh.Radius = _radius;
-    sphereMesh.Height = _radius * 2.0f;
+    sphereMesh.Radius = outerRadius;
+    sphereMesh.Height = outerRadius * 2.0f;
   }
 
   private void ApplyMaterial()
@@ -213,22 +231,39 @@ public partial class ShopSafeZone : StaticBody3D, IDamageBarrierSurface
 
   public static IReadOnlyList<ShopSafeZone> ActiveZones => _activeZones;
 
-  public float EffectiveRadius => _radius;
+  private float GetHalfThickness()
+  {
+    return Mathf.Max(0.0f, _barrierThickness * 0.5f);
+  }
+
+  private float GetInnerRadius(float padding = 0f)
+  {
+    return Mathf.Max(0.0f, _radius - GetHalfThickness() + padding);
+  }
+
+  private float GetOuterRadius(float padding = 0f)
+  {
+    float innerRadius = GetInnerRadius(padding);
+    float outerRadius = _radius + GetHalfThickness() + padding;
+    return Mathf.Max(innerRadius, outerRadius);
+  }
+
+  public float EffectiveRadius => GetOuterRadius();
 
   public bool ContainsPoint(Vector3 worldPosition, float padding = 0f)
   {
-    float radius = Mathf.Max(0f, _radius + padding);
-    if (radius <= 0f)
+    float innerRadius = GetInnerRadius(padding);
+    if (innerRadius <= 0f)
       return false;
 
     Vector3 toPoint = worldPosition - GlobalPosition;
     toPoint.Y = 0f;
-    return toPoint.LengthSquared() <= radius * radius;
+    return toPoint.LengthSquared() <= innerRadius * innerRadius;
   }
 
   public bool TryGetRepulsion(Vector3 worldPosition, float padding, out Vector3 push)
   {
-    float radius = Mathf.Max(0f, _radius + padding);
+    float radius = GetOuterRadius(padding);
     if (radius <= 0f)
     {
       push = Vector3.Zero;
@@ -275,68 +310,117 @@ public partial class ShopSafeZone : StaticBody3D, IDamageBarrierSurface
     normal = Vector3.Zero;
     fraction = 0.0f;
 
+    Vector3 center = GlobalPosition;
     Vector3 dir = to - from;
     float lengthSquared = dir.LengthSquared();
+    float innerRadius = GetInnerRadius();
+    float outerRadius = GetOuterRadius();
+    float innerRadiusSq = innerRadius * innerRadius;
+    float outerRadiusSq = outerRadius * outerRadius;
+
+    Vector3 fromOffset = from - center;
+    float fromDistSq = fromOffset.LengthSquared();
+
     if (lengthSquared <= 0.000001f)
     {
-      if (!ContainsPoint(from))
+      if (fromDistSq > outerRadiusSq)
         return false;
-      Vector3 outward = from - GlobalPosition;
-      if (outward.LengthSquared() <= 0.000001f)
-        outward = Vector3.Up;
+
+      Vector3 outward = fromOffset;
+      if (fromDistSq <= innerRadiusSq)
+        outward = outward.LengthSquared() <= 0.000001f ? Vector3.Up : -outward.Normalized();
       else
-        outward = outward.Normalized();
+        outward = outward.LengthSquared() <= 0.000001f ? Vector3.Up : outward.Normalized();
+
       hitPoint = from;
       normal = outward;
-      fraction = 0.0f;
       return true;
     }
 
-    float radius = _radius;
-    Vector3 m = from - GlobalPosition;
-    float a = lengthSquared;
-    float b = 2.0f * m.Dot(dir);
-    float c = m.Dot(m) - radius * radius;
+    bool fromInsideInner = fromDistSq <= innerRadiusSq;
+    bool fromInsideOuter = fromDistSq <= outerRadiusSq;
+    bool fromInsideShell = fromInsideOuter && !fromInsideInner;
 
-    float discriminant = b * b - 4.0f * a * c;
-    if (discriminant < 0.0f)
-      return false;
-
-    float sqrtDiscriminant = Mathf.Sqrt(discriminant);
-    float denom = 2.0f * a;
-
-    float t0 = (-b - sqrtDiscriminant) / denom;
-    float t1 = (-b + sqrtDiscriminant) / denom;
-
-    bool found = false;
-    float bestT = float.MaxValue;
-
-    if (t0 >= 0.0f && t0 <= 1.0f)
+    if (fromInsideShell)
     {
-      bestT = Mathf.Min(bestT, t0);
-      found = true;
-    }
-    if (t1 >= 0.0f && t1 <= 1.0f)
-    {
-      bestT = Mathf.Min(bestT, t1);
-      found = true;
+      Vector3 outward = fromDistSq <= 0.000001f ? Vector3.Up : fromOffset.Normalized();
+      hitPoint = from;
+      normal = outward;
+      return true;
     }
 
-    if (!found)
+    bool TrySolve(float radius, bool invertNormal, out float t, out Vector3 point, out Vector3 surfaceNormal)
+    {
+      t = 0.0f;
+      point = Vector3.Zero;
+      surfaceNormal = Vector3.Zero;
+
+      if (radius <= 0.0f)
+        return false;
+
+      Vector3 m = fromOffset;
+      float a = lengthSquared;
+      float b = 2.0f * m.Dot(dir);
+      float c = m.Dot(m) - radius * radius;
+
+      float discriminant = b * b - 4.0f * a * c;
+      if (discriminant < 0.0f)
+        return false;
+
+      float sqrtDiscriminant = Mathf.Sqrt(discriminant);
+      float denom = 2.0f * a;
+
+      float candidate0 = (-b - sqrtDiscriminant) / denom;
+      float candidate1 = (-b + sqrtDiscriminant) / denom;
+      float best = float.PositiveInfinity;
+
+      if (candidate0 >= 0.0f && candidate0 <= 1.0f)
+        best = Mathf.Min(best, candidate0);
+      if (candidate1 >= 0.0f && candidate1 <= 1.0f)
+        best = Mathf.Min(best, candidate1);
+
+      if (float.IsNaN(best) || float.IsInfinity(best))
+        return false;
+
+      Vector3 surfacePoint = from + dir * best;
+      Vector3 outwardNormal = surfacePoint - center;
+      if (outwardNormal.LengthSquared() <= 0.000001f)
+        outwardNormal = Vector3.Up;
+      else
+        outwardNormal = outwardNormal.Normalized();
+
+      if (invertNormal)
+        outwardNormal = -outwardNormal;
+
+      t = best;
+      point = surfacePoint;
+      surfaceNormal = outwardNormal;
+      return true;
+    }
+
+    if (fromInsideInner)
+    {
+      if (TrySolve(innerRadius, invertNormal: true, out float hitT, out Vector3 point, out Vector3 surfaceNormal))
+      {
+        hitPoint = point;
+        normal = surfaceNormal;
+        fraction = Mathf.Clamp(hitT, 0.0f, 1.0f);
+        return true;
+      }
       return false;
+    }
 
-    Vector3 point = from + dir * bestT;
-    Vector3 outwardNormal = point - GlobalPosition;
-    if (outwardNormal.LengthSquared() <= 0.000001f)
-      outwardNormal = Vector3.Up;
-    else
-      outwardNormal = outwardNormal.Normalized();
+    if (TrySolve(outerRadius, invertNormal: false, out float outerT, out Vector3 outerPoint, out Vector3 outerNormal))
+    {
+      hitPoint = outerPoint;
+      normal = outerNormal;
+      fraction = Mathf.Clamp(outerT, 0.0f, 1.0f);
+      return true;
+    }
 
-    hitPoint = point;
-    normal = outwardNormal;
-    fraction = Mathf.Clamp(bestT, 0.0f, 1.0f);
-    return true;
+    return false;
   }
+
 
   public Node3D BarrierNode => this;
 
@@ -347,53 +431,105 @@ public partial class ShopSafeZone : StaticBody3D, IDamageBarrierSurface
     Vector3 to = query.TargetPosition;
     Vector3 dir = to - from;
     float length = dir.Length();
+    float innerRadius = GetInnerRadius(query.Padding);
+    float outerRadius = GetOuterRadius(query.Padding);
+    float innerRadiusSq = innerRadius * innerRadius;
+    float outerRadiusSq = outerRadius * outerRadius;
+
+    Vector3 center = GlobalPosition;
+    Vector3 fromOffset = from - center;
+    float fromDistSq = fromOffset.LengthSquared();
+
     if (length <= 0.000001f)
     {
-      if (!ContainsPoint(from, query.Padding))
+      if (fromDistSq > outerRadiusSq)
         return false;
-      Vector3 outward = from - GlobalPosition;
-      if (outward.LengthSquared() <= 0.000001f)
-        outward = Vector3.Up;
+
+      Vector3 outward = fromOffset;
+      if (fromDistSq <= innerRadiusSq)
+        outward = outward.LengthSquared() <= 0.000001f ? Vector3.Up : -outward.Normalized();
       else
-        outward = outward.Normalized();
+        outward = outward.LengthSquared() <= 0.000001f ? Vector3.Up : outward.Normalized();
+
       hit = new DamageBarrierHit(this, from, outward, 0.0f);
       return true;
     }
 
-    float radius = Mathf.Max(0.0f, _radius + query.Padding);
-    Vector3 m = from - GlobalPosition;
-    float a = dir.Dot(dir);
-    float b = 2.0f * m.Dot(dir);
-    float c = m.Dot(m) - radius * radius;
-    float discriminant = b * b - 4.0f * a * c;
-    if (discriminant < 0.0f)
+    float lengthSquared = dir.Dot(dir);
+    bool fromInsideInner = fromDistSq <= innerRadiusSq;
+    bool fromInsideOuter = fromDistSq <= outerRadiusSq;
+    bool fromInsideShell = fromInsideOuter && !fromInsideInner;
+
+    if (fromInsideShell)
+    {
+      Vector3 outward = fromDistSq <= 0.000001f ? Vector3.Up : fromOffset.Normalized();
+      hit = new DamageBarrierHit(this, from, outward, 0.0f);
+      return true;
+    }
+
+    bool TrySolve(float radius, bool invertNormal, out DamageBarrierHit barrierHit)
+    {
+      barrierHit = default;
+      if (radius <= 0.0f)
+        return false;
+
+      Vector3 m = fromOffset;
+      float a = lengthSquared;
+      float b = 2.0f * m.Dot(dir);
+      float c = m.Dot(m) - radius * radius;
+
+      float discriminant = b * b - 4.0f * a * c;
+      if (discriminant < 0.0f)
+        return false;
+
+      float sqrtDiscriminant = Mathf.Sqrt(discriminant);
+      float denom = 2.0f * a;
+      float candidate0 = (-b - sqrtDiscriminant) / denom;
+      float candidate1 = (-b + sqrtDiscriminant) / denom;
+      float best = float.PositiveInfinity;
+
+      if (candidate0 >= 0.0f && candidate0 <= 1.0f)
+        best = Mathf.Min(best, candidate0);
+      if (candidate1 >= 0.0f && candidate1 <= 1.0f)
+        best = Mathf.Min(best, candidate1);
+
+      if (float.IsNaN(best) || float.IsInfinity(best))
+        return false;
+
+      Vector3 point = from + dir * best;
+      Vector3 normal = point - center;
+      if (normal.LengthSquared() <= 0.000001f)
+        normal = Vector3.Up;
+      else
+        normal = normal.Normalized();
+
+      if (invertNormal)
+        normal = -normal;
+
+      float distance = length * Mathf.Clamp(best, 0.0f, 1.0f);
+      barrierHit = new DamageBarrierHit(this, point, normal, distance);
+      return true;
+    }
+
+    if (fromInsideInner)
+    {
+      if (TrySolve(innerRadius, invertNormal: true, out DamageBarrierHit innerHit))
+      {
+        hit = innerHit;
+        return true;
+      }
       return false;
+    }
 
-    float sqrtDiscriminant = Mathf.Sqrt(discriminant);
-    float denom = 2.0f * a;
-    float t0 = (-b - sqrtDiscriminant) / denom;
-    float t1 = (-b + sqrtDiscriminant) / denom;
+    if (TrySolve(outerRadius, invertNormal: false, out DamageBarrierHit outerHit))
+    {
+      hit = outerHit;
+      return true;
+    }
 
-    float bestT = float.PositiveInfinity;
-    if (t0 >= 0.0f && t0 <= 1.0f)
-      bestT = Mathf.Min(bestT, t0);
-    if (t1 >= 0.0f && t1 <= 1.0f)
-      bestT = Mathf.Min(bestT, t1);
-
-    if (float.IsNaN(bestT) || float.IsInfinity(bestT))
-      return false;
-
-    Vector3 point = from + dir * bestT;
-    Vector3 normal = point - GlobalPosition;
-    if (normal.LengthSquared() <= 0.000001f)
-      normal = Vector3.Up;
-    else
-      normal = normal.Normalized();
-
-    float distance = length * Mathf.Clamp(bestT, 0.0f, 1.0f);
-    hit = new DamageBarrierHit(this, point, normal, distance);
-    return true;
+    return false;
   }
+
 
   public bool ShouldBlockDamage(in DamageBarrierQuery query, in DamageBarrierHit hit)
   {

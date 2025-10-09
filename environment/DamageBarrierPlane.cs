@@ -32,9 +32,24 @@ public partial class DamageBarrierPlane : DamageBarrierSurface
     }
   }
 
+  [Export]
+  public float PlaneThickness
+  {
+    get => _planeThickness;
+    set
+    {
+      float clamped = Mathf.Max(0.0f, value);
+      if (Mathf.IsEqualApprox(_planeThickness, clamped))
+        return;
+      _planeThickness = clamped;
+      SyncShape();
+    }
+  }
+
   private CollisionShape3D? _collisionShape;
   private Vector3 _planeNormal = Vector3.Up;
   private float _planeDistance = 0.0f;
+  private float _planeThickness = 0.5f;
 
   public override void _Ready()
   {
@@ -87,25 +102,79 @@ public partial class DamageBarrierPlane : DamageBarrierSurface
     float fromDist = plane.DistanceTo(from);
     float toDist = plane.DistanceTo(to);
 
-    // If both points lie on the same side, no crossing.
-    if (fromDist > 0.0f && toDist > 0.0f)
-      return false;
-    if (fromDist < 0.0f && toDist < 0.0f)
+    float halfThickness = _planeThickness * 0.5f;
+    if (halfThickness <= 0.000001f)
+    {
+      // Original infinite plane behaviour when thickness is effectively zero.
+      if (fromDist > 0.0f && toDist > 0.0f)
+        return false;
+      if (fromDist < 0.0f && toDist < 0.0f)
+        return false;
+
+      float denom = fromDist - toDist;
+      if (Mathf.Abs(denom) <= 0.000001f)
+        return false;
+
+      float t = fromDist / denom;
+      if (t < 0.0f || t > 1.0f)
+        return false;
+
+      Vector3 point = from + dir * t;
+      Vector3 normal = plane.Normal;
+
+      float distance = length * t;
+      hit = new DamageBarrierHit(this, point, normal, distance);
+      return true;
+    }
+
+    bool hasHit = false;
+    float bestT = float.MaxValue;
+    DamageBarrierHit bestHit = default;
+
+    bool TestBoundary(float start, float end, Vector3 normal, out DamageBarrierHit boundaryHit, out float boundaryT)
+    {
+      boundaryHit = default;
+      boundaryT = 0.0f;
+
+      if ((start > 0.0f && end > 0.0f) || (start < 0.0f && end < 0.0f))
+        return false;
+
+      float denom = start - end;
+      if (Mathf.Abs(denom) <= 0.000001f)
+        return false;
+
+      float t = start / denom;
+      if (t < 0.0f || t > 1.0f)
+        return false;
+
+      Vector3 point = from + dir * t;
+      float distance = length * t;
+      boundaryHit = new DamageBarrierHit(this, point, normal, distance);
+      boundaryT = t;
+      return true;
+    }
+
+    if (TestBoundary(fromDist - halfThickness, toDist - halfThickness, plane.Normal, out DamageBarrierHit positiveHit, out float positiveT))
+    {
+      hasHit = true;
+      bestT = positiveT;
+      bestHit = positiveHit;
+    }
+
+    if (TestBoundary(-fromDist - halfThickness, -toDist - halfThickness, -plane.Normal, out DamageBarrierHit negativeHit, out float negativeT))
+    {
+      if (!hasHit || negativeT < bestT)
+      {
+        hasHit = true;
+        bestT = negativeT;
+        bestHit = negativeHit;
+      }
+    }
+
+    if (!hasHit)
       return false;
 
-    float denom = fromDist - toDist;
-    if (Mathf.Abs(denom) <= 0.000001f)
-      return false;
-
-    float t = fromDist / denom;
-    if (t < 0.0f || t > 1.0f)
-      return false;
-
-    Vector3 point = from + dir * t;
-    Vector3 normal = plane.Normal;
-
-    float distance = length * t;
-    hit = new DamageBarrierHit(this, point, normal, distance);
+    hit = bestHit;
     return true;
   }
 }

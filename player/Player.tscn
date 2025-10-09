@@ -107,6 +107,7 @@ properties/2/spawn = true
 properties/2/replication_mode = 1
 
 [node name="Player" type="CharacterBody3D"]
+physics_interpolation_mode = 0
 collision_layer = 2
 floor_block_on_wall = false
 floor_max_angle = 1.0472
@@ -141,7 +142,7 @@ replication_config = SubResource("SceneReplicationConfig_hn37q")
 
 [node name="CameraPivot" type="Node3D" parent="."]
 process_priority = -10
-physics_interpolation_mode = 1
+physics_interpolation_mode = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
 script = ExtResource("2_83hs8")
 PlayerPath = NodePath("..")
@@ -154,18 +155,18 @@ MinDistance = 5.5
 MaxDistance = 8.5
 
 [node name="CameraRig" type="Node3D" parent="CameraPivot"]
-physics_interpolation_mode = 1
+physics_interpolation_mode = 0
 
 [node name="CameraShake" type="Node3D" parent="CameraPivot/CameraRig"]
-physics_interpolation_mode = 1
+physics_interpolation_mode = 0
 script = ExtResource("3_83hs8")
 
 [node name="Camera" type="Camera3D" parent="CameraPivot/CameraRig/CameraShake"]
-physics_interpolation_mode = 1
+physics_interpolation_mode = 0
 fov = 70.0
 
 [node name="WeaponHolder" type="Node3D" parent="CameraPivot"]
-physics_interpolation_mode = 1
+physics_interpolation_mode = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.892559, -0.55, -1.43968)
 script = ExtResource("4_83hs8")
 PlayerPath = NodePath("../..")
