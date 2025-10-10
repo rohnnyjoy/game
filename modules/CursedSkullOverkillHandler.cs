@@ -160,8 +160,6 @@ public sealed partial class CursedSkullOverkillHandler : Node
       float d = candidate.GlobalTransform.Origin.DistanceTo(origin);
       if (d < best)
       {
-        if (DamageOcclusionService.IsBlocked(victim, origin, candidate.GlobalTransform.Origin, out _, out _))
-          continue;
         best = d;
         nearest = candidate;
       }

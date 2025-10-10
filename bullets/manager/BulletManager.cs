@@ -2143,8 +2143,6 @@ public partial class BulletManager
       float dist = enemyNode.GlobalTransform.Origin.DistanceTo(center);
       if (dist <= radius)
       {
-        if (DamageOcclusionService.IsBlocked(this, center, enemyNode.GlobalTransform.Origin, out _, out _))
-          continue;
         try
         {
           if (enemyNode is Enemy enemy)

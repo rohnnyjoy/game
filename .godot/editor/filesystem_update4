@@ -123,3 +123,4 @@ res://shared/shaders/outline_shell.gdshader
 res://shared/shaders/outline_shell_always_visible.gdshader
 res://shared/effects/PlayerOutlineOverlay.cs
 res://player/Player.tscn
+res://modules/HyperTriggerModule.cs

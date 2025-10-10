@@ -19,6 +19,7 @@ public partial class Inventory : Node
         new BouncingModule(),
         new StickyModule(),
         new FastModule(),
+        new HyperTriggerModule(),
         new WeightedGloveModule(),
         new MetronomeModule(),
         new CursedSkullModule(),

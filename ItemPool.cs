@@ -21,6 +21,7 @@ public partial class ItemPool : Node
       new ExplosiveModule(),
       new BouncingModule(),
       new FastModule(),
+      new HyperTriggerModule(),
       new SlowModule(),
       new WeightedGloveModule(),
       new MetronomeModule(),

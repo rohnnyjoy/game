@@ -10,7 +10,7 @@ public partial class PlayerMovement : Node
   [Export] public float InitialBoostFactor = 0.8f;
   [Export] public float GroundAccel = 80.0f;
   [Export] public float GroundDecel = 150.0f;
-  [Export] public float SlideFrictionCoefficient = 15.0f;
+  [Export] public float SlideFrictionCoefficient = 3.0f;
   [Export] public float AirAcceleration = 22.0f;
   [Export] public float DashSpeed = 20.0f;
   [Export] public float WallHopMinNormalY = 0.7f;
@@ -46,10 +46,10 @@ public partial class PlayerMovement : Node
   public void ProcessMovement(float delta)
   {
     // Process jumping and gravity.
-    ProcessJumpAndGravity(delta);
+    bool jumpedThisFrame = ProcessJumpAndGravity(delta);
 
     Vector3 inputDirection = player.GetInputDirection();
-    if (player.IsOnFloor())
+    if (!jumpedThisFrame && player.IsOnFloor())
       ProcessGroundMovement(inputDirection, delta);
     else
       ProcessAirMovement(inputDirection, delta);
@@ -65,8 +65,9 @@ public partial class PlayerMovement : Node
     ProcessBufferedJump(delta);
   }
 
-  private void ProcessJumpAndGravity(float delta)
+  private bool ProcessJumpAndGravity(float delta)
   {
+    bool jumped = false;
     if (player.IsOnFloor())
       player.JumpsRemaining = MaxJumps;
 
@@ -75,6 +76,7 @@ public partial class PlayerMovement : Node
       player.Velocity = new Vector3(player.Velocity.X, JumpVelocity, player.Velocity.Z);
       player.JumpBufferTimer = 0;
       player.JumpsRemaining--;
+      jumped = true;
 
       // Spawn the same sprite used for wall hops near the player's feet, oriented up (non-billboard).
       var spawnPos = player.GlobalPosition + Vector3.Down * 0.6f;
@@ -98,6 +100,8 @@ public partial class PlayerMovement : Node
 
     if (!player.IsOnFloor())
       player.Velocity -= new Vector3(0, Gravity * delta, 0);
+
+    return jumped;
   }
 
   private void ProcessGroundMovement(Vector3 inputDirection, float delta)
