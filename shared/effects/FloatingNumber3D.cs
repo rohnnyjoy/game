@@ -3,6 +3,16 @@ using System;
 
 public partial class FloatingNumber3D : Node3D
 {
+  private static readonly FontFile DamageFont = GD.Load<FontFile>("res://assets/fonts/Born2bSportyV2.ttf");
+  private static readonly RandomNumberGenerator SharedRng = CreateRng();
+
+  private static RandomNumberGenerator CreateRng()
+  {
+    var rng = new RandomNumberGenerator();
+    rng.Randomize();
+    return rng;
+  }
+
   // Spawns a floating number above a target using a viewport-backed billboard.
   public static void Spawn(Node context, Node3D target, float amount, Color? color = null, float yJitterMax = 1.2f)
   {
@@ -12,17 +22,12 @@ public partial class FloatingNumber3D : Node3D
 
     var node = new DamageNumberBillboard();
 
-    // Use global UI font for damage numbers
-    var dmgFont = GD.Load<FontFile>("res://assets/fonts/Born2bSportyV2.ttf");
     var text = ((int)Mathf.Round(amount)).ToString();
     var fill = color ?? Colors.White;
-
-    var rng = new RandomNumberGenerator();
-    rng.Randomize();
     // Add to tree first, then set global position (safer wrt parenting transforms)
     tree.CurrentScene.AddChild(node);
     node.BaseScale = 1.6f;
-    node.Configure(text, fill, Colors.Black, 56, dmgFont, 14);
+    node.Configure(text, fill, Colors.Black, 56, DamageFont, 14);
 
     Vector3 anchor = target.GlobalTransform.Origin;
     float baseMargin = 0.12f;
@@ -48,16 +53,16 @@ public partial class FloatingNumber3D : Node3D
       Vector3 camUp = basis.Y.Normalized();
       Vector3 camRight = basis.X.Normalized();
       Vector3[] dirs = { camUp, -camUp, camRight, -camRight };
-      directionalAxis = dirs[rng.RandiRange(0, dirs.Length - 1)];
+      directionalAxis = dirs[SharedRng.RandiRange(0, dirs.Length - 1)];
     }
     else
     {
       Vector3[] dirs = { Vector3.Up, Vector3.Down, Vector3.Right, Vector3.Left };
-      directionalAxis = dirs[rng.RandiRange(0, dirs.Length - 1)];
+      directionalAxis = dirs[SharedRng.RandiRange(0, dirs.Length - 1)];
     }
 
     float offsetMagnitude = Mathf.Max(0.05f, yJitterMax);
-    float directionalDistance = rng.RandfRange(0.05f, offsetMagnitude);
+    float directionalDistance = SharedRng.RandfRange(0.05f, offsetMagnitude);
     spawnPosition += directionalAxis * directionalDistance;
     if (spawnPosition.Y < anchor.Y + 0.02f)
       spawnPosition.Y = anchor.Y + 0.02f;

@@ -1055,6 +1055,8 @@ public partial class ProceduralTopologyGenerator : Node3D
   {
     var mat = new StandardMaterial3D
     {
+      ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+      DisableReceiveShadows = true,
       Roughness = 1.0f,
       Metallic = 0.0f,
       AlbedoColor = new Color(0.4f, 0.8f, 0.4f)
@@ -1073,6 +1075,8 @@ public partial class ProceduralTopologyGenerator : Node3D
   {
     var mat = new StandardMaterial3D
     {
+      ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+      DisableReceiveShadows = true,
       Roughness = 0.9f,
       Metallic = 0.0f,
       AlbedoColor = new Color(0.6f, 0.6f, 0.65f),

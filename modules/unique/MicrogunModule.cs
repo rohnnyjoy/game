@@ -28,7 +28,7 @@ public partial class MicrogunModule : WeaponModule, IStatModifier
   }
 
   // This method is called on every game tick.
-  public override async Task OnWeaponProcess(double _delta)
+  public override Task OnWeaponProcess(double _delta)
   {
     // Always decay accuracy toward the baseline, even during continuous fire.
     if (_currentAccuracy > BaselineAccuracy)
@@ -37,7 +37,7 @@ public partial class MicrogunModule : WeaponModule, IStatModifier
       if (_currentAccuracy < BaselineAccuracy)
         _currentAccuracy = BaselineAccuracy;
     }
-    await Task.CompletedTask;
+    return Task.CompletedTask;
   }
 
   // This method is called when a shot is fired.
@@ -47,10 +47,10 @@ public partial class MicrogunModule : WeaponModule, IStatModifier
     _currentAccuracy = Mathf.Min(MaxAccuracy, _currentAccuracy + AccuracyIncreasePerShot);
   }
 
-  public override async Task OnReload()
+  public override Task OnReload()
   {
     _currentAccuracy = BaselineAccuracy;
-    await Task.CompletedTask;
+    return Task.CompletedTask;
   }
 
   public void Modify(ref WeaponStats stats)

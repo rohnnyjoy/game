@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_mix, depth_prepass_alpha;
+render_mode blend_mix, depth_prepass_alpha, unshaded;
 
 uniform float dissolve : hint_range(0.0, 1.0, 0.001) = 0.0;
 uniform float edge_softness : hint_range(0.0, 0.2, 0.002) = 0.0;

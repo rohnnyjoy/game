@@ -40,6 +40,12 @@ public class PlayerInput
       return;
     }
 
+    if (DebugConsoleUi.IsCapturingInput)
+    {
+      player.CurrentWeapon?.OnRelease();
+      return;
+    }
+
     if (Input.IsActionJustPressed("shoot"))
     {
       player.CurrentWeapon?.OnPress();

@@ -6,6 +6,8 @@
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_xk8km"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tt7e2"]
+shading_mode = 1
+disable_receive_shadows = true
 albedo_color = Color(1, 0.141176, 1, 1)
 metallic_specular = 0.0
 

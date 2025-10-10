@@ -34,6 +34,8 @@ public partial class DamageNumberBillboard : Node3D
   private RandomNumberGenerator _rng = new();
   private Vector3 _spawnPosition = Vector3.Zero;
   private bool _spawnInitialized = false;
+  private int _currentViewportWidth = 0;
+  private int _currentViewportHeight = 0;
 
   public override void _Ready()
   {
@@ -52,7 +54,7 @@ public partial class DamageNumberBillboard : Node3D
     {
       Size = new Vector2(ViewportWidth, ViewportHeight),
     };
-    _canvas.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+    _canvas.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
     _viewport.AddChild(_canvas);
 
     _label = new Label
@@ -62,7 +64,7 @@ public partial class DamageNumberBillboard : Node3D
       VerticalAlignment = VerticalAlignment.Center,
       AutowrapMode = TextServer.AutowrapMode.Off,
     };
-    _label.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+    _label.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
     _settings = new LabelSettings();
     _label.LabelSettings = _settings;
     _canvas.AddChild(_label);
@@ -114,6 +116,12 @@ public partial class DamageNumberBillboard : Node3D
   {
     int width = Mathf.Clamp(fontSize * (length + 2), 128, 512);
     int height = Mathf.Clamp(fontSize * 2, 96, 256);
+
+    if (width == _currentViewportWidth && height == _currentViewportHeight)
+      return;
+
+    _currentViewportWidth = width;
+    _currentViewportHeight = height;
 
     _viewport.Size = new Vector2I(width, height);
     _canvas.Size = new Vector2(width, height);

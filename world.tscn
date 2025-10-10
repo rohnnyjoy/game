@@ -64,23 +64,15 @@ background_mode = 2
 background_intensity = 1.0
 sky = SubResource("Sky_w2qqb")
 ambient_light_color = Color(1, 1, 1, 1)
-tonemap_mode = 2
-ssr_enabled = true
-ssao_enabled = true
-ssao_radius = 4.0
-ssao_light_affect = 1.0
-ssil_enabled = true
-ssil_radius = 10.0
-sdfgi_use_occlusion = true
-glow_enabled = true
-fog_light_color = Color(0.597174, 0.615301, 0.656074, 1)
-fog_density = 0.005
-volumetric_fog_enabled = true
-volumetric_fog_density = 0.03
-volumetric_fog_albedo = Color(0.289742, 0.289741, 0.289741, 1)
-volumetric_fog_emission = Color(0.298608, 0.357493, 0.507151, 1)
-volumetric_fog_anisotropy = 0.9
-volumetric_fog_ambient_inject = 1.0
+ambient_light_energy = 1.2
+ambient_light_sky_contribution = 0.0
+tonemap_mode = 0
+ssr_enabled = false
+ssao_enabled = false
+ssil_enabled = false
+sdfgi_enabled = false
+glow_enabled = false
+fog_enabled = false
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_k3n1d"]
 noise_type = 0
@@ -98,9 +90,9 @@ transparency = 4
 cull_mode = 2
 albedo_texture = ExtResource("13_2o6r5")
 roughness = 0.892971
-emission_enabled = true
-emission = Color(0.925884, 0.861003, 0.973223, 1)
-emission_intensity = 13000.0
+emission_enabled = false
+emission = Color(0, 0, 0, 1)
+emission_intensity = 0.0
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_impft"]
 _surfaces = [{
@@ -169,11 +161,11 @@ script = ExtResource("12_bmngr")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.12916, 3.88055, -7.5407)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+visible = false
 transform = Transform3D(-0.866025, -0.433013, 0.25, 0.032571, 0.450081, 0.892394, -0.498938, 0.780978, -0.375678, 133.654, 359.376, -145.03)
-light_intensity_lux = 5.0
-light_energy = 0.05
-light_angular_distance = 0.5
-sky_mode = 1
+light_intensity_lux = 0.0
+light_energy = 0.0
+sky_mode = 0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_6knbf")
@@ -218,9 +210,9 @@ Depth = 100.0
 InstanceCount = 40
 NoiseTexture = SubResource("NoiseTexture2D_2o6r5")
 MeshScale = 0.004
-SpawnPointLights = true
-LightEnergy = 0.02
-LightRange = 8.0
+SpawnPointLights = false
+LightEnergy = 0.0
+LightRange = 0.0
 
 [node name="GameUI" type="CanvasLayer" parent="."]
 script = ExtResource("7_gbfbk")

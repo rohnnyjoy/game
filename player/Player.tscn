@@ -176,7 +176,8 @@ PlayerPath = NodePath("../..")
 PivotPath = NodePath("..")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
-light_intensity_lumens = 10.0
-omni_range = 20.0
+visible = false
+light_intensity_lumens = 0.0
+omni_range = 0.0
 
 [connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]

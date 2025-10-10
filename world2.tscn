@@ -59,6 +59,21 @@ texture_margin_bottom = 18.0
 axis_stretch_horizontal = 1
 axis_stretch_vertical = 1
 
+[sub_resource type="Environment" id="Environment_low"]
+background_mode = 1
+background_color = Color(0, 0, 0, 1)
+background_intensity = 1.0
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 1.2
+ambient_light_sky_contribution = 0.0
+tonemap_mode = 0
+ssr_enabled = false
+ssao_enabled = false
+ssil_enabled = false
+sdfgi_enabled = false
+glow_enabled = false
+fog_enabled = false
+
 
 [node name="World" type="Node"]
 script = SubResource("GDScript_ic0uy")
@@ -67,6 +82,7 @@ script = SubResource("GDScript_ic0uy")
 script = ExtResource("13_bmngr")
 
 [node name="LightmapGI" type="LightmapGI" parent="."]
+visible = false
 bounces = 2
 directional = true
 texel_scale = 0.2
@@ -75,16 +91,16 @@ texel_scale = 0.2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.12916, 3.88055, -7.5407)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+visible = false
 transform = Transform3D(-0.866025, -0.433013, 0.25, 0.032571, 0.450081, 0.892394, -0.498938, 0.780978, -0.375678, 133.654, 359.376, -145.03)
-light_intensity_lux = 5.0
-light_energy = 0.05
-light_angular_distance = 0.5
-light_bake_mode = 1
-shadow_enabled = true
-shadow_blur = 4.0
-sky_mode = 1
+light_intensity_lux = 0.0
+light_energy = 0.0
+light_bake_mode = 0
+shadow_enabled = false
+sky_mode = 0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_low")
 
 [node name="MenuCanvas" type="CanvasLayer" parent="."]
 layer = 2
@@ -269,6 +285,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.20799, 17.0257)
 
 [node name="Node" type="Node" parent="."]

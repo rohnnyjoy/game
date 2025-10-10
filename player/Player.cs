@@ -85,6 +85,7 @@ public partial class Player : CharacterBody3D
       }
 
       CaptureCharacterBaseTransform();
+
     }
 
     // Attach shared damage feedback helper under the player for consistent visuals

@@ -140,22 +140,14 @@ public sealed partial class CursedSkullOverkillHandler : Node
     Vector3 origin = victim.GlobalTransform.Origin;
     Node3D? nearest = null;
     float best = radius > 0.0f ? radius : float.PositiveInfinity;
-    var tree = victim.GetTree();
-    if (tree == null)
-      return null;
-    foreach (Node node in tree.GetNodesInGroup("enemies"))
+    foreach (Enemy candidate in EnemyAIManager.ActiveSimulationEnemies)
     {
-      if (node is not Node3D candidate || !IsInstanceValid(candidate))
+      if (!GodotObject.IsInstanceValid(candidate))
         continue;
       if (candidate == victim)
         continue;
-
-      // Prefer real Enemy instances that are still alive
-      if (candidate is Enemy enemy)
-      {
-        if (enemy.CurrentHealth <= 0.0f)
-          continue;
-      }
+      if (candidate.CurrentHealth <= 0.0f)
+        continue;
 
       float d = candidate.GlobalTransform.Origin.DistanceTo(origin);
       if (d < best)

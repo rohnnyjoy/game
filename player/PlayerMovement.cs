@@ -11,23 +11,27 @@ public partial class PlayerMovement : Node
   [Export] public float GroundAccel = 80.0f;
   [Export] public float GroundDecel = 150.0f;
   [Export] public float SlideFrictionCoefficient = 3.0f;
+  [Export] public float SlideStartMinSpeed = 16.0f;
   [Export] public float AirAcceleration = 22.0f;
   [Export] public float DashSpeed = 20.0f;
   [Export] public float WallHopMinNormalY = 0.7f;
-  [Export] public float WallHopBoost = 1.2f;
+  [Export(PropertyHint.Range, "0.0,2.0,0.05")] public float WallHopMultiplier = 0.9f;
   [Export] public float WallHopUpwardBoost = 18.0f;
+  [Export] public float WallHopMaxUpwardSpeed = 30.0f;
   [Export] public NodePath PlayerPath;
 
   private const float AIR_FRICTION = 0.0f;
 
 
   private Player player;
+  private bool _wasOnFloorLastFrame = false;
 
   
 
   public override void _Ready()
   {
     player = GetNode<Player>(PlayerPath);
+    _wasOnFloorLastFrame = player.IsOnFloor();
   }
 
   public override void _Input(InputEvent @event)
@@ -63,15 +67,22 @@ public partial class PlayerMovement : Node
     
 
     ProcessBufferedJump(delta);
+    _wasOnFloorLastFrame = player.IsOnFloor();
   }
 
   private bool ProcessJumpAndGravity(float delta)
   {
     bool jumped = false;
-    if (player.IsOnFloor())
-      player.JumpsRemaining = MaxJumps;
+    bool onFloor = player.IsOnFloor();
+    if (onFloor)
+    {
+      Vector3 floorNormal = player.GetFloorNormal();
+      bool validFloor = floorNormal == Vector3.Zero || floorNormal.Dot(Vector3.Up) >= 0.5f;
+      if (!_wasOnFloorLastFrame && validFloor)
+        player.JumpsRemaining = MaxJumps;
+    }
 
-    if (player.IsOnFloor() && player.JumpBufferTimer > 0)
+    if (onFloor && player.JumpBufferTimer > 0)
     {
       player.Velocity = new Vector3(player.Velocity.X, JumpVelocity, player.Velocity.Z);
       player.JumpBufferTimer = 0;
@@ -98,7 +109,7 @@ public partial class PlayerMovement : Node
       );
     }
 
-    if (!player.IsOnFloor())
+    if (!onFloor)
       player.Velocity -= new Vector3(0, Gravity * delta, 0);
 
     return jumped;
@@ -173,6 +184,34 @@ public partial class PlayerMovement : Node
     {
       player.IsSliding = true;
       // player.AnimPlayer.Play("slide");
+
+      Vector3 horizontal = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
+      float speed = horizontal.Length();
+      Vector3 slideDir;
+
+      if (speed > 0.001f)
+      {
+        slideDir = horizontal / speed;
+      }
+      else
+      {
+        slideDir = player.GetInputDirection();
+        slideDir = new Vector3(slideDir.X, 0, slideDir.Z);
+        if (slideDir.LengthSquared() < 0.000001f)
+        {
+          slideDir = player.Transform.Basis.Z;
+          slideDir = new Vector3(slideDir.X, 0, slideDir.Z);
+        }
+
+        if (slideDir.LengthSquared() < 0.000001f)
+          slideDir = Vector3.Forward;
+
+        slideDir = slideDir.Normalized();
+      }
+
+      float desiredSpeed = Math.Max(speed, SlideStartMinSpeed);
+      if (desiredSpeed > 0.0f)
+        player.Velocity = new Vector3(slideDir.X * desiredSpeed, player.Velocity.Y, slideDir.Z * desiredSpeed);
     }
 
     Vector3 floorNormal = player.GetFloorNormal();
@@ -206,33 +245,40 @@ public partial class PlayerMovement : Node
       );
     }
 
-    if (Input.IsActionJustPressed("dash") && player.GetInputDirection().Length() > 0)
+    if (Input.IsActionJustPressed("dash"))
     {
-      var newVelocity = player.GetInputDirection() * DashSpeed;
-      newVelocity.Y = player.Velocity.Y;
-      player.Velocity = newVelocity;
-      newHorizontalVel = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
+      Vector3 dashDirection = player.GetInputDirection();
+      if (dashDirection.Length() > 0)
+      {
+        Vector3 currentHorizontal = new Vector3(player.Velocity.X, 0, player.Velocity.Z);
+        float existingSpeed = currentHorizontal.Length();
+        float targetSpeed = Math.Max(existingSpeed, DashSpeed);
+        Vector3 dashHorizontal = dashDirection * targetSpeed;
 
-      // Spawn an air-dash dust sprite effect near the player's feet.
-      // Uses the 2D sheet assets/sprites/effects/dust/dust_28x12.png via DashDustSprite.
-      var spawnPos = player.GlobalPosition + Vector3.Down * 0.6f;
-      // Use generic SpriteSheetFx: dust_28x12, billboarded and large.
-      SpriteSheetFx.Spawn(
-        player,
-        sheetPath: "res://assets/sprites/effects/dust/dust_28x12.png",
-        frameW: 28,
-        frameH: 12,
-        position: spawnPos,
-        surfaceNormal: null,
-        pixelSize: 0.10f,
-        fps: 18f,
-        loop: false,
-        billboard: true,
-        normalOffset: 0.06f,
-        randomRoll: true,
-        doubleSided: true,
-        depthTest: true
-      );
+        player.Velocity = new Vector3(dashHorizontal.X, player.Velocity.Y, dashHorizontal.Z);
+        newHorizontalVel = dashHorizontal;
+
+        // Spawn an air-dash dust sprite effect near the player's feet.
+        // Uses the 2D sheet assets/sprites/effects/dust/dust_28x12.png via DashDustSprite.
+        var spawnPos = player.GlobalPosition + Vector3.Down * 0.6f;
+        // Use generic SpriteSheetFx: dust_28x12, billboarded and large.
+        SpriteSheetFx.Spawn(
+          player,
+          sheetPath: "res://assets/sprites/effects/dust/dust_28x12.png",
+          frameW: 28,
+          frameH: 12,
+          position: spawnPos,
+          surfaceNormal: null,
+          pixelSize: 0.10f,
+          fps: 18f,
+          loop: false,
+          billboard: true,
+          normalOffset: 0.06f,
+          randomRoll: true,
+          doubleSided: true,
+          depthTest: true
+        );
+      }
     }
 
     // Apply air friction (drag) to the horizontal velocity.
@@ -253,8 +299,9 @@ public partial class PlayerMovement : Node
         Vector3 normal = collision.GetNormal();
         if (Mathf.Abs(normal.Dot(Vector3.Up)) < WallHopMinNormalY)
         {
-          player.Velocity = player.Velocity.Bounce(normal) * WallHopBoost;
-          player.Velocity += new Vector3(0, WallHopUpwardBoost, 0);
+          Vector3 bounced = player.Velocity.Bounce(normal) * WallHopMultiplier;
+          float clampedY = Mathf.Clamp(bounced.Y, WallHopUpwardBoost, WallHopMaxUpwardSpeed);
+          player.Velocity = new Vector3(bounced.X, clampedY, bounced.Z);
           player.JumpBufferTimer = 0;
           // Spawn a wall impact sprite at the contact point, oriented to the wall normal.
           Vector3 hitPos = collision.GetPosition();

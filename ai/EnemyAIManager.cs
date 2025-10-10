@@ -21,6 +21,14 @@ public partial class EnemyAIManager : Node
   private readonly List<Enemy> _enemies = new();
   private int _cursor = 0;
   private ulong _frameIndex = 0;
+  private readonly HashSet<Enemy> _activeSimEnemies = new();
+  private static readonly List<Node3D> PlayerCache = new(2);
+  private static readonly Enemy[] EmptyEnemies = Array.Empty<Enemy>();
+  private const float WakeHysteresis = 6.0f;
+
+  public static IReadOnlyList<Node3D> ActivePlayers => PlayerCache;
+  public static IReadOnlyCollection<Enemy> ActiveSimulationEnemies
+    => Instance != null ? (IReadOnlyCollection<Enemy>)Instance._activeSimEnemies : EmptyEnemies;
 
   public override void _Ready()
   {
@@ -43,6 +51,17 @@ public partial class EnemyAIManager : Node
     }
   }
 
+  public override void _ExitTree()
+  {
+    if (Instance == this)
+    {
+      Instance = null;
+      PlayerCache.Clear();
+      _activeSimEnemies.Clear();
+    }
+    base._ExitTree();
+  }
+
   // Autoloaded; no manual EnsurePresent needed.
 
   public void Register(Enemy enemy)
@@ -50,12 +69,15 @@ public partial class EnemyAIManager : Node
     if (enemy == null || !IsInstanceValid(enemy)) return;
     if (_enemies.Contains(enemy)) return;
     _enemies.Add(enemy);
+    if (enemy.CurrentSimulationState != Enemy.SimulationState.Sleeping)
+      _activeSimEnemies.Add(enemy);
   }
 
   public void Unregister(Enemy enemy)
   {
     if (enemy == null) return;
     _enemies.Remove(enemy);
+    _activeSimEnemies.Remove(enemy);
     if (IsInstanceValid(enemy))
       enemy.TargetOverride = null;
   }
@@ -66,7 +88,10 @@ public partial class EnemyAIManager : Node
 
     // Clean up invalid references occasionally
     if (_frameIndex % 120 == 0)
+    {
       _enemies.RemoveAll(e => e == null || !IsInstanceValid(e));
+      _activeSimEnemies.RemoveWhere(e => e == null || !IsInstanceValid(e));
+    }
 
     // Early out if nothing to do
     int total = _enemies.Count;
@@ -77,7 +102,8 @@ public partial class EnemyAIManager : Node
     }
 
     // Gather players once
-    var players = GatherPlayers();
+    RefreshPlayerCache();
+    var players = PlayerCache;
 
     var (start, count) = AIScheduler.ComputeSlice(total, MaxAiUpdatesPerFrame, _cursor);
     for (int i = 0; i < count; i++)
@@ -87,50 +113,68 @@ public partial class EnemyAIManager : Node
       if (enemy == null || !IsInstanceValid(enemy))
         continue;
 
-      // Distance LOD gating
-      if (EnableLod)
-      {
-        float dist = players.Count > 0 ? DistanceToNearest(players, enemy.GlobalTransform.Origin) : float.PositiveInfinity;
-        int interval = 1;
-        if (dist > FarRangeDistance) interval = Math.Max(1, FarRangeIntervalFrames);
-        else if (dist > MidRangeDistance) interval = Math.Max(1, MidRangeIntervalFrames);
-        if (interval > 1 && (_frameIndex % (ulong)interval) != 0)
-          continue; // skip this frame
-      }
+      Vector3 origin = enemy.GlobalTransform.Origin;
+      Node3D? nearest = null;
+      float nearestDist2 = float.PositiveInfinity;
 
-      // Choose nearest player as target within max consider distance
-      Node3D? target = null;
       if (players.Count > 0)
+        nearest = NearestPlayer(players, origin, out nearestDist2);
+
+      float nearestDist = float.IsPositiveInfinity(nearestDist2) ? float.PositiveInfinity : Mathf.Sqrt(nearestDist2);
+
+      var desiredState = DetermineSimulationState(enemy, nearestDist);
+      Enemy.SimulationState previousState = enemy.CurrentSimulationState;
+      if (previousState != desiredState)
+        enemy.SetSimulationState(desiredState);
+
+      if (enemy.CurrentSimulationState == Enemy.SimulationState.Sleeping)
       {
-        var best = NearestPlayer(players, enemy.GlobalTransform.Origin, out float d2);
-        if (Mathf.Sqrt(d2) <= MaxConsiderDistance)
-          target = best;
+        _activeSimEnemies.Remove(enemy);
+        continue;
       }
 
-      if (IsInstanceValid(enemy))
-        enemy.TargetOverride = target;
+      _activeSimEnemies.Add(enemy);
+
+      bool shouldAssignTarget = previousState != enemy.CurrentSimulationState;
+      if (!shouldAssignTarget && EnableLod)
+      {
+        int interval = 1;
+        if (nearestDist > FarRangeDistance) interval = Math.Max(1, FarRangeIntervalFrames);
+        else if (nearestDist > MidRangeDistance) interval = Math.Max(1, MidRangeIntervalFrames);
+        if (interval > 1 && (_frameIndex % (ulong)interval) != 0)
+          continue;
+      }
+
+      Node3D? target = null;
+      if (nearest != null && nearestDist <= MaxConsiderDistance)
+        target = nearest;
+
+      enemy.TargetOverride = target;
     }
 
     _cursor = AIScheduler.AdvanceCursor(total, MaxAiUpdatesPerFrame, _cursor);
     _frameIndex++;
   }
 
-  private static List<Node3D> GatherPlayers()
+  private static void RefreshPlayerCache()
   {
-    var result = new List<Node3D>(2);
+    PlayerCache.Clear();
+
     if (Player.Instance != null && IsInstanceValid(Player.Instance))
-      result.Add(Player.Instance);
-    else
+      PlayerCache.Add(Player.Instance);
+
+    var scenePlayers = SceneTreeSingleton()?.GetNodesInGroup("players");
+    if (scenePlayers == null)
+      return;
+
+    foreach (var n in scenePlayers)
     {
-      var scenePlayers = SceneTreeSingleton()?.GetNodesInGroup("players");
-      if (scenePlayers != null)
-      {
-        foreach (var n in scenePlayers)
-          if (n is Node3D n3 && IsInstanceValid(n3))
-            result.Add(n3);
-      }
+      if (n is not Node3D n3 || !IsInstanceValid(n3))
+        continue;
+      if (Player.Instance != null && IsInstanceValid(Player.Instance) && n3 == Player.Instance)
+        continue;
+      PlayerCache.Add(n3);
     }
-    return result;
   }
 
   private static SceneTree? SceneTreeSingleton()
@@ -155,15 +199,29 @@ public partial class EnemyAIManager : Node
     return best;
   }
 
-  private static float DistanceToNearest(List<Node3D> players, Vector3 pos)
+  private static Enemy.SimulationState DetermineSimulationState(Enemy enemy, float distance)
   {
-    if (players.Count == 0) return float.PositiveInfinity;
-    float best = float.PositiveInfinity;
-    foreach (var p in players)
+    if (float.IsPositiveInfinity(distance))
+      return Enemy.SimulationState.Sleeping;
+
+    float sleepRadius = enemy.SleepSimulationRadius;
+    float farRadius = enemy.FarSimulationRadius;
+
+    if (enemy.CurrentSimulationState == Enemy.SimulationState.Sleeping)
     {
-      float d = pos.DistanceTo(p.GlobalTransform.Origin);
-      if (d < best) best = d;
+      float wakeRadius = MathF.Max(farRadius, sleepRadius - WakeHysteresis);
+      if (distance > wakeRadius)
+        return Enemy.SimulationState.Sleeping;
     }
-    return best;
+
+    if (distance > sleepRadius)
+      return Enemy.SimulationState.Sleeping;
+    if (distance <= enemy.ActiveSimulationRadius)
+      return Enemy.SimulationState.Active;
+    if (distance <= enemy.MidSimulationRadius)
+      return Enemy.SimulationState.BudgetMid;
+    if (distance <= farRadius)
+      return Enemy.SimulationState.BudgetFar;
+    return Enemy.SimulationState.Sleeping;
   }
 }

@@ -92,13 +92,7 @@ public partial class WeaponModule : Resource
 
   public virtual ModuleBadge? GetInitialBadge() => null;
 
-  public virtual async Task OnWeaponProcess(double delta)
-  {
-    await Task.CompletedTask;
-  }
+  public virtual Task OnWeaponProcess(double delta) => Task.CompletedTask;
 
-  public virtual async Task OnReload()
-  {
-    await Task.CompletedTask;
-  }
+  public virtual Task OnReload() => Task.CompletedTask;
 }

@@ -38,7 +38,6 @@ public partial class GlobalEvents : Node
   // Helper method to emit the enemy death event.
   public void EmitEnemyDied()
   {
-    GD.Print("Emitting EnemyDied signal from GlobalEvents.");
     EmitSignal(nameof(EnemyDied));
   }
 
@@ -87,7 +86,6 @@ public partial class GlobalEvents : Node
   public override void _Ready()
   {
     Instance = this;
-    GD.Print("GlobalEvents singleton is ready.");
     AssetWarmup.Run(this);
     // Prewarm runtime-generated resources to avoid first-use hitches
     Coin.Prewarm();

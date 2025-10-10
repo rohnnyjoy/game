@@ -60,7 +60,9 @@ public partial class BulletManager : Node3D
     public Dictionary<uint, TrailBuffer>? TrailBuffers;
     public HashSet<uint> TrailActiveIds = new HashSet<uint>();
     public List<uint> TrailIdsToRemove = new List<uint>();
-
+    public PhysicsRayQueryParameters3D[] RayQueryCache = new PhysicsRayQueryParameters3D[5];
+    public Stack<TrailBuffer> TrailBufferPool = new Stack<TrailBuffer>();
+  
     public BulletBehaviorConfig BehaviorConfig = BulletBehaviorConfig.None;
     public CollisionOp[] CollisionOps = System.Array.Empty<CollisionOp>();
 
@@ -208,6 +210,19 @@ public partial class BulletManager : Node3D
   {
     public List<TrailPoint> Points = new List<TrailPoint>(8);
     public Vector3 LastAddedPos;
+
+    public void Reset(Vector3 startPos, float lifetime)
+    {
+      Points.Clear();
+      Points.Add(new TrailPoint(startPos, lifetime));
+      LastAddedPos = startPos;
+    }
+
+    public void Clear()
+    {
+      Points.Clear();
+      LastAddedPos = Vector3.Zero;
+    }
   }
 
   private readonly Dictionary<int, Archetype> _archetypes = new();
@@ -230,11 +245,38 @@ public partial class BulletManager : Node3D
     return _sharedTrailSegmentMesh;
   }
 
+  private static void InitializeRayQueries(Archetype arch)
+  {
+    if (arch.RayQueryCache == null || arch.RayQueryCache.Length != 5)
+      arch.RayQueryCache = new PhysicsRayQueryParameters3D[5];
+    for (int i = 0; i < arch.RayQueryCache.Length; i++)
+    {
+      arch.RayQueryCache[i] = new PhysicsRayQueryParameters3D
+      {
+        CollisionMask = arch.CollisionMask,
+        HitFromInside = true,
+        HitBackFaces = true,
+      };
+    }
+  }
+
+  private static TrailBuffer RentTrailBuffer(Archetype arch)
+  {
+    if (arch.TrailBufferPool.Count > 0)
+      return arch.TrailBufferPool.Pop();
+    return new TrailBuffer();
+  }
+
+  private static void ReturnTrailBuffer(Archetype arch, TrailBuffer buffer)
+  {
+    buffer.Clear();
+    arch.TrailBufferPool.Push(buffer);
+  }
+
   private static readonly uint DefaultArchetypeCollisionMask = PhysicsLayers.Mask(
     PhysicsLayers.Layer.World,
     PhysicsLayers.Layer.Enemy,
-    PhysicsLayers.Layer.SafeZone,
-    PhysicsLayers.Layer.DamageBarrier
+    PhysicsLayers.Layer.SafeZone
   );
 
   [Export]
@@ -362,6 +404,7 @@ public partial class BulletManager : Node3D
       existingArch.OwnerWeapon = bw;
       existingArch.CollisionMask = DefaultArchetypeCollisionMask;
       BuildDamagePipelines(existingArch, preStepConfigs, postStepConfigs);
+      InitializeRayQueries(existingArch);
       _weaponArchetypes[bw] = existingArch;
       return;
     }
@@ -1206,6 +1249,7 @@ public partial class BulletManager : Node3D
       BehaviorConfig = behavior,
       SteeringOps = BuildSteeringOps(behavior),
     };
+    InitializeRayQueries(_archetypes[id]);
     // Prewarm rendering resources to prevent first-shot hitch
     PrewarmArchetype(id);
     return id;
@@ -1280,9 +1324,8 @@ public partial class BulletManager : Node3D
     // Initialize trail buffer
     if (arch.TrailEnabled && arch.TrailBuffers != null)
     {
-      var tb = new TrailBuffer();
-      tb.Points.Add(new TrailPoint(position, arch.TrailLifetime));
-      tb.LastAddedPos = position;
+      var tb = RentTrailBuffer(arch);
+      tb.Reset(position, arch.TrailLifetime);
       arch.TrailBuffers[data.Id] = tb;
     }
   }
@@ -1431,17 +1474,16 @@ public partial class BulletManager : Node3D
               colliderId = hitId;
             }
 
-            void TestRay(Vector3 from, Vector3 to)
+            void TestRay(int cacheIndex, Vector3 from, Vector3 to)
             {
-              var q = new PhysicsRayQueryParameters3D
-              {
-                From = from,
-                To = to,
-                CollisionMask = arch.CollisionMask,
-                HitFromInside = true,
-                HitBackFaces = true,
-              };
-              var h = space.IntersectRay(q);
+              PhysicsRayQueryParameters3D query = arch.RayQueryCache[cacheIndex];
+              query.From = from;
+              query.To = to;
+              query.CollisionMask = arch.CollisionMask;
+              query.HitFromInside = true;
+              query.HitBackFaces = true;
+              var h = space.IntersectRay(query);
+              arch.RayQueryCache[cacheIndex] = query;
               if (h.Count == 0) return;
               Vector3 p = h.ContainsKey("position") ? (Vector3)h["position"] : to;
               Vector3 normal = h.ContainsKey("normal") ? (Vector3)h["normal"] : Vector3.Zero;
@@ -1453,11 +1495,11 @@ public partial class BulletManager : Node3D
             }
 
             // Center ray + four offsets roughly covering the bullet radius
-            TestRay(b.Position, nextPos);
-            TestRay(b.Position + u * r, nextPos + u * r);
-            TestRay(b.Position - u * r, nextPos - u * r);
-            TestRay(b.Position + v * r, nextPos + v * r);
-            TestRay(b.Position - v * r, nextPos - v * r);
+            TestRay(0, b.Position, nextPos);
+            TestRay(1, b.Position + u * r, nextPos + u * r);
+            TestRay(2, b.Position - u * r, nextPos - u * r);
+            TestRay(3, b.Position + v * r, nextPos + v * r);
+            TestRay(4, b.Position - v * r, nextPos - v * r);
           }
 
           if (hasHit)
@@ -1612,7 +1654,8 @@ public partial class BulletManager : Node3D
 
           if (!arch.TrailBuffers.TryGetValue(b.Id, out var buf))
           {
-            buf = new TrailBuffer();
+            buf = RentTrailBuffer(arch);
+            buf.Reset(b.Position, arch.TrailLifetime);
             arch.TrailBuffers[b.Id] = buf;
           }
 
@@ -1648,7 +1691,11 @@ public partial class BulletManager : Node3D
             toRemove.Add(kvId.Key);
         }
         foreach (var idrm in toRemove)
+        {
+          if (arch.TrailBuffers.TryGetValue(idrm, out var buffer))
+            ReturnTrailBuffer(arch, buffer);
           arch.TrailBuffers.Remove(idrm);
+        }
 
         MultiMesh? trailMesh = arch.TrailMultiMesh;
         MultiMeshInstance3D? trailInstance = arch.TrailInstance;
@@ -2094,16 +2141,16 @@ public partial class BulletManager
     Vector3 origin = b.Position;
     Vector3 baseDir = b.Velocity.LengthSquared() > 0.0001f ? b.Velocity.Normalized() : Vector3.Forward;
     float bestAngle = cfg.AimConeAngle;
-    Node3D best = null!;
+    Enemy? bestEnemy = null;
 
-    foreach (Node node in GetTree().GetNodesInGroup("enemies"))
+    foreach (Enemy enemy in EnemyAIManager.ActiveSimulationEnemies)
     {
-      if (node is not Node3D enemy || !IsInstanceValid(enemy))
+      if (!IsInstanceValid(enemy))
         continue;
       // Do not re-target the same enemy consecutively.
       if (excludeId != 0 && enemy.GetInstanceId() == excludeId)
         continue;
-      Vector3 toEnemy = (enemy.GlobalTransform.Origin - origin);
+      Vector3 toEnemy = enemy.GlobalTransform.Origin - origin;
       float dist = toEnemy.Length();
       if (dist > cfg.Radius || dist <= 0.0001f)
         continue;
@@ -2112,13 +2159,13 @@ public partial class BulletManager
       if (angle < bestAngle)
       {
         bestAngle = angle;
-        best = enemy;
+        bestEnemy = enemy;
       }
     }
 
-    if (best != null)
+    if (bestEnemy != null)
     {
-      Vector3 target = best.GlobalTransform.Origin + new Vector3(0, cfg.VerticalOffset, 0);
+      Vector3 target = bestEnemy.GlobalTransform.Origin + new Vector3(0, cfg.VerticalOffset, 0);
       Vector3 newDir = (target - origin).Normalized();
       float speed = b.Velocity.Length();
       if (speed <= 0.0001f) speed = 0.0001f;
@@ -2136,21 +2183,16 @@ public partial class BulletManager
     GlobalEvents.Instance?.EmitExplosionOccurred(center, cfg.Radius);
     float radius = cfg.Radius;
     float damage = snapshot.Damage * cfg.DamageMultiplier;
-    foreach (Node node in GetTree().GetNodesInGroup("enemies"))
+    foreach (Enemy enemyNode in EnemyAIManager.ActiveSimulationEnemies)
     {
-      if (node is not Node3D enemyNode || !IsInstanceValid(enemyNode))
+      if (!IsInstanceValid(enemyNode))
         continue;
       float dist = enemyNode.GlobalTransform.Origin.DistanceTo(center);
       if (dist <= radius)
       {
         try
         {
-          if (enemyNode is Enemy enemy)
-            enemy.TakeDamage(damage);
-          else if (enemyNode.HasMethod("take_damage"))
-            enemyNode.CallDeferred("take_damage", damage);
-          else
-            continue;
+          enemyNode.TakeDamage(damage);
         }
         catch (Exception e)
         {
@@ -2174,9 +2216,9 @@ public partial class BulletManager
   {
     Node3D? nearest = null;
     float best = radius > 0.0f ? radius : float.PositiveInfinity;
-    foreach (Node node in GetTree().GetNodesInGroup("enemies"))
+    foreach (Enemy enemy in EnemyAIManager.ActiveSimulationEnemies)
     {
-      if (node is not Node3D enemy || !IsInstanceValid(enemy))
+      if (!IsInstanceValid(enemy))
         continue;
       if (exclude != null && enemy == exclude)
         continue;

@@ -21,6 +21,7 @@ public partial class GameUI : CanvasLayer
   private Container _bottomCenterContainer;
   private CanvasLayer _tooltipLayer;
   private TooltipUi _tooltipUi;
+  private DebugConsoleUi _debugConsole;
   private HealthUi _healthUi;
   private PrimaryWeaponStack _primaryModulesUi;
   private Control _topLeftHud;
@@ -103,6 +104,9 @@ public partial class GameUI : CanvasLayer
     AddChild(_interactionUi);
     // Parent tooltip UI directly under the high-priority tooltip layer so it always draws on top
     _tooltipLayer.AddChild(_tooltipUi);
+
+    _debugConsole = new DebugConsoleUi();
+    AddChild(_debugConsole);
 
     if (topLeftHudScene != null)
     {
