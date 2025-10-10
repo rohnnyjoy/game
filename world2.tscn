@@ -61,11 +61,12 @@ axis_stretch_vertical = 1
 
 [sub_resource type="Environment" id="Environment_low"]
 background_mode = 1
-background_color = Color(0, 0, 0, 1)
+background_color = Color(0.12, 0.12, 0.14, 1)
 background_intensity = 1.0
 ambient_light_color = Color(1, 1, 1, 1)
 ambient_light_energy = 1.2
 ambient_light_sky_contribution = 0.0
+ambient_light_source = 1
 tonemap_mode = 0
 ssr_enabled = false
 ssao_enabled = false

@@ -45,22 +45,23 @@ public partial class Enemy : CharacterBody3D
   [Export] public bool EnforceRestrictedVolumes { get; set; } = true;
 
   // Constants
-  private const float SPEED = 5.0f;
-  private const float MOVE_DISTANCE = 10.0f;
-  private const float GRAVITY = 60.0f;
+  internal const float SPEED = 5.0f;
+  internal const float MOVE_DISTANCE = 10.0f;
+  internal const float GRAVITY = 60.0f;
 
   // Variables
   private float health = 100;
   public float CurrentHealth => health;
-  private Node3D target = null;
-  private float startX;
-  private int direction = 1;
-  private float speedMultiplier = 1.0f;
   private bool _isDying = false;
   private uint _baseCollisionMask;
   private uint _baseCollisionLayers;
   private uint _restrictedCollisionLayers = PhysicsLayers.Mask(PhysicsLayers.Layer.SafeZone);
   private bool _collisionProfileInitialized;
+  private Vector3 _currentVelocity = Vector3.Zero;
+
+  internal int SimulationHandle { get; set; } = -1;
+  internal bool IsDying => _isDying;
+  internal Vector3 CurrentVelocity => _currentVelocity;
 
   public enum SimulationState
   {
@@ -119,23 +120,19 @@ public partial class Enemy : CharacterBody3D
     }
   }
 
-  public SimulationState CurrentSimulationState { get; private set; } = SimulationState.Active;
-  private float _restrictedCheckTimer = 0.0f;
-  private const float RestrictedCheckInterval = 0.18f;
-  private const float LodHysteresis = 6.0f;
-  private const int MidUpdateStride = 2;
-  private const int FarUpdateStride = 6;
-  private uint _lodFrameOffset;
-
-  private static readonly RandomNumberGenerator LodPhaseRng = CreateLodRng();
-
-  private static RandomNumberGenerator CreateLodRng()
+  public SimulationState CurrentSimulationState
   {
-    var rng = new RandomNumberGenerator();
-    rng.Randomize();
-    return rng;
+    get
+    {
+      if (EnemyAIManager.Instance != null)
+        return EnemyAIManager.Instance.GetSimulationState(this);
+      return SimulationState.Active;
+    }
   }
-
+  internal const float RestrictedCheckInterval = 0.18f;
+  internal const float LodHysteresis = 6.0f;
+  internal const int MidUpdateStride = 2;
+  internal const int FarUpdateStride = 6;
 
   private void EnsureLodOrdering()
   {
@@ -156,7 +153,6 @@ public partial class Enemy : CharacterBody3D
   public DropTableResource LootOnDeath { get; set; }
 
   // Knockback state
-  private Vector3 _knockbackVelocity = Vector3.Zero;
   [Export] public float KnockbackDamping { get; set; } = 10.0f;
   [Export] public float MaxKnockbackSpeed { get; set; } = 20.0f;
 
@@ -196,12 +192,8 @@ public partial class Enemy : CharacterBody3D
   {
     EnsureLodOrdering();
     ConfigureCollisionProfile();
-    startX = GlobalTransform.Origin.X;
     AddToGroup("enemies");
-    SetPhysicsProcess(true);
-
-    // Register with the global AI manager for centralized targeting.
-    EnemyAIManager.Instance?.Register(this);
+    SetPhysicsProcess(false);
 
     // Get child nodes (adjust paths if necessary)
     animPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
@@ -237,148 +229,29 @@ public partial class Enemy : CharacterBody3D
       LootOnDeath = table;
     }
 
-    _lodFrameOffset = (uint)LodPhaseRng.RandiRange(0, 1023);
-    _restrictedCheckTimer = 0.0f;
-    CurrentSimulationState = SimulationState.Active;
-  }
+    PlayIdleAnimation();
 
-  public override void _PhysicsProcess(double delta)
-  {
-    if (_isDying || CurrentSimulationState == SimulationState.Sleeping)
-      return;
+    // Register with the global AI manager for centralized targeting.
+    EnemyAIManager.Instance?.Register(this);
 
-    float dt = (float)delta;
-    Node3D currentTarget = ResolveCurrentTarget();
-
-    if (ShouldUpdateSteering())
-    {
-      if (currentTarget != null)
-      {
-        AimAtTarget(currentTarget);
-        MoveTowardsTarget(currentTarget);
-      }
-      else
-      {
-        PatrolMovement();
-      }
-    }
-
-    ApplyGravity(dt);
-
-    Velocity += _knockbackVelocity;
-    MoveAndSlide();
-    TickRestrictedVolumes(dt);
-    _knockbackVelocity = _knockbackVelocity.MoveToward(Vector3.Zero, KnockbackDamping * dt);
-  }
-
-  private Node3D ResolveCurrentTarget()
-  {
-    if (TargetOverride != null && IsInstanceValid(TargetOverride))
-    {
-      target = TargetOverride;
-      return TargetOverride;
-    }
-
-    target = null;
-    return null;
-  }
-
-  private bool ShouldUpdateSteering()
-  {
-    switch (CurrentSimulationState)
-    {
-      case SimulationState.Active:
-        return true;
-      case SimulationState.BudgetMid:
-      {
-        ulong frame = Engine.GetPhysicsFrames();
-        return ((frame + _lodFrameOffset) % (ulong)MidUpdateStride) == 0;
-      }
-      case SimulationState.BudgetFar:
-      {
-        ulong frame = Engine.GetPhysicsFrames();
-        return ((frame + _lodFrameOffset) % (ulong)FarUpdateStride) == 0;
-      }
-      default:
-        return false;
-    }
-  }
-
-  private void TickRestrictedVolumes(float delta)
-  {
-    if (!EnforceRestrictedVolumes || _isDying)
-      return;
-
-    _restrictedCheckTimer -= delta;
-    if (_restrictedCheckTimer > 0.0f)
-      return;
-
-    float interval = RestrictedCheckInterval;
-    if (CurrentSimulationState == SimulationState.BudgetMid)
-      interval *= 1.8f;
-    else if (CurrentSimulationState == SimulationState.BudgetFar)
-      interval *= 3.5f;
-    _restrictedCheckTimer = interval;
-
-    ApplyRestrictedVolumePushbackImmediate();
-  }
-
-  private void ApplyGravity(float delta)
-  {
-    if (IsOnFloor())
-    {
-      if (Velocity.Y < 0.0f)
-        Velocity = new Vector3(Velocity.X, 0.0f, Velocity.Z);
-      return;
-    }
-
-    Velocity = new Vector3(Velocity.X, Velocity.Y - GRAVITY * delta, Velocity.Z);
-  }
-
-  public void SetSimulationState(SimulationState next)
-  {
-    if (CurrentSimulationState == next)
-      return;
-
-    SimulationState previous = CurrentSimulationState;
-    CurrentSimulationState = next;
-
-    if (next == SimulationState.Sleeping)
-    {
-      Velocity = Vector3.Zero;
-      _knockbackVelocity = Vector3.Zero;
-      _restrictedCheckTimer = 0.0f;
-      StopAndReset();
-      if (_contactArea != null)
-      {
-        _contactArea.Monitoring = false;
-        _contactArea.Monitorable = false;
-      }
-      SetPhysicsProcess(false);
-      TargetOverride = null;
-      return;
-    }
-
-    if (!IsPhysicsProcessing())
-      SetPhysicsProcess(true);
-
-    if (_contactArea != null)
-    {
-      _contactArea.Monitoring = true;
-      _contactArea.Monitorable = true;
-    }
-
-    if (previous == SimulationState.Sleeping || next == SimulationState.Active)
-      _restrictedCheckTimer = 0.0f;
+    _currentVelocity = Vector3.Zero;
   }
 
   private void ConfigureCollisionProfile()
   {
     _baseCollisionLayers = CollisionLayer;
     if (_baseCollisionLayers == 0)
+    {
       _baseCollisionLayers = PhysicsLayers.Mask(PhysicsLayers.Layer.Enemy);
+    }
     else if (!PhysicsLayers.Contains(_baseCollisionLayers, PhysicsLayers.Layer.Enemy))
+    {
       _baseCollisionLayers = PhysicsLayers.Add(_baseCollisionLayers, PhysicsLayers.Layer.Enemy);
+    }
+
+    _baseCollisionLayers = PhysicsLayers.Remove(_baseCollisionLayers, PhysicsLayers.Layer.World);
+    if (_baseCollisionLayers == 0)
+      _baseCollisionLayers = PhysicsLayers.Mask(PhysicsLayers.Layer.Enemy);
     CollisionLayer = _baseCollisionLayers;
 
     _baseCollisionMask = CollisionMask;
@@ -397,113 +270,66 @@ public partial class Enemy : CharacterBody3D
     CollisionMask = _baseCollisionMask | _restrictedCollisionLayers;
   }
 
-  private void ApplyRestrictedVolumePushbackImmediate()
+  internal void ApplySimulation(Vector3 position, Vector3 velocity)
   {
-    if (!EnforceRestrictedVolumes || _isDying)
-      return;
-
-    var zones = ShopSafeZone.ActiveZones;
-    if (zones == null || zones.Count == 0)
-      return;
-
-    Vector3 position = GlobalPosition;
-    Vector3 cumulativePush = Vector3.Zero;
-
-    foreach (ShopSafeZone zone in zones)
-    {
-      if (zone == null)
-        continue;
-
-      if (!zone.TryGetRepulsion(position, RestrictedVolumePadding, out Vector3 push))
-        continue;
-
-      position += push;
-      cumulativePush += push;
-    }
-
-    if (cumulativePush.LengthSquared() <= 0.000001f)
-      return;
-
-    GlobalPosition = new Vector3(position.X, GlobalPosition.Y, position.Z);
-
-    Vector3 normal = cumulativePush.Normalized();
-    if (normal.LengthSquared() > 0.000001f)
-    {
-      Velocity = Velocity.Slide(normal);
-      _knockbackVelocity = _knockbackVelocity.Slide(normal);
-    }
+    GlobalPosition = position;
+    Velocity = velocity;
+    _currentVelocity = velocity;
   }
 
-  private void AimAtTarget(Node3D targetNode)
+  internal void UpdateFacing(Vector3 direction)
   {
-    Vector3 directionVec = targetNode.GlobalTransform.Origin - GlobalTransform.Origin;
-    if (directionVec.LengthSquared() <= 0.000001f)
+    if (direction.LengthSquared() <= 0.000001f)
       return;
 
-    directionVec = directionVec.Normalized();
-    Vector3 lookRotation = new Vector3(directionVec.X, 0, directionVec.Z);
+    direction = direction.Normalized();
+    Vector3 lookRotation = new Vector3(direction.X, 0, direction.Z);
     LookAt(GlobalTransform.Origin + lookRotation, Vector3.Up);
   }
 
-  private void PatrolMovement()
+  internal void PlayMoveAnimation()
   {
-    if (!Patrol)
-      return;
-
-    Velocity = new Vector3(direction * SPEED * speedMultiplier, Velocity.Y, 0);
-
-    if (GlobalTransform.Origin.X >= startX + MOVE_DISTANCE)
-    {
-      direction = -1;
-    }
-    else if (GlobalTransform.Origin.X <= startX - MOVE_DISTANCE)
-    {
-      direction = 1;
-    }
-
     if (animPlayer != null && animPlayer.HasAnimation("move"))
-    {
       animPlayer.Play("move");
-    }
   }
 
-  private void StopAndReset()
+  internal void PlayIdleAnimation()
   {
-    Velocity = Vector3.Zero;
     if (animPlayer != null && animPlayer.HasAnimation("idle"))
-    {
       animPlayer.Play("idle");
-    }
   }
 
-
-
-  private void MoveTowardsTarget(Node3D targetNode)
+  internal void StopAndResetVisuals()
   {
-    if (!Move || targetNode == null || !IsInstanceValid(targetNode))
+    _currentVelocity = Vector3.Zero;
+    Velocity = Vector3.Zero;
+    PlayIdleAnimation();
+  }
+
+  internal void HandleSimulationStateTransition(SimulationState previous, SimulationState next)
+  {
+    if (next == SimulationState.Sleeping)
+    {
+      StopAndResetVisuals();
+      if (_contactArea != null)
+      {
+        _contactArea.Monitoring = false;
+        _contactArea.Monitorable = false;
+      }
+      TargetOverride = null;
       return;
-
-    if (animPlayer != null && animPlayer.HasAnimation("move"))
-    {
-      animPlayer.Play("move");
     }
 
-    // Direct straight-line chase toward player
-    Vector3 targetPos = targetNode.GlobalTransform.Origin;
-    Vector3 desired = (targetPos - GlobalTransform.Origin);
-
-    desired.Y = 0;
-    if (desired.Length() > 0.001f)
+    if (_contactArea != null)
     {
-      desired = desired.Normalized();
+      _contactArea.Monitoring = true;
+      _contactArea.Monitorable = true;
     }
-
-    Velocity = desired * SPEED * speedMultiplier;
   }
 
   public void SetSpeedMultiplier(float multiplier)
   {
-    speedMultiplier = multiplier;
+    EnemyAIManager.Instance?.SetSpeedMultiplier(this, multiplier);
   }
 
   public void TakeDamage(float amount)
@@ -612,10 +438,7 @@ public partial class Enemy : CharacterBody3D
 
   public void ApplyKnockback(Vector3 impulse)
   {
-    _knockbackVelocity = impulse;
-    float len = _knockbackVelocity.Length();
-    if (len > MaxKnockbackSpeed && len > 0.0001f)
-      _knockbackVelocity = _knockbackVelocity / len * MaxKnockbackSpeed;
+    EnemyAIManager.Instance?.ApplyKnockback(this, impulse);
   }
 
   private void SetupContactDamageArea()

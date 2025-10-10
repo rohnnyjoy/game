@@ -1,4 +1,5 @@
 using Godot;
+using System;
 #nullable enable
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -64,16 +65,27 @@ namespace Combat
       _flashToken++;
       int token = _flashToken;
 
+      var previousMaterials = new List<(MeshInstance3D Mesh, Material? Material)>(_meshInstances.Count);
+
       foreach (var mi in _meshInstances)
+      {
+        if (!GodotObject.IsInstanceValid(mi))
+          continue;
+
+        previousMaterials.Add((mi, mi.MaterialOverride));
         mi.MaterialOverride = _flashMaterial;
+      }
 
       var timer = GetTree().CreateTimer(Mathf.Max(0.01f, durationSeconds));
       await ToSignal(timer, "timeout");
 
       if (token == _flashToken)
       {
-        foreach (var mi in _meshInstances)
-          mi.MaterialOverride = null;
+        foreach (var entry in previousMaterials)
+        {
+          if (GodotObject.IsInstanceValid(entry.Mesh))
+            entry.Mesh.MaterialOverride = entry.Material;
+        }
       }
     }
   }

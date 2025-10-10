@@ -1,15 +1,13 @@
-[gd_scene load_steps=12 format=3 uid="uid://cymxvi3bjj71b"]
+[gd_scene load_steps=10 format=3 uid="uid://cymxvi3bjj71b"]
 
 [ext_resource type="Script" uid="uid://cbhero32hv31d" path="res://Enemy.cs" id="1_6tcda"]
- 
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_xk8km"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tt7e2"]
-shading_mode = 1
+shading_mode = 0
+albedo_color = Color(1, 0, 0, 1)
 disable_receive_shadows = true
-albedo_color = Color(1, 0.141176, 1, 1)
-metallic_specular = 0.0
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_67y6s"]
 
@@ -59,8 +57,6 @@ libraries = {
 }
 autoplay = "idle"
 playback_default_blend_time = 0.05
-
- 
 
 [node name="WeaponHolder" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.61639, 0.634005, -1.2483)

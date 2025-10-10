@@ -9,22 +9,101 @@ public partial class EnemyAIManager : Node
 {
   public static EnemyAIManager? Instance { get; private set; }
 
-  // Budgeting and LOD
-  [Export(PropertyHint.Range, "0,1000,1")] public int MaxAiUpdatesPerFrame { get; set; } = 0; // 0 = all
-  [Export(PropertyHint.Range, "0,500,1")] public float MidRangeDistance { get; set; } = 40f;
-  [Export(PropertyHint.Range, "0,1000,1")] public float FarRangeDistance { get; set; } = 100f;
+  internal static ulong CurrentPhysicsFrame { get; private set; }
+
+  [Export(PropertyHint.Range, "0,1000,1")] public int MaxAiUpdatesPerFrame { get; set; } = 0;
+
+  private float _midRangeDistance = 40f;
+  private float _farRangeDistance = 100f;
+  private float _maxConsiderDistance = 200f;
+  private float _midRangeDistanceSquared = 40f * 40f;
+  private float _farRangeDistanceSquared = 100f * 100f;
+  private float _maxConsiderDistanceSquared = 200f * 200f;
+
+  [Export(PropertyHint.Range, "0,500,1")] public float MidRangeDistance
+  {
+    get => _midRangeDistance;
+    set
+    {
+      float clamped = Mathf.Max(0f, value);
+      if (Mathf.IsEqualApprox(_midRangeDistance, clamped))
+        return;
+      _midRangeDistance = clamped;
+      _midRangeDistanceSquared = clamped * clamped;
+    }
+  }
+
+  [Export(PropertyHint.Range, "0,1000,1")] public float FarRangeDistance
+  {
+    get => _farRangeDistance;
+    set
+    {
+      float clamped = Mathf.Max(0f, value);
+      if (Mathf.IsEqualApprox(_farRangeDistance, clamped))
+        return;
+      _farRangeDistance = clamped;
+      _farRangeDistanceSquared = clamped * clamped;
+    }
+  }
+
+  [Export(PropertyHint.Range, "0,500,1")] public float MaxConsiderDistance
+  {
+    get => _maxConsiderDistance;
+    set
+    {
+      float clamped = Mathf.Max(0f, value);
+      if (Mathf.IsEqualApprox(_maxConsiderDistance, clamped))
+        return;
+      _maxConsiderDistance = clamped;
+      _maxConsiderDistanceSquared = clamped * clamped;
+    }
+  }
+
   [Export] public int MidRangeIntervalFrames { get; set; } = 2;
   [Export] public int FarRangeIntervalFrames { get; set; } = 5;
   [Export] public bool EnableLod { get; set; } = true;
-  [Export(PropertyHint.Range, "0,500,1")] public float MaxConsiderDistance { get; set; } = 200f;
 
-  private readonly List<Enemy> _enemies = new();
+  private struct EnemySimData
+  {
+    public bool Active;
+    public Enemy Proxy;
+    public Vector3 Position;
+    public Vector3 Velocity;
+    public Vector3 HorizontalVelocity;
+    public Vector3 KnockbackVelocity;
+    public float SpeedMultiplier;
+    public Enemy.SimulationState State;
+    public float AccumulatedDelta;
+    public float RestrictedCheckTimer;
+    public int ForcedPhysicsSteps;
+    public uint LodFrameOffset;
+    public bool OnFloor;
+    public float StartX;
+    public int PatrolDirection;
+    public float CapsuleRadius;
+    public float CapsuleHalfHeight;
+    public uint CollisionMask;
+    public Rid BodyRid;
+    public Godot.Collections.Array<Rid> Exclude;
+    public PhysicsRayQueryParameters3D DownRay;
+    public PhysicsRayQueryParameters3D UpRay;
+    public PhysicsRayQueryParameters3D HorizontalRay;
+  }
+
+  private readonly List<EnemySimData> _simData = new();
+  private readonly Stack<int> _freeIndices = new();
+  private readonly Dictionary<Enemy, int> _indices = new();
+
   private int _cursor = 0;
   private ulong _frameIndex = 0;
+
   private readonly HashSet<Enemy> _activeSimEnemies = new();
+
   private static readonly List<Node3D> PlayerCache = new(2);
+  private static readonly List<Vector3> PlayerPositions = new(2);
   private static readonly Enemy[] EmptyEnemies = Array.Empty<Enemy>();
-  private const float WakeHysteresis = 6.0f;
+
+  private readonly RandomNumberGenerator _lodPhaseRng = CreateLodRng();
 
   public static IReadOnlyList<Node3D> ActivePlayers => PlayerCache;
   public static IReadOnlyCollection<Enemy> ActiveSimulationEnemies
@@ -37,17 +116,16 @@ public partial class EnemyAIManager : Node
       QueueFree();
       return;
     }
+
     Instance = this;
     Name = nameof(EnemyAIManager);
     AddToGroup("ai_manager");
-    // Run earlier than most gameplay nodes to assign targets before actors step.
     ProcessPriority = -10;
 
-    // Opportunistically register any enemies already in the scene.
-    foreach (var n in GetTree().GetNodesInGroup("enemies"))
+    foreach (var node in GetTree().GetNodesInGroup("enemies"))
     {
-      if (n is Enemy e)
-        Register(e);
+      if (node is Enemy enemy)
+        Register(enemy);
     }
   }
 
@@ -57,170 +135,648 @@ public partial class EnemyAIManager : Node
     {
       Instance = null;
       PlayerCache.Clear();
+      PlayerPositions.Clear();
       _activeSimEnemies.Clear();
+      _indices.Clear();
+      _simData.Clear();
+      _freeIndices.Clear();
     }
+
     base._ExitTree();
   }
 
-  // Autoloaded; no manual EnsurePresent needed.
-
   public void Register(Enemy enemy)
   {
-    if (enemy == null || !IsInstanceValid(enemy)) return;
-    if (_enemies.Contains(enemy)) return;
-    _enemies.Add(enemy);
-    if (enemy.CurrentSimulationState != Enemy.SimulationState.Sleeping)
-      _activeSimEnemies.Add(enemy);
+    if (enemy == null || !GodotObject.IsInstanceValid(enemy))
+      return;
+    if (_indices.ContainsKey(enemy))
+      return;
+
+    int index = _freeIndices.Count > 0 ? _freeIndices.Pop() : _simData.Count;
+    if (index >= _simData.Count)
+      _simData.Add(default);
+
+    (float capsuleRadius, float capsuleHalfHeight) = ExtractCapsuleDimensions(enemy);
+    Rid bodyRid = enemy.GetRid();
+    var exclude = new Godot.Collections.Array<Rid>();
+    exclude.Add(bodyRid);
+
+    var downQuery = new PhysicsRayQueryParameters3D
+    {
+      CollisionMask = enemy.CollisionMask,
+      HitBackFaces = true,
+      HitFromInside = true,
+      Exclude = exclude
+    };
+
+    var upQuery = new PhysicsRayQueryParameters3D
+    {
+      CollisionMask = enemy.CollisionMask,
+      HitBackFaces = true,
+      HitFromInside = true,
+      Exclude = exclude
+    };
+
+    var horizontalQuery = new PhysicsRayQueryParameters3D
+    {
+      CollisionMask = enemy.CollisionMask,
+      HitBackFaces = true,
+      HitFromInside = true,
+      Exclude = exclude
+    };
+
+    EnemySimData data = new EnemySimData
+    {
+      Active = true,
+      Proxy = enemy,
+      Position = enemy.GlobalTransform.Origin,
+      Velocity = Vector3.Zero,
+      HorizontalVelocity = Vector3.Zero,
+      KnockbackVelocity = Vector3.Zero,
+      SpeedMultiplier = 1.0f,
+      State = Enemy.SimulationState.Active,
+      AccumulatedDelta = 0f,
+      RestrictedCheckTimer = 0f,
+      ForcedPhysicsSteps = 0,
+      LodFrameOffset = (uint)_lodPhaseRng.RandiRange(0, 1023),
+      OnFloor = false,
+      StartX = enemy.GlobalTransform.Origin.X,
+      PatrolDirection = 1,
+      CapsuleRadius = capsuleRadius,
+      CapsuleHalfHeight = capsuleHalfHeight,
+      CollisionMask = enemy.CollisionMask,
+      BodyRid = bodyRid,
+      Exclude = exclude,
+      DownRay = downQuery,
+      UpRay = upQuery,
+      HorizontalRay = horizontalQuery
+    };
+
+    _simData[index] = data;
+    _indices[enemy] = index;
+    _activeSimEnemies.Add(enemy);
+    enemy.SimulationHandle = index;
+    enemy.PlayIdleAnimation();
   }
 
   public void Unregister(Enemy enemy)
   {
-    if (enemy == null) return;
-    _enemies.Remove(enemy);
-    _activeSimEnemies.Remove(enemy);
-    if (IsInstanceValid(enemy))
-      enemy.TargetOverride = null;
+    if (enemy == null)
+      return;
+    if (!_indices.TryGetValue(enemy, out int index))
+      return;
+
+    RemoveIndex(index);
   }
 
   public override void _PhysicsProcess(double delta)
   {
     base._PhysicsProcess(delta);
 
-    // Clean up invalid references occasionally
-    if (_frameIndex % 120 == 0)
-    {
-      _enemies.RemoveAll(e => e == null || !IsInstanceValid(e));
-      _activeSimEnemies.RemoveWhere(e => e == null || !IsInstanceValid(e));
-    }
+    CurrentPhysicsFrame = Engine.GetPhysicsFrames();
 
-    // Early out if nothing to do
-    int total = _enemies.Count;
+    if (_frameIndex % 120 == 0)
+      PruneInvalidEnemies();
+
+    int total = _simData.Count;
     if (total == 0)
     {
       _frameIndex++;
       return;
     }
 
-    // Gather players once
     RefreshPlayerCache();
-    var players = PlayerCache;
+    PhysicsDirectSpaceState3D? space = GetWorld3D()?.DirectSpaceState;
+    if (space == null)
+    {
+      _frameIndex++;
+      return;
+    }
 
+    float dt = (float)delta;
     var (start, count) = AIScheduler.ComputeSlice(total, MaxAiUpdatesPerFrame, _cursor);
+
     for (int i = 0; i < count; i++)
     {
       int idx = (start + i) % total;
-      var enemy = _enemies[idx];
-      if (enemy == null || !IsInstanceValid(enemy))
+      ref EnemySimData data = ref _simData[idx];
+      if (!data.Active)
         continue;
 
-      Vector3 origin = enemy.GlobalTransform.Origin;
-      Node3D? nearest = null;
-      float nearestDist2 = float.PositiveInfinity;
-
-      if (players.Count > 0)
-        nearest = NearestPlayer(players, origin, out nearestDist2);
-
-      float nearestDist = float.IsPositiveInfinity(nearestDist2) ? float.PositiveInfinity : Mathf.Sqrt(nearestDist2);
-
-      var desiredState = DetermineSimulationState(enemy, nearestDist);
-      Enemy.SimulationState previousState = enemy.CurrentSimulationState;
-      if (previousState != desiredState)
-        enemy.SetSimulationState(desiredState);
-
-      if (enemy.CurrentSimulationState == Enemy.SimulationState.Sleeping)
+      Enemy enemy = data.Proxy;
+      if (enemy == null || !GodotObject.IsInstanceValid(enemy))
       {
-        _activeSimEnemies.Remove(enemy);
+        RemoveIndex(idx);
+        continue;
+      }
+
+      if (enemy.IsDying)
+      {
+        if (data.State != Enemy.SimulationState.Sleeping)
+        {
+          enemy.HandleSimulationStateTransition(data.State, Enemy.SimulationState.Sleeping);
+          data.State = Enemy.SimulationState.Sleeping;
+          data.HorizontalVelocity = Vector3.Zero;
+          data.Velocity = Vector3.Zero;
+          data.KnockbackVelocity = Vector3.Zero;
+          data.OnFloor = true;
+          data.AccumulatedDelta = 0f;
+          _activeSimEnemies.Remove(enemy);
+          enemy.ApplySimulation(data.Position, data.Velocity);
+        }
+        continue;
+      }
+
+      Node3D? nearestPlayer = null;
+      float nearestDist2 = float.PositiveInfinity;
+      if (PlayerCache.Count > 0)
+        nearestPlayer = NearestPlayer(PlayerCache, PlayerPositions, data.Position, out nearestDist2);
+
+      float activeRadiusSq = enemy.ActiveSimulationRadius * enemy.ActiveSimulationRadius;
+      float midRadiusSq = enemy.MidSimulationRadius * enemy.MidSimulationRadius;
+      float farRadiusSq = enemy.FarSimulationRadius * enemy.FarSimulationRadius;
+      float sleepRadiusSq = enemy.SleepSimulationRadius * enemy.SleepSimulationRadius;
+
+      Enemy.SimulationState desiredState = DetermineSimulationState(data, nearestDist2,
+        activeRadiusSq, midRadiusSq, farRadiusSq, sleepRadiusSq,
+        enemy.SleepSimulationRadius, enemy.FarSimulationRadius);
+
+      if (data.State != desiredState)
+      {
+        enemy.HandleSimulationStateTransition(data.State, desiredState);
+        if (desiredState == Enemy.SimulationState.Sleeping)
+          _activeSimEnemies.Remove(enemy);
+        else
+          _activeSimEnemies.Add(enemy);
+
+        data.State = desiredState;
+        data.KnockbackVelocity = Vector3.Zero;
+        data.AccumulatedDelta = 0f;
+        data.RestrictedCheckTimer = 0f;
+        data.ForcedPhysicsSteps = 0;
+        data.HorizontalVelocity = Vector3.Zero;
+        data.Velocity = Vector3.Zero;
+      }
+
+      if (data.State == Enemy.SimulationState.Sleeping)
+      {
+        enemy.ApplySimulation(data.Position, data.Velocity);
         continue;
       }
 
       _activeSimEnemies.Add(enemy);
 
-      bool shouldAssignTarget = previousState != enemy.CurrentSimulationState;
-      if (!shouldAssignTarget && EnableLod)
+      Node3D? target = null;
+      if (enemy.TargetOverride != null && GodotObject.IsInstanceValid(enemy.TargetOverride))
+        target = enemy.TargetOverride;
+      else if (nearestPlayer != null && nearestDist2 <= _maxConsiderDistanceSquared)
+        target = nearestPlayer;
+
+      data.AccumulatedDelta += dt;
+
+      if (ShouldUpdateSteering(ref data))
+        UpdateSteering(ref data, enemy, target);
+
+      data.Velocity = new Vector3(data.HorizontalVelocity.X, data.Velocity.Y, data.HorizontalVelocity.Z);
+      bool shouldRunPhysics = ShouldRunPhysics(ref data);
+      if (!shouldRunPhysics)
       {
-        int interval = 1;
-        if (nearestDist > FarRangeDistance) interval = Math.Max(1, FarRangeIntervalFrames);
-        else if (nearestDist > MidRangeDistance) interval = Math.Max(1, MidRangeIntervalFrames);
-        if (interval > 1 && (_frameIndex % (ulong)interval) != 0)
-          continue;
+        enemy.ApplySimulation(data.Position, data.Velocity);
+        continue;
       }
 
-      Node3D? target = null;
-      if (nearest != null && nearestDist <= MaxConsiderDistance)
-        target = nearest;
+      float effectiveDelta = MathF.Max(data.AccumulatedDelta, dt);
+      data.AccumulatedDelta = 0f;
 
-      enemy.TargetOverride = target;
+      ApplyGravity(ref data, enemy, effectiveDelta);
+
+      data.Velocity += data.KnockbackVelocity;
+
+      PerformMovement(ref data, enemy, effectiveDelta, space);
+
+      data.KnockbackVelocity = data.KnockbackVelocity.MoveToward(Vector3.Zero, enemy.KnockbackDamping * effectiveDelta);
+      if (data.ForcedPhysicsSteps > 0)
+        data.ForcedPhysicsSteps--;
+
+      TickRestrictedVolumes(enemy, ref data, effectiveDelta);
+
+      enemy.ApplySimulation(data.Position, data.Velocity);
     }
 
     _cursor = AIScheduler.AdvanceCursor(total, MaxAiUpdatesPerFrame, _cursor);
     _frameIndex++;
   }
 
-  private static void RefreshPlayerCache()
+  public Enemy.SimulationState GetSimulationState(Enemy enemy)
   {
-    PlayerCache.Clear();
+    if (enemy == null)
+      return Enemy.SimulationState.Active;
+    if (_indices.TryGetValue(enemy, out int index))
+    {
+      ref EnemySimData data = ref _simData[index];
+      if (data.Active)
+        return data.State;
+    }
+    return Enemy.SimulationState.Active;
+  }
 
-    if (Player.Instance != null && IsInstanceValid(Player.Instance))
-      PlayerCache.Add(Player.Instance);
-
-    var scenePlayers = SceneTreeSingleton()?.GetNodesInGroup("players");
-    if (scenePlayers == null)
+  public void ApplyKnockback(Enemy enemy, Vector3 impulse)
+  {
+    if (enemy == null)
+      return;
+    if (!_indices.TryGetValue(enemy, out int index))
       return;
 
-    foreach (var n in scenePlayers)
+    ref EnemySimData data = ref _simData[index];
+    if (!data.Active)
+      return;
+
+    Vector3 adjusted = impulse;
+    float len = adjusted.Length();
+    float max = MathF.Max(0.01f, enemy.MaxKnockbackSpeed);
+    if (len > max)
+      adjusted = adjusted / len * max;
+
+    data.KnockbackVelocity = adjusted;
+    data.ForcedPhysicsSteps = Math.Max(data.ForcedPhysicsSteps, 2);
+  }
+
+  public void SetSpeedMultiplier(Enemy enemy, float multiplier)
+  {
+    if (enemy == null)
+      return;
+    if (!_indices.TryGetValue(enemy, out int index))
+      return;
+
+    ref EnemySimData data = ref _simData[index];
+    if (!data.Active)
+      return;
+
+    data.SpeedMultiplier = MathF.Max(0f, multiplier);
+  }
+
+  private void PerformMovement(ref EnemySimData data, Enemy enemy, float dt, PhysicsDirectSpaceState3D space)
+  {
+    Vector3 position = data.Position;
+    Vector3 velocity = data.Velocity;
+
+    float bottomOffset = data.CapsuleHalfHeight;
+    float rayPadding = 0.2f;
+
+    // Vertical integration
+    float verticalStep = velocity.Y * dt;
+    bool onFloor = false;
+
+    if (verticalStep < -0.0001f)
     {
-      if (n is not Node3D n3 || !IsInstanceValid(n3))
-        continue;
-      if (Player.Instance != null && IsInstanceValid(Player.Instance) && n3 == Player.Instance)
-        continue;
-      PlayerCache.Add(n3);
+      Vector3 from = position + Vector3.Down * (bottomOffset - data.CapsuleRadius * 0.25f);
+      Vector3 to = from + Vector3.Down * (MathF.Abs(verticalStep) + rayPadding);
+      data.DownRay.From = from;
+      data.DownRay.To = to;
+      var hit = space.IntersectRay(data.DownRay);
+      if (hit.Count > 0)
+      {
+        Vector3 hitPos = hit.ContainsKey("position") ? (Vector3)hit["position"] : to;
+        position.Y = hitPos.Y + bottomOffset;
+        velocity.Y = 0f;
+        onFloor = true;
+      }
+      else
+      {
+        position += Vector3.Down * MathF.Abs(verticalStep);
+      }
+    }
+    else if (verticalStep > 0.0001f)
+    {
+      Vector3 from = position + Vector3.Up * (bottomOffset - data.CapsuleRadius * 0.25f);
+      Vector3 to = from + Vector3.Up * (verticalStep + rayPadding);
+      data.UpRay.From = from;
+      data.UpRay.To = to;
+      var hit = space.IntersectRay(data.UpRay);
+      if (hit.Count > 0)
+      {
+        Vector3 hitPos = hit.ContainsKey("position") ? (Vector3)hit["position"] : to;
+        position.Y = hitPos.Y - bottomOffset;
+        velocity.Y = 0f;
+      }
+      else
+      {
+        position += Vector3.Up * verticalStep;
+      }
+    }
+    else
+    {
+      position.Y += verticalStep;
+    }
+
+    // Horizontal integration
+    Vector3 horizontalStep = new Vector3(velocity.X, 0f, velocity.Z) * dt;
+    float stepLength = horizontalStep.Length();
+    if (stepLength > 0.0001f)
+    {
+      Vector3 dir = horizontalStep / stepLength;
+      Vector3 rayOrigin = position + Vector3.Up * (bottomOffset - data.CapsuleRadius);
+      Vector3 rayTarget = rayOrigin + dir * (stepLength + data.CapsuleRadius);
+      data.HorizontalRay.From = rayOrigin;
+      data.HorizontalRay.To = rayTarget;
+      var hit = space.IntersectRay(data.HorizontalRay);
+      if (hit.Count > 0)
+      {
+        Vector3 hitPos = hit.ContainsKey("position") ? (Vector3)hit["position"] : rayTarget;
+        Vector3 normal = hit.ContainsKey("normal") ? (Vector3)hit["normal"] : Vector3.Up;
+        float travel = (hitPos - rayOrigin).Length() - data.CapsuleRadius;
+        travel = MathF.Max(0f, travel);
+        float applied = MathF.Min(stepLength, travel);
+        position += dir * applied;
+        Vector3 slideVel = new Vector3(velocity.X, 0f, velocity.Z).Slide(normal);
+        velocity.X = slideVel.X;
+        velocity.Z = slideVel.Z;
+        data.HorizontalVelocity = slideVel;
+      }
+      else
+      {
+        position += horizontalStep;
+      }
+    }
+
+    if (onFloor)
+      data.OnFloor = true;
+    else
+      data.OnFloor = false;
+
+    data.Position = position;
+    data.Velocity = velocity;
+    data.HorizontalVelocity = new Vector3(velocity.X, 0f, velocity.Z);
+  }
+
+  private void ApplyGravity(ref EnemySimData data, Enemy enemy, float delta)
+  {
+    if (data.OnFloor)
+    {
+      if (data.Velocity.Y < 0f)
+        data.Velocity = new Vector3(data.Velocity.X, 0f, data.Velocity.Z);
+      return;
+    }
+
+    data.Velocity = new Vector3(data.Velocity.X, data.Velocity.Y - Enemy.GRAVITY * delta, data.Velocity.Z);
+  }
+
+  private void UpdateSteering(ref EnemySimData data, Enemy enemy, Node3D? target)
+  {
+    if (target != null && GodotObject.IsInstanceValid(target))
+    {
+      Vector3 direction = target.GlobalTransform.Origin - data.Position;
+      direction.Y = 0f;
+      if (direction.LengthSquared() > 0.000001f)
+      {
+        direction = direction.Normalized();
+        Vector3 desired = direction * Enemy.SPEED * data.SpeedMultiplier;
+        data.HorizontalVelocity = desired;
+        enemy.UpdateFacing(desired);
+        enemy.PlayMoveAnimation();
+        return;
+      }
+    }
+
+    if (enemy.Patrol)
+    {
+      float right = data.StartX + Enemy.MOVE_DISTANCE;
+      float left = data.StartX - Enemy.MOVE_DISTANCE;
+      if (data.Position.X >= right)
+        data.PatrolDirection = -1;
+      else if (data.Position.X <= left)
+        data.PatrolDirection = 1;
+
+      float xSpeed = data.PatrolDirection * Enemy.SPEED * data.SpeedMultiplier;
+      Vector3 desired = new Vector3(xSpeed, 0f, 0f);
+      data.HorizontalVelocity = desired;
+      enemy.UpdateFacing(desired);
+      enemy.PlayMoveAnimation();
+    }
+    else
+    {
+      data.HorizontalVelocity = Vector3.Zero;
+      enemy.PlayIdleAnimation();
     }
   }
 
-  private static SceneTree? SceneTreeSingleton()
+  private bool ShouldUpdateSteering(ref EnemySimData data)
   {
-    // Try to access scene tree via any existing Instance
-    return Instance?.GetTree();
+    switch (data.State)
+    {
+      case Enemy.SimulationState.Active:
+        return true;
+      case Enemy.SimulationState.BudgetMid:
+        return ShouldRunLodFrame(ref data, Enemy.MidUpdateStride);
+      case Enemy.SimulationState.BudgetFar:
+        return ShouldRunLodFrame(ref data, Enemy.FarUpdateStride);
+      default:
+        return false;
+    }
   }
 
-  private static Node3D? NearestPlayer(List<Node3D> players, Vector3 pos, out float bestDist2)
+  private bool ShouldRunPhysics(ref EnemySimData data)
+  {
+    if (data.ForcedPhysicsSteps > 0)
+      return true;
+
+    switch (data.State)
+    {
+      case Enemy.SimulationState.Active:
+        return true;
+      case Enemy.SimulationState.BudgetMid:
+        return ShouldRunLodFrame(ref data, Enemy.MidUpdateStride);
+      case Enemy.SimulationState.BudgetFar:
+        return ShouldRunLodFrame(ref data, Enemy.FarUpdateStride);
+      default:
+        return false;
+    }
+  }
+
+  private bool ShouldRunLodFrame(ref EnemySimData data, int stride)
+  {
+    if (!EnableLod || stride <= 1)
+      return true;
+
+    ulong frame = CurrentPhysicsFrame;
+    if (frame == 0)
+      frame = Engine.GetPhysicsFrames();
+    return ((frame + data.LodFrameOffset) % (ulong)stride) == 0;
+  }
+
+  private void TickRestrictedVolumes(Enemy enemy, ref EnemySimData data, float delta)
+  {
+    if (!enemy.EnforceRestrictedVolumes || enemy.IsDying)
+      return;
+
+    data.RestrictedCheckTimer -= delta;
+    if (data.RestrictedCheckTimer > 0f)
+      return;
+
+    float interval = Enemy.RestrictedCheckInterval;
+    if (data.State == Enemy.SimulationState.BudgetMid)
+      interval *= 1.8f;
+    else if (data.State == Enemy.SimulationState.BudgetFar)
+      interval *= 3.5f;
+    data.RestrictedCheckTimer = interval;
+
+    var zones = ShopSafeZone.ActiveZones;
+    if (zones == null || zones.Count == 0)
+      return;
+
+    Vector3 position = data.Position;
+    Vector3 cumulativePush = Vector3.Zero;
+
+    foreach (ShopSafeZone zone in zones)
+    {
+      if (zone == null)
+        continue;
+      if (!zone.TryGetRepulsion(position, enemy.RestrictedVolumePadding, out Vector3 push))
+        continue;
+      position += push;
+      cumulativePush += push;
+    }
+
+    if (cumulativePush.LengthSquared() <= 0.000001f)
+      return;
+
+    data.Position = new Vector3(position.X, data.Position.Y, position.Z);
+
+    Vector3 normal = cumulativePush.Normalized();
+    if (normal.LengthSquared() > 0.000001f)
+    {
+      data.Velocity = data.Velocity.Slide(normal);
+      data.KnockbackVelocity = data.KnockbackVelocity.Slide(normal);
+      data.HorizontalVelocity = new Vector3(data.Velocity.X, 0f, data.Velocity.Z);
+    }
+  }
+
+  private void RemoveIndex(int index)
+  {
+    if (index < 0 || index >= _simData.Count)
+      return;
+
+    ref EnemySimData data = ref _simData[index];
+    if (data.Active)
+      _activeSimEnemies.Remove(data.Proxy);
+
+    if (data.Proxy != null)
+    {
+      data.Proxy.SimulationHandle = -1;
+      _indices.Remove(data.Proxy);
+    }
+
+    data.Active = false;
+    data.Proxy = null!;
+    data.Exclude = new Godot.Collections.Array<Rid>();
+    _freeIndices.Push(index);
+  }
+
+  private void PruneInvalidEnemies()
+  {
+    for (int i = 0; i < _simData.Count; i++)
+    {
+      ref EnemySimData data = ref _simData[i];
+      if (!data.Active)
+        continue;
+      Enemy enemy = data.Proxy;
+      if (enemy == null || !GodotObject.IsInstanceValid(enemy))
+        RemoveIndex(i);
+    }
+
+    _activeSimEnemies.RemoveWhere(e => e == null || !GodotObject.IsInstanceValid(e));
+  }
+
+  private static void RefreshPlayerCache()
+  {
+    PlayerCache.Clear();
+    PlayerPositions.Clear();
+
+    if (Player.Instance != null && GodotObject.IsInstanceValid(Player.Instance))
+    {
+      PlayerCache.Add(Player.Instance);
+      PlayerPositions.Add(Player.Instance.GlobalTransform.Origin);
+    }
+
+    var scenePlayers = Instance?.GetTree().GetNodesInGroup("players");
+    if (scenePlayers == null)
+      return;
+
+    foreach (var node in scenePlayers)
+    {
+      if (node is not Node3D n3 || !GodotObject.IsInstanceValid(n3))
+        continue;
+      if (Player.Instance != null && GodotObject.IsInstanceValid(Player.Instance) && n3 == Player.Instance)
+        continue;
+      PlayerCache.Add(n3);
+      PlayerPositions.Add(n3.GlobalTransform.Origin);
+    }
+  }
+
+  private static Node3D? NearestPlayer(List<Node3D> players, List<Vector3> positions, Vector3 origin, out float bestDist2)
   {
     Node3D? best = null;
     bestDist2 = float.PositiveInfinity;
-    foreach (var p in players)
+    for (int i = 0; i < players.Count; i++)
     {
-      var d2 = pos.DistanceSquaredTo(p.GlobalTransform.Origin);
+      Vector3 diff = origin - positions[i];
+      float d2 = diff.LengthSquared();
       if (d2 < bestDist2)
       {
         bestDist2 = d2;
-        best = p;
+        best = players[i];
       }
     }
     return best;
   }
 
-  private static Enemy.SimulationState DetermineSimulationState(Enemy enemy, float distance)
+  private static (float radius, float halfHeight) ExtractCapsuleDimensions(Enemy enemy)
   {
-    if (float.IsPositiveInfinity(distance))
+    var shape = enemy.GetNodeOrNull<CollisionShape3D>("CollisionShape3D");
+    if (shape?.Shape is CapsuleShape3D capsule)
+    {
+      float radius = MathF.Max(0.1f, capsule.Radius);
+      float halfHeight = capsule.Height * 0.5f + radius;
+      return (radius, halfHeight);
+    }
+
+    return (0.5f, 1.0f);
+  }
+
+  private static RandomNumberGenerator CreateLodRng()
+  {
+    var rng = new RandomNumberGenerator();
+    rng.Randomize();
+    return rng;
+  }
+
+  private static Enemy.SimulationState DetermineSimulationState(in EnemySimData data,
+    float distanceSquared,
+    float activeRadiusSq,
+    float midRadiusSq,
+    float farRadiusSq,
+    float sleepRadiusSq,
+    float sleepRadius,
+    float farRadius)
+  {
+    if (float.IsPositiveInfinity(distanceSquared))
       return Enemy.SimulationState.Sleeping;
 
-    float sleepRadius = enemy.SleepSimulationRadius;
-    float farRadius = enemy.FarSimulationRadius;
-
-    if (enemy.CurrentSimulationState == Enemy.SimulationState.Sleeping)
+    if (data.State == Enemy.SimulationState.Sleeping)
     {
-      float wakeRadius = MathF.Max(farRadius, sleepRadius - WakeHysteresis);
-      if (distance > wakeRadius)
+      float wakeRadius = MathF.Max(farRadius, sleepRadius - Enemy.LodHysteresis);
+      float wakeRadiusSq = wakeRadius * wakeRadius;
+      if (distanceSquared > wakeRadiusSq)
         return Enemy.SimulationState.Sleeping;
     }
 
-    if (distance > sleepRadius)
+    if (distanceSquared > sleepRadiusSq)
       return Enemy.SimulationState.Sleeping;
-    if (distance <= enemy.ActiveSimulationRadius)
+    if (distanceSquared <= activeRadiusSq)
       return Enemy.SimulationState.Active;
-    if (distance <= enemy.MidSimulationRadius)
+    if (distanceSquared <= midRadiusSq)
       return Enemy.SimulationState.BudgetMid;
-    if (distance <= farRadius)
+    if (distanceSquared <= farRadiusSq)
       return Enemy.SimulationState.BudgetFar;
     return Enemy.SimulationState.Sleeping;
   }

@@ -126,3 +126,6 @@ res://player/Player.tscn
 res://modules/HyperTriggerModule.cs
 res://ui/DebugConsoleUi.cs
 res://shared/rendering/XRayOutlineManager.cs
+res://shared/shaders/MaskDepthBlit.gdshader
+res://shared/shaders/OutlineComposite.gdshader
+res://shared/rendering/OutlineSetup.gd
