@@ -55,11 +55,11 @@ public partial class BulletManager : Node3D
     public float TrailMinDistance = 0.05f;
     public float TrailLifetime = 0.5f;
     public bool TrailViewAligned = true;
-    public MeshInstance3D? TrailInstance;
+    public MultiMesh? TrailMultiMesh;
+    public MultiMeshInstance3D? TrailInstance;
     public Dictionary<uint, TrailBuffer>? TrailBuffers;
     public HashSet<uint> TrailActiveIds = new HashSet<uint>();
     public List<uint> TrailIdsToRemove = new List<uint>();
-    public SurfaceTool TrailSurfaceTool = new SurfaceTool();
 
     public BulletBehaviorConfig BehaviorConfig = BulletBehaviorConfig.None;
     public CollisionOp[] CollisionOps = System.Array.Empty<CollisionOp>();
@@ -208,25 +208,27 @@ public partial class BulletManager : Node3D
   {
     public List<TrailPoint> Points = new List<TrailPoint>(8);
     public Vector3 LastAddedPos;
-    public Vector3[] LeftScratch = System.Array.Empty<Vector3>();
-    public Vector3[] RightScratch = System.Array.Empty<Vector3>();
-    public float[] AlphaScratch = System.Array.Empty<float>();
-
-    public void EnsureScratchCapacity(int count)
-    {
-      if (LeftScratch.Length < count)
-        LeftScratch = new Vector3[count];
-      if (RightScratch.Length < count)
-        RightScratch = new Vector3[count];
-      if (AlphaScratch.Length < count)
-        AlphaScratch = new float[count];
-    }
   }
 
   private readonly Dictionary<int, Archetype> _archetypes = new();
   private int _nextArchetypeId = 1;
   private uint _nextBulletId = 1;
   private readonly Dictionary<BulletWeapon, Archetype> _weaponArchetypes = new();
+
+  private static Mesh? _sharedTrailSegmentMesh;
+
+  private static Mesh GetTrailSegmentMesh()
+  {
+    if (_sharedTrailSegmentMesh == null)
+    {
+      var quad = new QuadMesh
+      {
+        Size = new Vector2(1f, 1f),
+      };
+      _sharedTrailSegmentMesh = quad;
+    }
+    return _sharedTrailSegmentMesh;
+  }
 
   private static readonly uint DefaultArchetypeCollisionMask = PhysicsLayers.Mask(
     PhysicsLayers.Layer.World,
@@ -1137,19 +1139,31 @@ public partial class BulletManager : Node3D
     AddChild(mmi);
 
     // Trail setup (optional)
-    MeshInstance3D? trailMI = null;
+    MultiMeshInstance3D? trailMI = null;
+    MultiMesh? trailMM = null;
     if (trailEnabled)
     {
-      trailMI = new MeshInstance3D
+      trailMM = new MultiMesh
+      {
+        TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+        Mesh = GetTrailSegmentMesh(),
+        UseColors = true,
+        UseCustomData = false,
+        InstanceCount = 0,
+      };
+
+      trailMI = new MultiMeshInstance3D
       {
         CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+        Multimesh = trailMM,
+        Visible = false,
       };
       var mat = trailMaterial ?? new StandardMaterial3D
       {
         ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
         Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
         AlbedoColor = new Color(1, 1, 1, 0.5f),
-        VertexColorUseAsAlbedo = false,
+        VertexColorUseAsAlbedo = true,
         CullMode = BaseMaterial3D.CullModeEnum.Disabled,
       };
       trailMI.MaterialOverride = mat;
@@ -1186,6 +1200,7 @@ public partial class BulletManager : Node3D
       TrailMinDistance = Math.Max(0.0f, trailMinDistance),
       TrailLifetime = Math.Max(0.05f, trailLifetime),
       TrailViewAligned = trailViewAligned,
+      TrailMultiMesh = trailMM,
       TrailInstance = trailMI,
       TrailBuffers = trailEnabled ? new Dictionary<uint, TrailBuffer>() : null,
       BehaviorConfig = behavior,
@@ -1204,16 +1219,15 @@ public partial class BulletManager : Node3D
     arch.MultiMesh.InstanceCount = 1;
     arch.MultiMesh.SetInstanceTransform(0, Transform3D.Identity);
     arch.Instance.Visible = true;
-    // Prewarm trail mesh path if enabled
-    if (arch.TrailEnabled && arch.TrailInstance != null && arch.TrailInstance.Mesh == null)
+    // Prewarm trail multimesh buffers if enabled
+    if (arch.TrailEnabled && arch.TrailMultiMesh != null)
     {
-      SurfaceTool st = new SurfaceTool();
-      st.Begin(Mesh.PrimitiveType.Triangles);
-      st.AddVertex(Vector3.Zero);
-      st.AddVertex(new Vector3(0, 0, 0.01f));
-      st.AddVertex(new Vector3(0.01f, 0, 0));
-      ArrayMesh mesh = st.Commit();
-      arch.TrailInstance.Mesh = mesh;
+      arch.TrailMultiMesh.InstanceCount = 1;
+      arch.TrailMultiMesh.SetInstanceTransform(0, Transform3D.Identity);
+      arch.TrailMultiMesh.SetInstanceColor(0, Colors.White);
+      arch.TrailMultiMesh.InstanceCount = 0;
+      if (arch.TrailInstance != null)
+        arch.TrailInstance.Visible = false;
     }
     // Reset to zero so nothing renders until fired
     arch.MultiMesh.InstanceCount = 0;
@@ -1636,125 +1650,126 @@ public partial class BulletManager : Node3D
         foreach (var idrm in toRemove)
           arch.TrailBuffers.Remove(idrm);
 
-        SurfaceTool st = arch.TrailSurfaceTool;
-        st.Clear();
-        st.Begin(Mesh.PrimitiveType.Triangles);
-        bool hasTriangles = false;
+        MultiMesh? trailMesh = arch.TrailMultiMesh;
+        MultiMeshInstance3D? trailInstance = arch.TrailInstance;
 
-        foreach (var kvb in arch.TrailBuffers)
+        if (trailMesh != null)
         {
-          var pts = kvb.Value.Points;
-          int ptCount = pts.Count;
-          if (ptCount < 2)
+          int estimatedSegments = 0;
+          foreach (var kvb in arch.TrailBuffers)
+          {
+            int ptCount = kvb.Value.Points.Count;
+            if (ptCount >= 2)
+              estimatedSegments += ptCount - 1;
+          }
+
+          if (estimatedSegments <= 0)
+          {
+            trailMesh.InstanceCount = 0;
+            if (trailInstance != null)
+              trailInstance.Visible = false;
             continue;
-
-          kvb.Value.EnsureScratchCapacity(ptCount);
-          Vector3[] leftPts = kvb.Value.LeftScratch;
-          Vector3[] rightPts = kvb.Value.RightScratch;
-          float[] alphas = kvb.Value.AlphaScratch;
-
-          for (int i = 0; i < ptCount; i++)
-          {
-            Vector3 pos = pts[i].Pos;
-            Vector3 tangent;
-            if (i == 0)
-              tangent = (pts[i + 1].Pos - pos).Normalized();
-            else if (i == ptCount - 1)
-              tangent = (pos - pts[i - 1].Pos).Normalized();
-            else
-              tangent = (pts[i + 1].Pos - pts[i - 1].Pos).Normalized();
-
-            if (tangent.LengthSquared() < 1e-6)
-              tangent = Vector3.Forward;
-
-            Vector3 normal;
-            if (arch.TrailViewAligned)
-            {
-              Vector3 view = (camPos - pos).Normalized();
-              normal = view.Cross(tangent);
-            }
-            else
-            {
-              normal = Vector3.Up.Cross(tangent);
-            }
-            if (normal.LengthSquared() < 1e-6)
-            {
-              normal = Vector3.Up;
-            }
-            normal = normal.Normalized();
-
-            float lifeNorm = Mathf.Clamp(pts[i].AgeLeft / arch.TrailLifetime, 0f, 1f);
-            float width = arch.TrailWidth * lifeNorm;
-            leftPts[i] = pos - normal * width;
-            rightPts[i] = pos + normal * width;
-            alphas[i] = lifeNorm;
           }
 
-          for (int i = 1; i < ptCount; i++)
+          trailMesh.InstanceCount = estimatedSegments;
+          int segmentIndex = 0;
+
+          foreach (var kvb in arch.TrailBuffers)
           {
-            Vector3 l0 = leftPts[i - 1];
-            Vector3 r0 = rightPts[i - 1];
-            Vector3 l1 = leftPts[i];
-            Vector3 r1 = rightPts[i];
+            var pts = kvb.Value.Points;
+            int ptCount = pts.Count;
+            if (ptCount < 2)
+              continue;
 
-            float a0 = alphas[i - 1];
-            float a1 = alphas[i];
+            for (int i = 1; i < ptCount; i++)
+            {
+              Vector3 prev = pts[i - 1].Pos;
+              Vector3 curr = pts[i].Pos;
+              Vector3 segment = curr - prev;
+              float segLength = segment.Length();
+              if (segLength < 1e-5f)
+                continue;
 
-            st.SetColor(new Color(1f, 1f, 1f, a0));
-            st.SetUV(new Vector2(0, 0));
-            st.AddVertex(l0);
+              Vector3 dir = segment / segLength;
+              Vector3 center = (prev + curr) * 0.5f;
 
-            st.SetColor(new Color(1f, 1f, 1f, a0));
-            st.SetUV(new Vector2(1, 0));
-            st.AddVertex(r0);
+              float alphaA = Mathf.Clamp(pts[i - 1].AgeLeft / arch.TrailLifetime, 0f, 1f);
+              float alphaB = Mathf.Clamp(pts[i].AgeLeft / arch.TrailLifetime, 0f, 1f);
+              float alpha = Mathf.Clamp((alphaA + alphaB) * 0.5f, 0f, 1f);
+              if (alpha <= 0.001f)
+                continue;
 
-            st.SetColor(new Color(1f, 1f, 1f, a1));
-            st.SetUV(new Vector2(0, 1));
-            st.AddVertex(l1);
+              float width = arch.TrailWidth * alpha;
+              if (width <= 0.0001f)
+                continue;
 
-            st.SetColor(new Color(1f, 1f, 1f, a0));
-            st.SetUV(new Vector2(1, 0));
-            st.AddVertex(r0);
+              Vector3 widthAxis;
+              if (arch.TrailViewAligned)
+              {
+                Vector3 viewVec = (camPos - center).Normalized();
+                widthAxis = viewVec.Cross(dir);
+              }
+              else
+              {
+                widthAxis = Vector3.Up.Cross(dir);
+              }
 
-            st.SetColor(new Color(1f, 1f, 1f, a1));
-            st.SetUV(new Vector2(1, 1));
-            st.AddVertex(r1);
+              if (widthAxis.LengthSquared() < 1e-6f)
+              {
+                widthAxis = dir.Cross(Vector3.Up);
+                if (widthAxis.LengthSquared() < 1e-6f)
+                  widthAxis = Vector3.Up;
+              }
+              widthAxis = widthAxis.Normalized();
 
-            st.SetColor(new Color(1f, 1f, 1f, a1));
-            st.SetUV(new Vector2(0, 1));
-            st.AddVertex(l1);
+              Vector3 planeNormal = dir.Cross(widthAxis);
+              if (planeNormal.LengthSquared() < 1e-6f)
+              {
+                planeNormal = dir.Cross(Vector3.Up);
+                if (planeNormal.LengthSquared() < 1e-6f)
+                  planeNormal = Vector3.Up;
+              }
+              planeNormal = planeNormal.Normalized();
+              Vector3 orthWidth = planeNormal.Cross(dir);
+              if (orthWidth.LengthSquared() < 1e-6f)
+                orthWidth = widthAxis;
+              orthWidth = orthWidth.Normalized();
 
-            hasTriangles = true;
+              Vector3 axisX = dir * segLength;
+              Vector3 axisY = orthWidth * (width * 2f);
+              Vector3 axisZ = planeNormal;
+
+              Basis basis = new Basis(axisX, axisY, axisZ);
+              Transform3D xform = new Transform3D(basis, center);
+
+              if (segmentIndex >= estimatedSegments)
+                break;
+
+              trailMesh.SetInstanceTransform(segmentIndex, xform);
+              trailMesh.SetInstanceColor(segmentIndex, new Color(1f, 1f, 1f, alpha));
+              segmentIndex++;
+            }
           }
-        }
 
-        if (arch.TrailInstance != null)
-        {
-          if (hasTriangles)
+          if (segmentIndex > 0)
           {
-            Mesh mesh = st.Commit();
-            var oldMesh = arch.TrailInstance.Mesh;
-            arch.TrailInstance.Mesh = mesh;
-            if (oldMesh != null)
-              oldMesh.Dispose();
-            st.Clear();
+            trailMesh.InstanceCount = segmentIndex;
+            if (trailInstance != null)
+              trailInstance.Visible = true;
           }
           else
           {
-            var oldMesh = arch.TrailInstance.Mesh;
-            arch.TrailInstance.Mesh = null;
-            if (oldMesh != null)
-              oldMesh.Dispose();
-            st.Clear();
+            trailMesh.InstanceCount = 0;
+            if (trailInstance != null)
+              trailInstance.Visible = false;
           }
         }
       }
       else if (arch.TrailInstance != null)
       {
-        var oldMesh = arch.TrailInstance.Mesh;
-        arch.TrailInstance.Mesh = null;
-        if (oldMesh != null)
-          oldMesh.Dispose();
+        if (arch.TrailMultiMesh != null)
+          arch.TrailMultiMesh.InstanceCount = 0;
+        arch.TrailInstance.Visible = false;
       }
     }
   }
