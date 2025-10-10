@@ -14,21 +14,6 @@ namespace Shared.Runtime
 
       Vector3 originPos = ResolveOriginPosition(request);
 
-      if (request.RespectShields)
-      {
-        var barrierQuery = new DamageBarrierQuery(
-          originPosition: originPos,
-          targetPosition: request.Target.GlobalTransform.Origin,
-          padding: request.ShieldPadding,
-          kind: request.Kind,
-          source: request.Source,
-          target: request.Target
-        );
-
-        if (DamageBarrierRegistry.BlocksDamage(in barrierQuery))
-          return DamageResult.Blocked;
-      }
-
       DamageResult result = InvokeReceiver(request);
       if (!result.Applied)
         return result;

@@ -13,14 +13,6 @@ namespace Shared.Runtime
 
       Node3D? source = (context != null && GodotObject.IsInstanceValid(context)) ? context as Node3D : null;
 
-      var query = new DamageBarrierQuery(from, to, 0.0f, DamageKind.Explosion, source, null);
-      if (DamageBarrierRegistry.TryGetFirstBlockingHit(query, out DamageBarrierHit hit))
-      {
-        hitPoint = hit.Position;
-        hitNormal = hit.Normal;
-        return true;
-      }
-
       return false;
     }
 

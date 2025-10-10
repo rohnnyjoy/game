@@ -1,8 +1,6 @@
 #nullable enable
 
 using Godot;
-using System.Collections.Generic;
-
 namespace Shared.Runtime
 {
   public readonly struct DamageBarrierQuery
@@ -58,22 +56,15 @@ namespace Shared.Runtime
 
   public static class DamageBarrierRegistry
   {
-    private static readonly List<IDamageBarrierSurface> _surfaces = new();
-
     public static void Register(IDamageBarrierSurface surface)
     {
-      if (surface == null)
-        return;
-      if (_surfaces.Contains(surface))
-        return;
-      _surfaces.Add(surface);
+      // Damage barriers have been retired; keep method for compatibility.
+      _ = surface;
     }
 
     public static void Unregister(IDamageBarrierSurface surface)
     {
-      if (surface == null)
-        return;
-      _surfaces.Remove(surface);
+      _ = surface;
     }
 
     private static bool DebugLogging = false;
@@ -95,55 +86,24 @@ namespace Shared.Runtime
     public static bool BlocksDamage(in DamageBarrierQuery query)
     {
       DebugLog($"query kind={query.Kind} src={DescribeNode(query.Source)} tgt={DescribeNode(query.Target)} origin={query.OriginPosition} target={query.TargetPosition} padding={query.Padding:0.###}");
-      bool blocked = TryGetFirstBlockingHit(query, out _);
-      DebugLog(blocked ? "blocked" : "not blocked");
-      return blocked;
+      DebugLog("not blocked (barriers disabled)");
+      return false;
     }
 
     public static bool TryGetFirstBlockingHit(in DamageBarrierQuery query, out DamageBarrierHit hit)
     {
+      _ = query;
       hit = default;
-      if (_surfaces.Count == 0)
-        return false;
-
-      float bestDistance = float.PositiveInfinity;
-      bool found = false;
-
-      for (int i = _surfaces.Count - 1; i >= 0; i--)
-      {
-        IDamageBarrierSurface surface = _surfaces[i];
-        Node3D node = surface.BarrierNode;
-        if (node != null && !GodotObject.IsInstanceValid(node))
-        {
-          _surfaces.RemoveAt(i);
-          continue;
-        }
-
-        try
-        {
-          if (!surface.TryGetIntersection(query, out DamageBarrierHit candidate))
-            continue;
-          if (!surface.ShouldBlockDamage(query, candidate))
-            continue;
-          if (candidate.Distance >= bestDistance)
-            continue;
-          bestDistance = candidate.Distance;
-          hit = candidate;
-          found = true;
-        }
-        catch
-        {
-          DebugLog($"barrier {DescribeSurface(surface)} threw during evaluation");
-        }
-      }
-
-      return found;
+      return false;
     }
 
     public static bool TryGetFirstIntersection(Vector3 origin, Vector3 target, float padding, out DamageBarrierHit hit)
     {
-      var query = new DamageBarrierQuery(origin, target, padding, DamageKind.Other, null, null);
-      return TryGetFirstBlockingHit(query, out hit);
+      _ = origin;
+      _ = target;
+      _ = padding;
+      hit = default;
+      return false;
     }
 
     private static string DescribeSurface(IDamageBarrierSurface surface)

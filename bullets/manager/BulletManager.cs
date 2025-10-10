@@ -1417,22 +1417,6 @@ public partial class BulletManager : Node3D
               colliderId = hitId;
             }
 
-            var barrierQuery = new DamageBarrierQuery(
-              b.Position,
-              nextPos,
-              arch.Radius,
-              DamageKind.Projectile,
-              arch.OwnerWeapon as Node3D,
-              null
-            );
-
-            if (DamageBarrierRegistry.TryGetFirstBlockingHit(barrierQuery, out DamageBarrierHit barrierHit))
-            {
-              float frac = segLen > 0.000001f ? barrierHit.Distance / segLen : 0.0f;
-              ulong barrierId = (ulong)barrierHit.Barrier.GetInstanceId();
-              ConsiderHit(barrierHit.Position, barrierHit.Normal, barrierHit.Barrier, barrierId, frac);
-            }
-
             void TestRay(Vector3 from, Vector3 to)
             {
               var q = new PhysicsRayQueryParameters3D
