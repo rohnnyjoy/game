@@ -6,7 +6,7 @@ using System.Globalization;
 public partial class DifficultyDisplay : Control
 {
   [Export] public string FontPath { get; set; } = "res://assets/fonts/Born2bSportyV2.ttf";
-  [Export] public int FontPx { get; set; } = 52;
+  [Export] public int FontPx { get; set; } = 47;
   [Export] public Color TextColor { get; set; } = new Color(0.98f, 0.95f, 0.9f);
   [Export] public string LabelPrefix { get; set; } = "Difficulty";
   [Export] public string MultiplierFormat { get; set; } = "0.##";

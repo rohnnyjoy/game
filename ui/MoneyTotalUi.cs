@@ -26,7 +26,7 @@ public partial class MoneyTotalUi : Control
   }
 
   [Export] public string FontPath = "res://assets/fonts/Born2bSportyV2.ttf";
-  [Export] public int FontPx = 80; // significantly larger for prominence
+  [Export] public int FontPx = 72; // slightly smaller for prominence
   [Export] public Color TextColor = new Color(1f, 0.95f, 0.4f); // bright yellow
   [Export] public bool Shadow = true;
   [Export] public bool UseShadowParallax = true;  // enable auto parallax by default
@@ -44,11 +44,11 @@ public partial class MoneyTotalUi : Control
   [Export] public float SfxCoinAccentVolumeDb = -10f;
   [Export] public float SfxPaperVolumeDb = -18f;
   [Export] public string SfxBus = "Master"; // set to an SFX/UI bus if defined in your project
-  [Export] public float AlertSpacingPx = 28f;  // vertical spacing between stacked alerts
-  [Export] public float AlertFirstOffsetPx = 40f; // distance above the total for the newest alert
+  [Export] public float AlertSpacingPx = 25f;  // vertical spacing between stacked alerts
+  [Export] public float AlertFirstOffsetPx = 36f; // distance above the total for the newest alert
   [Export] public int MaxAlerts = 5;          // limit to avoid unbounded stacking
   // Offset this control relative to the bottom-right container's center to give it breathing room
-  [Export] public Vector2 BottomRightOffset = new Vector2(-120, -80);
+  [Export] public Vector2 BottomRightOffset = new Vector2(-108, -72);
 
   public override void _Ready()
   {

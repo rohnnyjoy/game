@@ -13,8 +13,8 @@ public partial class PauseMenu : CanvasLayer
 
   private static readonly Texture2D FrameTexture = GD.Load<Texture2D>("res://assets/ui/3x/ninepatch.png");
   private const int FramePatchMargin = 18;
-  private const float PanelContentPadding = 36f;
-  private const float ButtonMinWidth = 360f;
+  private const float PanelContentPadding = 32f;
+  private const float ButtonMinWidth = 324f;
   private static readonly Color _buttonHighlight = new Color(1f, 0.88f, 0.54f);
 
   public static PauseMenu Instance { get; private set; }
@@ -87,7 +87,7 @@ public partial class PauseMenu : CanvasLayer
     {
       Name = "Panel",
       MouseFilter = Control.MouseFilterEnum.Pass,
-      CustomMinimumSize = new Vector2(540, 340)
+      CustomMinimumSize = new Vector2(486, 306)
     };
     ApplyPanelStyle(panel);
     center.AddChild(panel);
@@ -100,7 +100,7 @@ public partial class PauseMenu : CanvasLayer
       SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
       SizeFlagsVertical = Control.SizeFlags.ExpandFill
     };
-    layout.AddThemeConstantOverride("separation", 28);
+    layout.AddThemeConstantOverride("separation", 24);
     layout.SetAnchorsPreset(Control.LayoutPreset.FullRect);
     panel.AddChild(layout);
 
@@ -143,14 +143,14 @@ public partial class PauseMenu : CanvasLayer
 
   private DynaTextControl CreateHeaderText(string text)
   {
-    var control = CreateDynaLabel(text, 96, 1f, uppercase: true, ambientFloat: true);
+    var control = CreateDynaLabel(text, 88, 1f, uppercase: true, ambientFloat: true);
     control.Name = "Title";
     return control;
   }
 
   private DynaTextControl CreateSubHeaderText(string text)
   {
-    var control = CreateDynaLabel(text, 42, 0.78f, uppercase: false, ambientFloat: false);
+    var control = CreateDynaLabel(text, 38, 0.78f, uppercase: false, ambientFloat: false);
     control.Name = "Hint";
     return control;
   }
@@ -185,7 +185,7 @@ public partial class PauseMenu : CanvasLayer
       Name = $"{text.Replace(" ", string.Empty)}Button",
       FocusMode = Control.FocusModeEnum.All,
       MouseFilter = Control.MouseFilterEnum.Stop,
-      CustomMinimumSize = new Vector2(ButtonMinWidth, 88f),
+      CustomMinimumSize = new Vector2(ButtonMinWidth, 80f),
       Text = string.Empty,
       SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
       SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
@@ -196,7 +196,7 @@ public partial class PauseMenu : CanvasLayer
     var label = new DynaTextControl
     {
       Name = "Label",
-      FontPx = 54,
+      FontPx = 49,
       Shadow = true,
       ShadowAlpha = 0.35f,
       UseShadowParallax = true,

@@ -10,7 +10,6 @@ region = Rect2(96, 0, 32, 32)
 
 [resource]
 script = ExtResource("3_xvopl")
-DuplicationCount = 5
 BulletDamageFactor = 0.2
 SpreadAngle = 0.261799
 ModuleName = "Scatter Module"
@@ -20,4 +19,3 @@ ModuleName = "Scatter Module"
 ModuleDescription = "Duplicates bullet in a scatter pattern with configurable horizontal and vertical spread."
 CardTexture = SubResource("AtlasTexture_scatter_icon")
 Rarity = 3
-BulletModifiers = Array[ExtResource("1_0gco4")]([])

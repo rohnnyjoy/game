@@ -47,8 +47,8 @@ public partial class MoneyComboUi : Control
   [Export] public float ShadowAlpha = 0.4f;                 // closer to Balatro default visibility
   [Export] public float ParallaxPixelScale = 0f;            // 0 = auto based on FontPx
   [Export] public float ScaleBase = 1.0f; // leave scale at 1; use FontPx for size
-  [Export] public int FontPx = 52;        // pixel size for crisp font rendering (larger for readability)
-  [Export] public Vector2 CrosshairOffset = new Vector2(80, 0);
+  [Export] public int FontPx = 47;        // slightly smaller for overall HUD reduction
+  [Export] public Vector2 CrosshairOffset = new Vector2(72, 0);
   [Export] public string FontPath = "res://assets/fonts/Born2bSportyV2.ttf";
   [Export] public float TextRotation = 0.0f; // global phrase rotation (Balatro: text_rot)
   [Export] public int ScaleClampMax = 10000;  // Balatro scale_number default max when shrinking large values

@@ -9,13 +9,13 @@ public partial class HealthUi : Control
 
   [Export] public string FontPath = "res://assets/fonts/Born2bSportyV2.ttf";
   // Standardize top-left UI text size to match gold total
-  [Export] public int FontPx = 60;
+  [Export] public int FontPx = 54;
   [Export] public Color BarRed = new Color(1f, 0.24f, 0.26f);
   [Export] public Color BarBack = new Color(0f, 0f, 0f, 0.85f);
-  [Export(PropertyHint.Range, "64,1200,1")] public int BarWidth = 520;
+  [Export(PropertyHint.Range, "64,1200,1")] public int BarWidth = 480;
   // Make the bar tall enough to contain 80px text with comfortable padding
-  [Export(PropertyHint.Range, "8,256,1")] public int BarHeight = 90;
-  [Export(PropertyHint.Range, "0,48,1")] public int BarPadding = 8;
+  [Export(PropertyHint.Range, "8,256,1")] public int BarHeight = 82;
+  [Export(PropertyHint.Range, "0,48,1")] public int BarPadding = 7;
   // Text alignment inside the bar's inner content rect
   // 0 = Left/Top, 1 = Center, 2 = Right/Bottom
   [Export] public int TextHAlign = 1;

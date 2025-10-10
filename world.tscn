@@ -1,14 +1,13 @@
-[gd_scene load_steps=30 format=4 uid="uid://dp7h683hqwr76"]
+[gd_scene load_steps=31 format=4 uid="uid://cixa04axuf1co"]
 
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_nmfmg"]
 [ext_resource type="PackedScene" uid="uid://cymxvi3bjj71b" path="res://enemy.tscn" id="4_xr0ro"]
 [ext_resource type="PackedScene" uid="uid://kadcr801fqcm" path="res://player/Player.tscn" id="5_taioi"]
 [ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://inventory/menu/PrimaryWeaponStack.cs" id="5_vq0ba"]
 [ext_resource type="Script" uid="uid://br7vpr5hwlegd" path="res://inventory/menu/InventoryStack.cs" id="6_6wwjs"]
-[ext_resource type="Script" uid="uid://cmi1g3ormcvqs" path="res://GameUI.cs" id="7_gbfbk"]
+[ext_resource type="Script" uid="uid://2umc6lehruyd" path="res://GameUI.cs" id="7_gbfbk"]
 [ext_resource type="FontFile" uid="uid://cpuwdglpinmhy" path="res://shared/fonts/Pixel.ttf" id="8_ic0uy"]
 [ext_resource type="Script" uid="uid://ckhbaxtaa30xu" path="res://Crosshair.cs" id="8_ioo17"]
-[ext_resource type="PackedScene" uid="uid://dglv3r42ustwg" path="res://environment/scenes/islands.tscn" id="11_ic0uy"]
 [ext_resource type="PackedScene" uid="uid://d07f71yhlond8" path="res://environment/grass/grass_multi.tscn" id="11_k3n1d"]
 [ext_resource type="Script" uid="uid://bhxrowu6uq8vq" path="res://bullets/manager/BulletManager.cs" id="12_bmngr"]
 [ext_resource type="Texture2D" uid="uid://d038lo6vi57t5" path="res://models/linen_with_flowers_2.png" id="13_2o6r5"]
@@ -16,6 +15,8 @@
 [ext_resource type="Script" uid="uid://cogtw56d6pcwk" path="res://inventory/menu/PrimaryWeaponInfo.cs" id="16_wpnfo"]
 [ext_resource type="Script" uid="uid://cugk52p23i4y" path="res://spawning/EnemySpawner.cs" id="17_spwnr"]
 [ext_resource type="Script" uid="uid://cddsl5dv5vqa7" path="res://shop/ShopStand.cs" id="18_shop"]
+[ext_resource type="Script" path="res://environment/generation/ProceduralMapGenerator.cs" id="19_mapgen"]
+[ext_resource type="MapChunkSet" path="res://environment/generation/island_chunk_set.tres" id="20_chunkset"]
 
 [sub_resource type="GDScript" id="GDScript_ic0uy"]
 script/source = "extends Node
@@ -88,8 +89,8 @@ fractal_weighted_strength = 1.0
 metadata/_preview_in_3d_space_ = true
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_2o6r5"]
-seamless = true
 noise = SubResource("FastNoiseLite_k3n1d")
+seamless = true
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s22qn"]
 resource_name = "Material_36"
@@ -186,11 +187,15 @@ script = ExtResource("17_spwnr")
 EnemyScene = ExtResource("4_xr0ro")
 
 [node name="ShopStand" type="Area3D" parent="."]
-script = ExtResource("18_shop")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 3.3, -2.5)
+script = ExtResource("18_shop")
 
-[node name="Islands" parent="." instance=ExtResource("11_ic0uy")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -0.168314, 0.28594, -2.15489)
+[node name="ProceduralMap" type="Node3D" parent="."]
+script = ExtResource("19_mapgen")
+UseRandomSeed = false
+Seed = 1
+ChunkTag = "default"
+ChunkSet = ExtResource("20_chunkset")
 
 [node name="GrassMulti" parent="." instance=ExtResource("11_k3n1d")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0569916, -0.0810356, -0.11758)

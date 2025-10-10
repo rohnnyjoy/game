@@ -6,7 +6,7 @@ using Godot;
 public partial class KillCountDisplay : Control
 {
   [Export] public string FontPath { get; set; } = "res://assets/fonts/Born2bSportyV2.ttf";
-  [Export] public int FontPx { get; set; } = 52;
+  [Export] public int FontPx { get; set; } = 47;
   [Export] public Color TextColor { get; set; } = new Color(1f, 0.55f, 0.55f);
   [Export] public string LabelPrefix { get; set; } = "Kills";
 

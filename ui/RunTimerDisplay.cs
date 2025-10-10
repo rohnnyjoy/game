@@ -6,7 +6,7 @@ using Godot;
 public partial class RunTimerDisplay : Control
 {
   [Export] public string FontPath { get; set; } = "res://assets/fonts/Born2bSportyV2.ttf";
-  [Export] public int FontPx { get; set; } = 52;
+  [Export] public int FontPx { get; set; } = 47;
   [Export] public Color TextColor { get; set; } = new Color(0.7f, 0.85f, 1f);
   [Export] public string LabelPrefix { get; set; } = "Time";
 

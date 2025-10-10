@@ -86,6 +86,7 @@ public partial class Enemy : CharacterBody3D
     new Color(0.215686f, 0.258823f, 0.266667f, 1f),           // BLACK (#374244)
     new Color(0.996078f, 0.372549f, 0.333333f, 1f)            // RED   (#FE5F55)
   };
+  private const float DeathDissolveSpeedMultiplier = 2.0f;
 
   // Contact damage to player
   [Export] public float ContactDamage { get; set; } = 10f;
@@ -517,7 +518,13 @@ public partial class Enemy : CharacterBody3D
     var spawnXform = GlobalTransform;
     spawnXform.Origin += spawnXform.Basis * center;
 
-    DissolveBurst.Spawn(parent, spawnXform, palette, halfExtents, DissolveDuration);
+    DissolveBurst.Spawn(parent, spawnXform, palette, halfExtents, GetDeathDissolveDuration());
+  }
+
+  private float GetDeathDissolveDuration()
+  {
+    float baseDuration = MathF.Max(0.1f, DissolveDuration);
+    return baseDuration / DeathDissolveSpeedMultiplier;
   }
 
   private (Vector3 center, Vector3 halfExtents) ComputeDissolveBounds()
@@ -629,7 +636,7 @@ public partial class Enemy : CharacterBody3D
       return;
     }
 
-    float duration = MathF.Max(0.1f, DissolveDuration);
+    float duration = GetDeathDissolveDuration();
     var tween = CreateTween();
     foreach (var mat in materials)
     {

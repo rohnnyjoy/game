@@ -30,6 +30,8 @@ public partial class CameraPivot : Node3D
 
   private float targetDistance;
   private float baseShoulderOffset;
+  private Input.MouseModeEnum _lastMouseMode;
+  private bool _skipNextMouseMotion;
 
   public override void _Ready()
   {
@@ -61,6 +63,9 @@ public partial class CameraPivot : Node3D
     SetProcess(true);
     SetPhysicsProcess(true);
 
+    _lastMouseMode = Input.MouseMode;
+    _skipNextMouseMotion = false;
+
     // IMPORTANT: In the Inspector, set Physics Interpolation = Off
     // for this node (CameraPivot) and for any child that you animate
     // in _Process (e.g., CameraShake). This prevents interpolation
@@ -73,7 +78,15 @@ public partial class CameraPivot : Node3D
     {
       case InputEventMouseMotion mouseMotion:
         if (ShouldApplyLookInput())
+        {
+          // Discard the first motion after recapturing the mouse to avoid a large warp delta.
+          if (_skipNextMouseMotion)
+          {
+            _skipNextMouseMotion = false;
+            break;
+          }
           ApplyLookDelta(mouseMotion.Relative);
+        }
         break;
       case InputEventMouseButton mouseButton when mouseButton.Pressed:
         if (mouseButton.ButtonIndex == MouseButton.WheelUp)
@@ -90,6 +103,15 @@ public partial class CameraPivot : Node3D
 
   public override void _Process(double delta)
   {
+    // Detect transition to Captured mode and ignore the first mouse delta after recapture
+    var currentMode = Input.MouseMode;
+    if (_lastMouseMode != currentMode)
+    {
+      if (currentMode == Input.MouseModeEnum.Captured)
+        _skipNextMouseMotion = true;
+      _lastMouseMode = currentMode;
+    }
+
     ApplyPivotRotation();
     UpdateCameraPosition();
   }

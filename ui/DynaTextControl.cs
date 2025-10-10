@@ -12,7 +12,7 @@ public partial class DynaTextControl : Control
   public DynaText.Config Config { get; private set; }
 
   [Export] public string FontPath = "res://assets/fonts/Born2bSportyV2.ttf";
-  [Export] public int FontPx = 30; // bump default size for general UI
+  [Export] public int FontPx = 27; // modestly smaller default size for general UI
   [Export] public bool Shadow = true;
   [Export] public Vector2 ShadowOffset = new Vector2(0, 0); // default to pure parallax
   [Export] public bool UseShadowParallax = true;

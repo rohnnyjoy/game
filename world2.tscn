@@ -1,20 +1,19 @@
-[gd_scene load_steps=24 format=3 uid="uid://c1hm21emmpq"]
+[gd_scene load_steps=17 format=3 uid="uid://c1hm21emmpq"]
 
 [ext_resource type="PackedScene" uid="uid://kadcr801fqcm" path="res://player/Player.tscn" id="2_hg5vs"]
 [ext_resource type="Script" uid="uid://pktt3oehs78d" path="res://MenuCanvas.gd" id="3_7r24r"]
 [ext_resource type="Script" uid="uid://c1ys4g3gyj1mj" path="res://inventory/menu/PrimaryWeaponStack.cs" id="4_fcnjm"]
 [ext_resource type="Script" uid="uid://br7vpr5hwlegd" path="res://inventory/menu/InventoryStack.cs" id="5_7gfau"]
 [ext_resource type="PackedScene" uid="uid://cymxvi3bjj71b" path="res://enemy.tscn" id="6_jaerl"]
-[ext_resource type="Texture2D" uid="uid://b0lwunf48w7gn" path="res://assets/textures/grid.png" id="9_xjnkp"]
 [ext_resource type="Script" uid="uid://cmi1g3ormcvqs" path="res://GameUI.cs" id="10_08qns"]
 [ext_resource type="FontFile" uid="uid://cpuwdglpinmhy" path="res://shared/fonts/Pixel.ttf" id="11_ryt4s"]
 [ext_resource type="Script" uid="uid://ckhbaxtaa30xu" path="res://Crosshair.cs" id="12_kamru"]
-[ext_resource type="Texture2D" uid="uid://psp3y7idkr4q" path="res://assets/textures/grass.png" id="13_7r24r"]
 [ext_resource type="Script" uid="uid://bhxrowu6uq8vq" path="res://bullets/manager/BulletManager.cs" id="13_bmngr"]
 [ext_resource type="Texture2D" uid="uid://dl2exy6bsks5w" path="res://assets/ui/3x/ninepatch.png" id="14_nptex"]
 [ext_resource type="Script" uid="uid://cogtw56d6pcwk" path="res://inventory/menu/PrimaryWeaponInfo.cs" id="16_wpnfo"]
 [ext_resource type="Script" uid="uid://cugk52p23i4y" path="res://spawning/EnemySpawner.cs" id="17_spwnr"]
 [ext_resource type="Script" uid="uid://cddsl5dv5vqa7" path="res://shop/ShopStand.cs" id="18_shop"]
+[ext_resource type="Script" path="res://environment/generation/ProceduralTopologyGenerator.cs" id="19_topgen"]
 
 [sub_resource type="GDScript" id="GDScript_ic0uy"]
 script/source = "extends Node
@@ -60,25 +59,6 @@ texture_margin_bottom = 18.0
 axis_stretch_horizontal = 1
 axis_stretch_vertical = 1
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fcnjm"]
-albedo_texture = ExtResource("13_7r24r")
-uv1_scale = Vector3(60, 60, 60)
-texture_filter = 0
-
-[sub_resource type="PlaneMesh" id="PlaneMesh_xjnkp"]
-size = Vector2(500, 500)
-
-[sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_f5bfu"]
-data = PackedVector3Array(2500, 0, 2500, -2500, 0, 2500, 2500, 0, -2500, -2500, 0, 2500, -2500, 0, -2500, 2500, 0, -2500)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_k023l"]
-albedo_texture = ExtResource("9_xjnkp")
-
-[sub_resource type="BoxMesh" id="BoxMesh_f5bfu"]
-size = Vector3(5, 50, 5)
-
-[sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_7r24r"]
-data = PackedVector3Array(-2.5, 25, 2.5, 2.5, 25, 2.5, -2.5, -25, 2.5, 2.5, 25, 2.5, 2.5, -25, 2.5, -2.5, -25, 2.5, 2.5, 25, -2.5, -2.5, 25, -2.5, 2.5, -25, -2.5, -2.5, 25, -2.5, -2.5, -25, -2.5, 2.5, -25, -2.5, 2.5, 25, 2.5, 2.5, 25, -2.5, 2.5, -25, 2.5, 2.5, 25, -2.5, 2.5, -25, -2.5, 2.5, -25, 2.5, -2.5, 25, -2.5, -2.5, 25, 2.5, -2.5, -25, -2.5, -2.5, 25, 2.5, -2.5, -25, 2.5, -2.5, -25, -2.5, 2.5, 25, 2.5, -2.5, 25, 2.5, 2.5, 25, -2.5, -2.5, 25, 2.5, -2.5, 25, -2.5, 2.5, 25, -2.5, -2.5, -25, 2.5, 2.5, -25, 2.5, -2.5, -25, -2.5, 2.5, -25, 2.5, 2.5, -25, -2.5, -2.5, -25, -2.5)
 
 [node name="World" type="Node"]
 script = SubResource("GDScript_ic0uy")
@@ -156,6 +136,37 @@ EnemyScene = ExtResource("6_jaerl")
 [node name="ShopStand" type="Area3D" parent="."]
 script = ExtResource("18_shop")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, -3.5)
+
+[node name="Topology" type="Node3D" parent="."]
+script = ExtResource("19_topgen")
+GridWidth = 96
+GridDepth = 80
+CellSize = 3.0
+InitialWallChance = 0.38
+SmoothingPasses = 4
+HeightScale = 5.5
+WallHeight = 11.0
+SpawnSafeRadius = 7
+PropChance = 0.02
+TextureScale = 0.06
+FeatureCount = 10
+FeatureRadiusMin = 4.5
+FeatureRadiusMax = 12.0
+CorridorRadius = 2
+TargetOpenFraction = 0.55
+HeightTierCount = 5
+HeightTierBlend = 0.3
+HeightNoiseJitter = 0.45
+CliffHeight = 12.0
+MacroNoiseFrequency = 0.016
+MacroNoiseStrength = 0.9
+MicroHeightStrength = 0.3
+FeatureHeightBoost = 9.0
+FeatureHeightBias = 0.35
+MaxSlopeDelta = 3.5
+HeightSmoothingPasses = 5
+HeightSmoothingStrength = 0.4
+EdgeHeightFalloff = 0.2
 
 [node name="GameUI" type="CanvasLayer" parent="." node_paths=PackedStringArray("InteractionLabel", "ComboLabel", "MoneyCounter")]
 script = ExtResource("10_08qns")
@@ -253,27 +264,6 @@ theme_override_font_sizes/normal_font_size = 40
 text = "0"
 horizontal_alignment = 1
 vertical_alignment = 1
-
-[node name="StaticBody3D" type="StaticBody3D" parent="."]
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0399475, -0.152548, 0.0731354)
-material_override = SubResource("StandardMaterial3D_fcnjm")
-mesh = SubResource("PlaneMesh_xjnkp")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
-shape = SubResource("ConcavePolygonShape3D_f5bfu")
-
-[node name="StaticBody3D2" type="StaticBody3D" parent="."]
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D2"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.088974, -1.4682, 13.9519)
-material_override = SubResource("StandardMaterial3D_k023l")
-mesh = SubResource("BoxMesh_f5bfu")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D2"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.088974, -1.4682, 13.9519)
-shape = SubResource("ConcavePolygonShape3D_7r24r")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.20799, 17.0257)

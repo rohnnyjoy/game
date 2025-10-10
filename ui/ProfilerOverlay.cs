@@ -12,11 +12,17 @@ public partial class ProfilerOverlay : Control
   private TimeSpan _lastCpu;
   private TimeSpan _lastWall;
   private int _cores = Math.Max(1, System.Environment.ProcessorCount);
-  private double _accum;
   private Viewport? _viewport;
   private bool _viewportConnected;
   private double _lastCpuPercent;
   private bool _hasCpuSample;
+  private const ulong FpsSampleWindowUsec = 250_000;
+  private static readonly TimeSpan CpuSampleInterval = TimeSpan.FromSeconds(0.5);
+  private ulong _fpsLastSampleUsec;
+  private int _fpsSampleFrameCount;
+  private double _displayFps;
+  private double _displayFrameMs;
+  private bool _hasFpsSample;
 
   public override void _Ready()
   {
@@ -78,6 +84,18 @@ public partial class ProfilerOverlay : Control
     _wall.Start();
     _lastCpu = _proc.TotalProcessorTime;
     _lastWall = _wall.Elapsed;
+    _fpsLastSampleUsec = Time.GetTicksUsec();
+    _displayFps = Engine.GetFramesPerSecond();
+    if (_displayFps > 0)
+    {
+      _displayFrameMs = 1000.0 / _displayFps;
+      _hasFpsSample = true;
+    }
+    else
+    {
+      _displayFrameMs = 0.0;
+      _hasFpsSample = false;
+    }
 
     SetProcess(true);
   }
@@ -94,30 +112,9 @@ public partial class ProfilerOverlay : Control
 
   public override void _Process(double delta)
   {
-    _accum += delta;
-    if (_accum < 0.5)
-    {
-      // Refresh FPS even between CPU samples, reuse last CPU sample
-      UpdateText(_hasCpuSample ? _lastCpuPercent : null);
-      return;
-    }
-    _accum = 0.0;
-
-    var cpuNow = _proc.TotalProcessorTime;
-    var wallNow = _wall.Elapsed;
-    var cpuDeltaMs = (cpuNow - _lastCpu).TotalMilliseconds;
-    var wallDeltaMs = (wallNow - _lastWall).TotalMilliseconds;
-
-    double cpuPct = 0.0;
-    if (wallDeltaMs > 0)
-      cpuPct = Math.Clamp((cpuDeltaMs / (wallDeltaMs * _cores)) * 100.0, 0.0, 100.0);
-
-    _lastCpu = cpuNow;
-    _lastWall = wallNow;
-    _lastCpuPercent = cpuPct;
-    _hasCpuSample = true;
-
-    UpdateText(cpuPct);
+    UpdateFpsSample();
+    SampleCpuIfDue();
+    UpdateText(_hasCpuSample ? _lastCpuPercent : null);
   }
 
   private void OnViewportResized()
@@ -132,12 +129,71 @@ public partial class ProfilerOverlay : Control
       Size = viewport.GetVisibleRect().Size;
   }
 
+  private void UpdateFpsSample()
+  {
+    _fpsSampleFrameCount++;
+    var now = Time.GetTicksUsec();
+    var elapsedUsec = now - _fpsLastSampleUsec;
+    if (elapsedUsec < FpsSampleWindowUsec || _fpsSampleFrameCount <= 0)
+      return;
+
+    var elapsedSeconds = elapsedUsec / 1_000_000.0;
+    if (elapsedSeconds <= 0)
+      return;
+
+    _displayFps = _fpsSampleFrameCount / elapsedSeconds;
+    _displayFrameMs = (_displayFps > 0) ? (1000.0 / _displayFps) : 0.0;
+    _fpsSampleFrameCount = 0;
+    _fpsLastSampleUsec = now;
+    _hasFpsSample = _displayFps > 0;
+  }
+
+  private void SampleCpuIfDue()
+  {
+    var wallNow = _wall.Elapsed;
+    var wallDelta = wallNow - _lastWall;
+    if (wallDelta < CpuSampleInterval)
+      return;
+
+    var cpuNow = _proc.TotalProcessorTime;
+    var cpuDeltaMs = (cpuNow - _lastCpu).TotalMilliseconds;
+    var wallDeltaMs = wallDelta.TotalMilliseconds;
+
+    double cpuPct = 0.0;
+    if (wallDeltaMs > 0)
+      cpuPct = Math.Clamp((cpuDeltaMs / (wallDeltaMs * _cores)) * 100.0, 0.0, 100.0);
+
+    _lastCpu = cpuNow;
+    _lastWall = wallNow;
+    _lastCpuPercent = cpuPct;
+    _hasCpuSample = true;
+  }
+
   private void UpdateText(double? cpuPct)
   {
-    var fps = Engine.GetFramesPerSecond();
-    var frameMs = fps > 0 ? (1000.0 / fps) : 0.0;
+    double fps;
+    double frameMs;
+    if (_hasFpsSample && _displayFps > 0)
+    {
+      fps = _displayFps;
+      frameMs = _displayFrameMs > 0 ? _displayFrameMs : (1000.0 / _displayFps);
+    }
+    else
+    {
+      fps = Engine.GetFramesPerSecond();
+      frameMs = fps > 0 ? (1000.0 / fps) : 0.0;
+    }
+
+    if (double.IsNaN(fps) || double.IsInfinity(fps) || fps < 0)
+    {
+      fps = 0.0;
+    }
+    if (double.IsNaN(frameMs) || double.IsInfinity(frameMs) || frameMs < 0)
+    {
+      frameMs = fps > 0 ? (1000.0 / fps) : 0.0;
+    }
 
     string cpuLine = cpuPct.HasValue ? $"CPU: {cpuPct.Value:0.0}%" : "CPU: --";
-    _label.Text = $"FPS: {fps:0}\nFrame: {frameMs:0.0} ms\n{cpuLine}";
+    _label.Text = $"FPS: {fps:0.0}\nFrame: {frameMs:0.0} ms\n{cpuLine}";
   }
 }

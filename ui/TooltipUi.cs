@@ -9,7 +9,7 @@ public partial class TooltipUi : Control
   private NinePatchRect _frame;
   private MarginContainer _pad;
   private VBoxContainer _vbox;
-  private const int LineSeparation = 6;
+  private const int LineSeparation = 5;
   private Control _anchor; // control we anchor to while visible
   private Font _measureFont;
   private readonly System.Collections.Generic.List<LineSpec> _activeLines = new System.Collections.Generic.List<LineSpec>();
@@ -21,13 +21,13 @@ public partial class TooltipUi : Control
   }
 
   [Export] public Texture2D FrameTexture { get; set; } = GD.Load<Texture2D>("res://assets/ui/3x/ninepatch.png");
-  [Export] public int PatchMargin { get; set; } = 18;
-  [Export] public float ContentPadding { get; set; } = 8f;
-  [Export] public int FontPx { get; set; } = 34; // slightly larger than default for readability
+  [Export] public int PatchMargin { get; set; } = 16;
+  [Export] public float ContentPadding { get; set; } = 7f;
+  [Export] public int FontPx { get; set; } = 31; // slightly larger than default for readability
   [Export] public Color TextColor { get; set; } = Colors.White;
   [Export] public float ShadowAlpha { get; set; } = 0.35f;
-  [Export] public float MaxWidth { get; set; } = 520f; // total tooltip width cap (frame included)
-  [Export] public float AnchorSpacing { get; set; } = 8f; // gap from anchor rect
+  [Export] public float MaxWidth { get; set; } = 468f; // total tooltip width cap (frame included)
+  [Export] public float AnchorSpacing { get; set; } = 7f; // gap from anchor rect
   [Export] public string FontPath { get; set; } = "res://assets/fonts/Born2bSportyV2.ttf";
 
   public override void _Ready()

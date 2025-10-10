@@ -18,7 +18,7 @@ public partial class InteractionPromptUi : Control
   private FontFile? _font;
 
   [Export] public string FontPath = "res://assets/fonts/Born2bSportyV2.ttf";
-  [Export(PropertyHint.Range, "24,96,2")] public int FontPx = 64;
+  [Export(PropertyHint.Range, "24,96,2")] public int FontPx = 58;
   [Export] public Color TextColor = new(1f, 1f, 1f);
   [Export] public bool Shadow = true;
   [Export] public float ShadowAlpha = 0.35f;
@@ -27,7 +27,7 @@ public partial class InteractionPromptUi : Control
   [Export] public float ParallaxPixelScale = 0f;
   [Export] public float TextRotation = 0f;
   [Export] public float FadeDuration = 0.12f;
-  [Export] public float LineSpacingPx = 8f;
+  [Export] public float LineSpacingPx = 7f;
   [Export] public float PopInRate = 3f;
   [Export] public float PopDelay = 1.5f;
   [Export] public float PopOutRate = 4f;
