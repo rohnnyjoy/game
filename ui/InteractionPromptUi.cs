@@ -10,8 +10,7 @@ using System.Collections.Generic;
 /// </summary>
 public partial class InteractionPromptUi : Control
 {
-  private readonly List<DynaText> _lineNodes = new();
-  private readonly List<string> _currentLines = new();
+  private readonly List<LineSlot> _slots = new();
   private Tween? _fadeTween;
   private Control? _anchor;
   private bool _layoutDirty;
@@ -27,12 +26,16 @@ public partial class InteractionPromptUi : Control
   [Export] public bool UseShadowParallax = true;
   [Export] public float ParallaxPixelScale = 0f;
   [Export] public float TextRotation = 0f;
-  [Export] public float PulseAmount = 0.35f;
-  [Export] public float PulseDuration = 0.12f;
-  [Export] public float QuiverAmount = 0.12f;
-  [Export] public float QuiverSpeed = 0.6f;
   [Export] public float FadeDuration = 0.12f;
   [Export] public float LineSpacingPx = 8f;
+  [Export] public float PopInRate = 3f;
+  [Export] public float PopDelay = 1.5f;
+  [Export] public float PopOutRate = 4f;
+  [Export] public bool DebugSlowPopIn = false;
+  [Export(PropertyHint.Range, "0.05,3,0.05")] public float DebugPopInRate = 0.4f;
+  [Export(PropertyHint.Range, "0,1,0.01")] public float PulseAmount = 0.3f;
+  [Export(PropertyHint.Range, "0.5,4,0.1")] public float PulseWidth = 2.5f;
+  [Export(PropertyHint.Range, "5,80,5")] public float PulseSpeed = 40f;
 
   public override void _Ready()
   {
@@ -63,24 +66,30 @@ public partial class InteractionPromptUi : Control
 
     for (int i = 0; i < desired; i++)
     {
+      var slot = _slots[i];
       string incoming = lines![desired - 1 - i] ?? string.Empty;
-      string previous = _currentLines[i];
-      DynaText node = _lineNodes[i];
+      string previous = slot.Text;
+
+      CancelExit(slot);
 
       if (!string.Equals(previous, incoming, StringComparison.Ordinal))
       {
-        ApplyLineConfig(node, incoming);
-        AnimateLine(node);
-        _currentLines[i] = incoming;
+        ApplyLineConfig(slot, incoming);
+        AnimateLine(slot);
       }
 
-      node.Visible = true;
+      slot.Text = incoming;
+      slot.Node.Visible = true;
     }
 
-    for (int i = desired; i < _lineNodes.Count; i++)
+    for (int i = desired; i < _slots.Count; i++)
     {
-      _lineNodes[i].Visible = false;
-      _currentLines[i] = string.Empty;
+      var slot = _slots[i];
+      if (!string.IsNullOrEmpty(slot.Text))
+        BeginLineExit(slot);
+      else
+        FinalizeImmediate(slot);
+      slot.Text = string.Empty;
     }
 
     _layoutDirty = true;
@@ -96,8 +105,10 @@ public partial class InteractionPromptUi : Control
 
   public void ShowPrompt()
   {
-    if (_lineNodes.Count == 0)
+    if (_slots.Count == 0)
       return;
+
+    bool restartPop = !Visible || Modulate.A <= 0.001f;
 
     _fadeTween?.Kill();
     Visible = true;
@@ -106,10 +117,15 @@ public partial class InteractionPromptUi : Control
     _fadeTween = GetTree().CreateTween();
     _fadeTween.SetTrans(Tween.TransitionType.Linear).SetEase(Tween.EaseType.In);
     _fadeTween.TweenProperty(this, "modulate:a", 1f, MathF.Max(0.0001f, FadeDuration));
+
+    if (restartPop)
+      JuiceVisibleLines();
   }
 
   public void HidePrompt()
   {
+    TriggerPopOutOnVisibleLines();
+
     _fadeTween?.Kill();
     _fadeTween = GetTree().CreateTween();
     _fadeTween.SetTrans(Tween.TransitionType.Linear).SetEase(Tween.EaseType.In);
@@ -145,15 +161,23 @@ public partial class InteractionPromptUi : Control
     Rect2 rect = _anchor.GetGlobalRect();
     GlobalPosition = rect.Position + rect.Size * 0.5f;
 
+    for (int i = 0; i < _slots.Count; i++)
+    {
+      var slot = _slots[i];
+      if (slot.IsExiting && IsInstanceValid(slot.Node))
+        slot.Node.Position = slot.ExitPosition;
+    }
+
     float currentY = 0f;
     bool anyVisible = false;
 
-    for (int i = 0; i < _lineNodes.Count; i++)
+    for (int i = 0; i < _slots.Count; i++)
     {
-      DynaText node = _lineNodes[i];
-      if (!node.Visible)
+      var slot = _slots[i];
+      if (!IsSlotActive(slot))
         continue;
 
+      var node = slot.Node;
       Vector2 size = node.GetBoundsPx();
       if (size.LengthSquared() < 0.000001f)
         continue;
@@ -181,60 +205,165 @@ public partial class InteractionPromptUi : Control
 
   private void EnsureLineCapacity(int desired)
   {
-    while (_lineNodes.Count < desired)
+    while (_slots.Count < desired)
     {
       var node = new DynaText();
-      ApplyLineConfig(node, string.Empty);
+      var slot = new LineSlot(node);
+      ApplyLineConfig(slot, string.Empty);
       node.Visible = false;
       AddChild(node);
-      _lineNodes.Insert(0, node);
-      _currentLines.Insert(0, string.Empty);
+      _slots.Insert(0, slot);
     }
-
   }
 
-  private void ApplyLineConfig(DynaText node, string text)
+  private void ApplyLineConfig(LineSlot slot, string text)
   {
-    var cfg = BuildConfig();
+    CancelExit(slot);
+    var cfg = BuildConfig(text);
     cfg.Parts.Clear();
     cfg.Parts.Add(new DynaText.TextPart { Literal = text });
-    node.Init(cfg);
+    slot.Node.Init(cfg);
   }
 
-  private void AnimateLine(DynaText node)
+  private void AnimateLine(LineSlot slot)
   {
-    node.TriggerPulse(PulseAmount, 2.5f, 40f);
-    node.SetQuiver(QuiverAmount, QuiverSpeed, 0.3f);
-    node.TriggerTilt(0.25f);
+    CancelExit(slot);
+    slot.Node.CancelPopOut(true);
+    slot.Node.TriggerPulse(PulseAmount, PulseWidth, PulseSpeed);
   }
 
   private void RefreshLineFonts()
   {
-    for (int i = 0; i < _lineNodes.Count; i++)
+    for (int i = 0; i < _slots.Count; i++)
     {
-      string text = _currentLines[i];
-      DynaText node = _lineNodes[i];
-      ApplyLineConfig(node, text);
-      node.Visible = !string.IsNullOrEmpty(text);
+      var slot = _slots[i];
+      ApplyLineConfig(slot, slot.Text);
+      slot.Node.Visible = !string.IsNullOrEmpty(slot.Text);
     }
   }
 
   private bool HasVisibleLineAbove(int index)
   {
-    for (int i = index + 1; i < _lineNodes.Count; i++)
+    for (int i = index + 1; i < _slots.Count; i++)
     {
-      var node = _lineNodes[i];
-      if (!node.Visible)
+      var slot = _slots[i];
+      if (!IsSlotActive(slot))
         continue;
-      if (node.GetBoundsPx().LengthSquared() > 0.000001f)
+      if (slot.Node.GetBoundsPx().LengthSquared() > 0.000001f)
         return true;
     }
     return false;
   }
 
-  private DynaText.Config BuildConfig()
+  private void JuiceVisibleLines()
+  {
+    for (int i = 0; i < _slots.Count; i++)
+    {
+      var slot = _slots[i];
+      if (string.IsNullOrEmpty(slot.Text))
+        continue;
+
+      if (!slot.Node.Visible)
+        continue;
+
+      CancelExit(slot);
+      slot.Node.CancelPopOut(true);
+      slot.Node.TriggerPulse(PulseAmount, PulseWidth, PulseSpeed);
+    }
+  }
+
+  private void TriggerPopOutOnVisibleLines()
+  {
+    float rate = MathF.Max(0.0001f, PopOutRate);
+    for (int i = 0; i < _slots.Count; i++)
+    {
+      var slot = _slots[i];
+      if (string.IsNullOrEmpty(slot.Text))
+        continue;
+
+      if (!slot.Node.Visible)
+        continue;
+
+      CancelExit(slot);
+      slot.Node.StartPopOut(rate, delayOverride: 0f);
+    }
+  }
+
+  private static bool IsSlotActive(LineSlot slot) => slot.Node.Visible && !slot.IsExiting;
+
+  private void CancelExit(LineSlot slot)
+  {
+    if (!slot.IsExiting)
+      return;
+
+    if (slot.HideTween != null && IsInstanceValid(slot.HideTween))
+      slot.HideTween.Kill();
+
+    slot.HideTween = null;
+    slot.IsExiting = false;
+    slot.Node.Visible = true;
+    _layoutDirty = true;
+  }
+
+  private void BeginLineExit(LineSlot slot)
+  {
+    CancelExit(slot);
+
+    slot.IsExiting = true;
+    slot.ExitPosition = slot.Node.Position;
+    slot.Node.Visible = true;
+    slot.Node.StartPopOut(MathF.Max(0.0001f, PopOutRate), delayOverride: 0f);
+
+    float rate = MathF.Max(0.0001f, PopOutRate);
+    float hideDelay = MathF.Max(0.05f, 1f / rate);
+
+    Tween tween = GetTree().CreateTween();
+    slot.HideTween = tween;
+    tween.TweenInterval(hideDelay);
+    tween.Finished += () =>
+    {
+      if (slot.HideTween == tween)
+        FinalizeLineExit(slot);
+    };
+    _layoutDirty = true;
+  }
+
+  private void FinalizeLineExit(LineSlot slot)
+  {
+    slot.HideTween = null;
+    slot.IsExiting = false;
+
+    if (IsInstanceValid(slot.Node))
+      slot.Node.Visible = false;
+
+    _layoutDirty = true;
+  }
+
+  private void FinalizeImmediate(LineSlot slot)
+  {
+    CancelExit(slot);
+    if (IsInstanceValid(slot.Node))
+      slot.Node.Visible = false;
+  }
+
+  private sealed class LineSlot
+  {
+    public LineSlot(DynaText node) => Node = node;
+
+    public DynaText Node { get; }
+    public string Text { get; set; } = string.Empty;
+    public bool IsExiting { get; set; }
+    public Vector2 ExitPosition { get; set; }
+    public Tween? HideTween { get; set; }
+  }
+
+  private DynaText.Config BuildConfig(string text)
   {
     EnsureFontLoaded();
+
+    bool hasText = !string.IsNullOrEmpty(text);
+
+    float popInRate = DebugSlowPopIn ? DebugPopInRate : PopInRate;
 
     return new DynaText.Config
     {
@@ -247,16 +376,20 @@ public partial class InteractionPromptUi : Control
       ShadowUseParallax = UseShadowParallax,
       ParallaxPixelScale = ParallaxPixelScale,
       TextRotationRad = TextRotation,
-      PopInRate = 3f,
+      Lean = false,
+      // PopInRate = MathF.Max(0.0001f, popInRate),
+      // PopDelay = hasText ? MathF.Max(0f, PopDelay) : 0f,
       BumpRate = 2.666f,
       BumpAmount = 0f,
-      Float = true,
-      Bump = true,
-      Rotate = true,
-      Silent = true,
-      PixelSnap = true,
+      Float = false,
+      Bump = false,
+      Rotate = false,
+      PulseAffectsRotation = false,
+      Silent = false,
+      PixelSnap = false,
       SpacingExtraPx = 1.0f,
-      TextHeightScale = 1f
+      TextHeightScale = 1f,
+      PopInStartAt = null
     };
   }
 }

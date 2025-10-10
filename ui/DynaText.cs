@@ -70,6 +70,7 @@ public partial class DynaText : Node2D
     public bool Rotate = false;        // If true: per-letter sway (Rotate==2 flips sign, like original)
     public int RotateMode = 1;         // 1 or 2 (2 = negative)
     public PulseSpec Pulse = null;     // Optional transient scale pulse
+    public bool PulseAffectsRotation = true; // When false, pulse scaling will not add lean rotation
     public QuiverSpec Quiver = null;   // Optional micro-rotation wobble
     public bool Float = false;         // Vertical sinusoidal float
     public bool Bump = false;          // Bouncy vertical bump
@@ -237,11 +238,19 @@ public partial class DynaText : Node2D
       Shadow = _cfg.Shadow,
       ShadowColor = _cfg.ShadowColor,
       ShadowOffsetPx = _cfg.ShadowOffsetPx,
+      ShadowParallaxPx = _cfg.ShadowParallaxPx,
+      ShadowUseParallax = _cfg.ShadowUseParallax,
+      ShadowParallaxStrength = _cfg.ShadowParallaxStrength,
+      ParallaxPixelScale = _cfg.ParallaxPixelScale,
       PopInRate = _cfg.PopInRate,
       BumpRate = _cfg.BumpRate,
       BumpAmount = _cfg.BumpAmount,
       SpacingExtraPx = _cfg.SpacingExtraPx,
+      SpacingFactor = _cfg.SpacingFactor,
       TextRotationRad = _cfg.TextRotationRad,
+      Lean = _cfg.Lean,
+      LeanFactor = _cfg.LeanFactor,
+      LeanClampRad = _cfg.LeanClampRad,
       PopDelay = _cfg.PopDelay,
       RandomElement = _cfg.RandomElement,
       MinCycleTime = _cfg.MinCycleTime,
@@ -250,9 +259,11 @@ public partial class DynaText : Node2D
       Silent = _cfg.Silent,
       PitchShift = _cfg.PitchShift,
       TextHeightScale = _cfg.TextHeightScale,
+      PixelSnap = _cfg.PixelSnap,
       Rotate = _cfg.Rotate,
       RotateMode = _cfg.RotateMode,
       Pulse = _cfg.Pulse,
+      PulseAffectsRotation = _cfg.PulseAffectsRotation,
       Quiver = _cfg.Quiver,
       Float = _cfg.Float,
       Bump = _cfg.Bump,
@@ -377,10 +388,43 @@ public partial class DynaText : Node2D
   }
 
   // Public helper to initiate pop-out decay like Balatro's DynaText:pop_out
-  public void StartPopOut(float popOutTimer = 3f)
+  public void StartPopOut(float popOutTimer = 3f, float? delayOverride = null)
   {
-    PopOut(popOutTimer);
+    PopOut(popOutTimer, delayOverride);
   }
+
+  /// <summary>
+  /// Mirrors Balatro's DynaText:pop_in — resets all letters to pop-in from zero with an optional delay.
+  /// </summary>
+  /// <param name="startOffset">Seconds to wait before pop-in begins.</param>
+  public void StartPopIn(float startOffset = 0f)
+  {
+    if (_built.Count == 0)
+      return;
+
+    float offset = MathF.Max(0f, startOffset);
+    int idx = Mathf.Clamp(_focusedIndex, 0, _built.Count - 1);
+    var line = _built[idx];
+    for (int i = 0; i < line.Letters.Count; i++)
+    {
+      var letter = line.Letters[i];
+      letter.PopIn = 0f;
+      line.Letters[i] = letter;
+    }
+
+    _cfg.PopInStartAt = offset;
+    _popOutActive = false;
+    _popCyclePending = false;
+    _popOutRate = 0f;
+    _popOutStartTime = 0f;
+    _createdTime = TimeSinceStart;
+    QueueRedraw();
+  }
+
+  /// <summary>
+  /// Alias for StartPopIn to match the original Lua API name.
+  /// </summary>
+  public void PopIn(float startOffset = 0f) => StartPopIn(startOffset);
 
   // ------------------------------
   // Drawing helpers
@@ -839,11 +883,12 @@ public partial class DynaText : Node2D
     }
   }
 
-  private void PopOut(float popOutTimer)
+  private void PopOut(float popOutTimer, float? delayOverride = null)
   {
     // Start pop-out after configured delay (Lua pop_delay), then decay handled in AlignLetters
     _cfg.PopInStartAt = null;
-    float delay = MathF.Max(0f, _cfg.PopDelay <= 0 ? 1.5f : _cfg.PopDelay);
+    float delayBase = MathF.Max(0f, _cfg.PopDelay <= 0 ? 1.5f : _cfg.PopDelay);
+    float delay = delayOverride.HasValue ? MathF.Max(0f, delayOverride.Value) : delayBase;
     _popOutStartTime = TimeSinceStart + delay;
     _popOutRate = MathF.Max(0.0001f, popOutTimer);
     _popOutActive = true;
@@ -871,6 +916,10 @@ public partial class DynaText : Node2D
     dst.Shadow = src.Shadow;
     dst.ShadowColor = src.ShadowColor;
     dst.ShadowOffsetPx = src.ShadowOffsetPx;
+    dst.ShadowParallaxPx = src.ShadowParallaxPx;
+    dst.ShadowUseParallax = src.ShadowUseParallax;
+    dst.ShadowParallaxStrength = src.ShadowParallaxStrength;
+    dst.ParallaxPixelScale = src.ParallaxPixelScale;
     dst.Scale = src.Scale;
     dst.PopInRate = src.PopInRate;
     dst.BumpRate = src.BumpRate;
@@ -878,7 +927,11 @@ public partial class DynaText : Node2D
     dst.PopInStartAt = src.PopInStartAt;
     dst.MaxWidthPx = src.MaxWidthPx;
     dst.SpacingExtraPx = src.SpacingExtraPx;
+    dst.SpacingFactor = src.SpacingFactor;
     dst.TextRotationRad = src.TextRotationRad;
+    dst.Lean = src.Lean;
+    dst.LeanFactor = src.LeanFactor;
+    dst.LeanClampRad = src.LeanClampRad;
     dst.PopDelay = src.PopDelay;
     dst.RandomElement = src.RandomElement;
     dst.MinCycleTime = src.MinCycleTime;
@@ -890,9 +943,11 @@ public partial class DynaText : Node2D
     dst.Font = src.Font;
     dst.FontSizePx = Math.Max(1, src.FontSizePx);
     dst.TextHeightScale = MathF.Max(0.0001f, src.TextHeightScale);
+    dst.PixelSnap = src.PixelSnap;
     dst.Rotate = src.Rotate;
     dst.RotateMode = src.RotateMode;
     dst.Pulse = src.Pulse;
+    dst.PulseAffectsRotation = src.PulseAffectsRotation;
     dst.Quiver = src.Quiver;
     dst.Float = src.Float;
     dst.Bump = src.Bump;
