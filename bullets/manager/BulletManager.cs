@@ -57,6 +57,9 @@ public partial class BulletManager : Node3D
     public bool TrailViewAligned = true;
     public MeshInstance3D? TrailInstance;
     public Dictionary<uint, TrailBuffer>? TrailBuffers;
+    public HashSet<uint> TrailActiveIds = new HashSet<uint>();
+    public List<uint> TrailIdsToRemove = new List<uint>();
+    public SurfaceTool TrailSurfaceTool = new SurfaceTool();
 
     public BulletBehaviorConfig BehaviorConfig = BulletBehaviorConfig.None;
     public CollisionOp[] CollisionOps = System.Array.Empty<CollisionOp>();
@@ -205,6 +208,19 @@ public partial class BulletManager : Node3D
   {
     public List<TrailPoint> Points = new List<TrailPoint>(8);
     public Vector3 LastAddedPos;
+    public Vector3[] LeftScratch = System.Array.Empty<Vector3>();
+    public Vector3[] RightScratch = System.Array.Empty<Vector3>();
+    public float[] AlphaScratch = System.Array.Empty<float>();
+
+    public void EnsureScratchCapacity(int count)
+    {
+      if (LeftScratch.Length < count)
+        LeftScratch = new Vector3[count];
+      if (RightScratch.Length < count)
+        RightScratch = new Vector3[count];
+      if (AlphaScratch.Length < count)
+        AlphaScratch = new float[count];
+    }
   }
 
   private readonly Dictionary<int, Archetype> _archetypes = new();
@@ -1589,7 +1605,8 @@ public partial class BulletManager : Node3D
         Vector3 camPos = cam != null ? cam.GlobalTransform.Origin : (GlobalTransform.Origin + Vector3.Back * 10);
 
         // Age and append points, collect active ids
-        var activeIds = new HashSet<uint>();
+        var activeIds = arch.TrailActiveIds;
+        activeIds.Clear();
         for (int i = 0; i < activeCount; i++)
         {
           BulletData b = list[i];
@@ -1625,7 +1642,8 @@ public partial class BulletManager : Node3D
         }
 
         // Remove buffers for inactive bullets
-        var toRemove = new List<uint>();
+        var toRemove = arch.TrailIdsToRemove;
+        toRemove.Clear();
         foreach (var kvId in arch.TrailBuffers)
         {
           if (!activeIds.Contains(kvId.Key))
@@ -1634,7 +1652,8 @@ public partial class BulletManager : Node3D
         foreach (var idrm in toRemove)
           arch.TrailBuffers.Remove(idrm);
 
-        SurfaceTool st = new SurfaceTool();
+        SurfaceTool st = arch.TrailSurfaceTool;
+        st.Clear();
         st.Begin(Mesh.PrimitiveType.Triangles);
         bool hasTriangles = false;
 
@@ -1645,9 +1664,10 @@ public partial class BulletManager : Node3D
           if (ptCount < 2)
             continue;
 
-          Vector3[] leftPts = new Vector3[ptCount];
-          Vector3[] rightPts = new Vector3[ptCount];
-          float[] alphas = new float[ptCount];
+          kvb.Value.EnsureScratchCapacity(ptCount);
+          Vector3[] leftPts = kvb.Value.LeftScratch;
+          Vector3[] rightPts = kvb.Value.RightScratch;
+          float[] alphas = kvb.Value.AlphaScratch;
 
           for (int i = 0; i < ptCount; i++)
           {
@@ -1733,6 +1753,7 @@ public partial class BulletManager : Node3D
             arch.TrailInstance.Mesh = mesh;
             if (oldMesh != null)
               oldMesh.Dispose();
+            st.Clear();
           }
           else
           {
@@ -1740,6 +1761,7 @@ public partial class BulletManager : Node3D
             arch.TrailInstance.Mesh = null;
             if (oldMesh != null)
               oldMesh.Dispose();
+            st.Clear();
           }
         }
       }

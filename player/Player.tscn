@@ -7,8 +7,7 @@
 [ext_resource type="Script" uid="uid://biw8xnu0hfuhx" path="res://player/PlayerMovement.cs" id="3_aqcbf"]
 [ext_resource type="Script" uid="uid://b473g26ihvyw1" path="res://player/WeaponHolder.cs" id="4_83hs8"]
 [ext_resource type="PackedScene" uid="uid://c1cojstr50644" path="res://assets/models/character.glb" id="5_char"]
-[ext_resource type="Script" path="res://shared/effects/OutlineApplicator.cs" id="6_outline"]
-[ext_resource type="ShaderMaterial" path="res://shared/materials/player_outline_material.tres" id="7_outline_mat"]
+ 
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_67y6s"]
 
@@ -142,13 +141,7 @@ playback_default_blend_time = 0.05
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_hn37q")
 
-[node name="Outline" type="Node" parent="."]
-script = ExtResource("6_outline")
-MeshRootPath = NodePath("../Character")
-OutlineMaterial = ExtResource("7_outline_mat")
-OutlineAsPrimary = false
-EnableNextPassOutline = false
-OverlayLayerBit = 20
+ 
 
 [node name="CameraPivot" type="Node3D" parent="."]
 process_priority = -10

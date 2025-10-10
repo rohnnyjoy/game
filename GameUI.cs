@@ -57,7 +57,6 @@ public partial class GameUI : CanvasLayer
   private CanvasLayer _crosshairLayer;
   private CenterContainer _crosshairCenter;
   private ProfilerOverlay _profiler;
-  private PlayerOutlineOverlay _playerOutline;
 
   public override void _Ready()
   {
@@ -118,21 +117,6 @@ public partial class GameUI : CanvasLayer
     // Always-on lightweight profiler overlay (top-right)
     _profiler = new ProfilerOverlay();
     AddChild(_profiler);
-    // Add player X-ray outline overlay (edges-only through occluders)
-    _playerOutline = new PlayerOutlineOverlay
-    {
-      Layer = 60, // above most UI layers, below crosshair layer if used
-      OverlayLayerBit = 20
-    };
-    // Pull outline color from shared material to keep palette consistent
-    var playerOutlineMat = GD.Load<ShaderMaterial>("res://shared/materials/player_outline_material.tres");
-    if (playerOutlineMat != null)
-    {
-      var colObj = playerOutlineMat.GetShaderParameter("outline_color");
-      if (colObj.VariantType == Variant.Type.Color)
-        _playerOutline.OutlineColor = (Color)colObj;
-    }
-    AddChild(_playerOutline);
     // Initialize health display early
     if (Player.Instance != null)
       _healthUi.SetHealth(Player.Instance.Health, Player.Instance.MaxHealth);

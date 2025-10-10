@@ -97,6 +97,15 @@ public partial class ProceduralTopologyGenerator : Node3D
   [Export(PropertyHint.Range, "-1.0,1.0,0.05")]
   public float FeatureHeightBias { get; set; } = 0.25f;
 
+  [Export(PropertyHint.Range, "0.1,6.0,0.1")]
+  public float FeatureHeightExponent { get; set; } = 2.5f;
+
+  [Export(PropertyHint.Range, "0.0,80.0,0.5")]
+  public float MacroHeightMultiplier { get; set; } = 12.0f;
+
+  [Export(PropertyHint.Range, "0.0,30.0,0.5")]
+  public float MicroHeightMultiplier { get; set; } = 3.5f;
+
   [Export(PropertyHint.Range, "0.1,8.0,0.1")]
   public float MaxSlopeDelta { get; set; } = 3.0f;
 
@@ -533,7 +542,7 @@ public partial class ProceduralTopologyGenerator : Node3D
       Frequency = Mathf.Max(0.001f, MacroNoiseFrequency),
       FractalOctaves = 4,
       FractalGain = 0.55f,
-      FractalWeightedStrength = 0.4f
+      FractalWeightedStrength = 0.35f
     };
 
     var detailNoise = new FastNoiseLite
@@ -548,7 +557,7 @@ public partial class ProceduralTopologyGenerator : Node3D
     var jitterRng = new RandomNumberGenerator();
     jitterRng.Seed = (ulong)(workingSeed * 97 + 13);
 
-    float macroScale = Math.Max(0.1f, MacroNoiseStrength);
+    float macroScale = Math.Max(0.05f, MacroNoiseStrength);
     float microScale = Math.Max(0.0f, MicroHeightStrength);
     float featureScale = Math.Max(0.0f, FeatureHeightBoost);
 
@@ -569,8 +578,8 @@ public partial class ProceduralTopologyGenerator : Node3D
         float macro = macroNoise.GetNoise2D(x, z);
         float detail = detailNoise.GetNoise2D(x, z);
 
-        float height = macro * HeightScale * macroScale;
-        height += detail * HeightScale * microScale;
+        float height = macro * MacroHeightMultiplier * macroScale;
+        height += detail * MicroHeightMultiplier * microScale;
 
         if (seeds.Count > 0 && featureScale > 0.0f)
         {
@@ -583,7 +592,8 @@ public partial class ProceduralTopologyGenerator : Node3D
             if (influence <= 0.0f)
               continue;
 
-            float bump = influence * influence * featureScale;
+            float shaped = Mathf.Pow(Mathf.Clamp(influence, 0.0f, 1.0f), Math.Max(0.1f, FeatureHeightExponent));
+            float bump = shaped * featureScale;
             if (!seed.IsPeak)
               bump = -bump;
             height += bump;

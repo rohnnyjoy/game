@@ -338,9 +338,19 @@ public partial class BulletWeapon : Weapon
     CurrentAmmo = GetAmmo();
     Reloading = false;
     fireCooldownTimer = 0.0f;
-    foreach (var module in ImmutableModules + Modules)
+    if (ImmutableModules != null)
     {
-      await module.OnReload();
+      foreach (var module in ImmutableModules)
+      {
+        await module.OnReload();
+      }
+    }
+    if (Modules != null)
+    {
+      foreach (var module in Modules)
+      {
+        await module.OnReload();
+      }
     }
     BulletManager.Instance?.NotifyWeaponReloaded(this);
   }
@@ -364,9 +374,19 @@ public partial class BulletWeapon : Weapon
 
   public override async void _Process(double delta)
   {
-    foreach (var module in ImmutableModules + Modules)
+    if (ImmutableModules != null)
     {
-      await module.OnWeaponProcess(delta);
+      foreach (var module in ImmutableModules)
+      {
+        await module.OnWeaponProcess(delta);
+      }
+    }
+    if (Modules != null)
+    {
+      foreach (var module in Modules)
+      {
+        await module.OnWeaponProcess(delta);
+      }
     }
 
     if (currentRecoil > 0.001f)

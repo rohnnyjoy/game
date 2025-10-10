@@ -1,8 +1,0 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3]
-
-[ext_resource type="Shader" path="res://shared/shaders/outline_shell.gdshader" id="1_u6rvu"]
-
-[resource]
-shader = ExtResource("1_u6rvu")
-shader_parameter/outline_color = Color(0.258824, 0.839216, 1, 1)
-shader_parameter/outline_thickness = 0.03
