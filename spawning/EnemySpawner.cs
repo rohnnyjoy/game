@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using Shared.Runtime;
 #nullable enable
 
 public partial class EnemySpawner : Node3D
@@ -97,18 +98,36 @@ public partial class EnemySpawner : Node3D
       return;
 
     int toSpawn = Math.Max(1, BurstCount);
+    float spawnHeight = EnemySpawnUtility.GetSpawnHeightOffset(EnemyScene);
+    var parent = GetParent() ?? this;
+    var space = GetWorld3D()?.DirectSpaceState;
+
+    var exclude = new Godot.Collections.Array<Rid>();
+    if (player is PhysicsBody3D playerBody)
+      exclude.Add(playerBody.GetRid());
+
     for (int i = 0; i < toSpawn && alive < MaxAliveEnemies; i++)
     {
-      if (TryGetSpawnPositionNear(player, out var spawnPos))
-      {
-        var enemy = EnemyScene.Instantiate<Node3D>();
-        enemy.GlobalTransform = new Transform3D(Basis.Identity, spawnPos);
-        // Spawn as sibling under the spawner's parent (scene root is fine)
-        // Use deferred add to avoid "parent is busy setting up children" during scene build.
-        var parent = GetParent() ?? this;
-        parent.CallDeferred(Node.MethodName.AddChild, enemy);
-        alive++;
-      }
+      var instance = EnemyScene.Instantiate<Node3D>();
+      if (instance == null)
+        continue;
+
+      Vector3 sample = EnemySpawnUtility.SamplePlanarPosition(
+        player.GlobalTransform.Origin,
+        MinSpawnRadius,
+        MaxSpawnRadius,
+        _rng);
+
+      uint mask = instance is PhysicsBody3D body ? body.CollisionMask : uint.MaxValue;
+      Vector3 grounded = EnemySpawnUtility.ResolveGroundedPosition(sample, spawnHeight, space, mask, exclude);
+
+      parent.AddChild(instance);
+      instance.GlobalTransform = new Transform3D(Basis.Identity, grounded);
+
+      if (instance is Enemy enemy)
+        enemy.CallDeferred(nameof(Enemy.EnsureSimulationSync));
+
+      alive++;
     }
   }
 
@@ -123,43 +142,6 @@ public partial class EnemySpawner : Node3D
       if (n is Node3D n3) return n3;
     }
     return null;
-  }
-
-  private bool TryGetSpawnPositionNear(Node3D player, out Vector3 position)
-  {
-    position = player.GlobalTransform.Origin;
-    if (MinSpawnRadius >= MaxSpawnRadius)
-      MaxSpawnRadius = MinSpawnRadius + 1.0f;
-
-    // Pick a random angle around the player and a radius in [min,max]
-    float angle = _rng.RandfRange(0, Mathf.Tau);
-    float radius = _rng.RandfRange(MinSpawnRadius, MaxSpawnRadius);
-    Vector3 offset = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * radius;
-    Vector3 sample = player.GlobalTransform.Origin + offset;
-
-    // Try to raycast down from above to find the floor
-    var space = GetWorld3D().DirectSpaceState;
-    Vector3 from = sample + new Vector3(0, 50, 0);
-    Vector3 to = sample + new Vector3(0, -50, 0);
-    var query = PhysicsRayQueryParameters3D.Create(from, to);
-    // Exclude the player so we don't hit their body
-    query.Exclude = new Godot.Collections.Array<Rid>();
-    if (player is PhysicsBody3D pb)
-    {
-      query.Exclude.Add(pb.GetRid());
-    }
-
-    var hit = space.IntersectRay(query);
-    if (hit != null && hit.Count > 0 && hit.ContainsKey("position"))
-    {
-      Vector3 hitPos = (Vector3)hit["position"];
-      position = hitPos + new Vector3(0, 0.5f, 0);
-      return true;
-    }
-
-    // Fallback: spawn at player's height at the sampled XZ
-    position = new Vector3(sample.X, player.GlobalTransform.Origin.Y, sample.Z);
-    return true;
   }
 
   // Allow live tweaking via editor or setters

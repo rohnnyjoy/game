@@ -129,3 +129,6 @@ res://shared/rendering/XRayOutlineManager.cs
 res://shared/shaders/MaskDepthBlit.gdshader
 res://shared/shaders/OutlineComposite.gdshader
 res://shared/rendering/OutlineSetup.gd
+res://scenes/outline/OutlineXrayDemo.tscn
+res://shared/rendering/OutlineTag.cs
+res://shared/rendering/OutlineSetup.cs

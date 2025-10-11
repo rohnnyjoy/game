@@ -256,7 +256,9 @@ public partial class Enemy : CharacterBody3D
 
     _baseCollisionMask = CollisionMask;
     if (_baseCollisionMask == 0)
-      _baseCollisionMask = PhysicsLayers.Mask(PhysicsLayers.Layer.World, PhysicsLayers.Layer.Player);
+      _baseCollisionMask = PhysicsLayers.Mask(PhysicsLayers.Layer.World, PhysicsLayers.Layer.Player, PhysicsLayers.Layer.Enemy);
+    else if (!PhysicsLayers.Contains(_baseCollisionMask, PhysicsLayers.Layer.Enemy))
+      _baseCollisionMask = PhysicsLayers.Add(_baseCollisionMask, PhysicsLayers.Layer.Enemy);
 
     _collisionProfileInitialized = true;
     RefreshCollisionMask();
@@ -439,6 +441,11 @@ public partial class Enemy : CharacterBody3D
   public void ApplyKnockback(Vector3 impulse)
   {
     EnemyAIManager.Instance?.ApplyKnockback(this, impulse);
+  }
+
+  public void EnsureSimulationSync()
+  {
+    EnemyAIManager.Instance?.SyncEnemyTransform(this);
   }
 
   private void SetupContactDamageArea()

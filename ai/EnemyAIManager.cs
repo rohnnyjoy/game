@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using AI;
 
 #nullable enable
@@ -212,7 +213,7 @@ public partial class EnemyAIManager : Node
       HorizontalRay = horizontalQuery
     };
 
-    _simData[index] = data;
+    CollectionsMarshal.AsSpan(_simData)[index] = data;
     _indices[enemy] = index;
     _activeSimEnemies.Add(enemy);
     enemy.SimulationHandle = index;
@@ -246,7 +247,8 @@ public partial class EnemyAIManager : Node
     }
 
     RefreshPlayerCache();
-    PhysicsDirectSpaceState3D? space = GetWorld3D()?.DirectSpaceState;
+    var world = GetTree().Root?.World3D;
+    PhysicsDirectSpaceState3D? space = world?.DirectSpaceState;
     if (space == null)
     {
       _frameIndex++;
@@ -259,7 +261,7 @@ public partial class EnemyAIManager : Node
     for (int i = 0; i < count; i++)
     {
       int idx = (start + i) % total;
-      ref EnemySimData data = ref _simData[idx];
+      ref EnemySimData data = ref CollectionsMarshal.AsSpan(_simData)[idx];
       if (!data.Active)
         continue;
 
@@ -373,7 +375,7 @@ public partial class EnemyAIManager : Node
       return Enemy.SimulationState.Active;
     if (_indices.TryGetValue(enemy, out int index))
     {
-      ref EnemySimData data = ref _simData[index];
+      ref EnemySimData data = ref CollectionsMarshal.AsSpan(_simData)[index];
       if (data.Active)
         return data.State;
     }
@@ -387,7 +389,7 @@ public partial class EnemyAIManager : Node
     if (!_indices.TryGetValue(enemy, out int index))
       return;
 
-    ref EnemySimData data = ref _simData[index];
+    ref EnemySimData data = ref CollectionsMarshal.AsSpan(_simData)[index];
     if (!data.Active)
       return;
 
@@ -408,11 +410,34 @@ public partial class EnemyAIManager : Node
     if (!_indices.TryGetValue(enemy, out int index))
       return;
 
-    ref EnemySimData data = ref _simData[index];
+    ref EnemySimData data = ref CollectionsMarshal.AsSpan(_simData)[index];
     if (!data.Active)
       return;
 
     data.SpeedMultiplier = MathF.Max(0f, multiplier);
+  }
+
+  public void SyncEnemyTransform(Enemy enemy)
+  {
+    if (enemy == null)
+      return;
+    if (!_indices.TryGetValue(enemy, out int index))
+      return;
+
+    ref EnemySimData data = ref CollectionsMarshal.AsSpan(_simData)[index];
+    if (!data.Active)
+      return;
+
+    data.Position = enemy.GlobalTransform.Origin;
+    data.Velocity = Vector3.Zero;
+    data.HorizontalVelocity = Vector3.Zero;
+    data.KnockbackVelocity = Vector3.Zero;
+    data.AccumulatedDelta = 0f;
+    data.RestrictedCheckTimer = 0f;
+    data.ForcedPhysicsSteps = 0;
+    data.OnFloor = true;
+
+    enemy.ApplySimulation(data.Position, data.Velocity);
   }
 
   private void PerformMovement(ref EnemySimData data, Enemy enemy, float dt, PhysicsDirectSpaceState3D space)
@@ -467,6 +492,19 @@ public partial class EnemyAIManager : Node
     else
     {
       position.Y += verticalStep;
+
+      Vector3 supportFrom = position + Vector3.Down * (bottomOffset - data.CapsuleRadius * 0.25f);
+      Vector3 supportTo = supportFrom + Vector3.Down * (rayPadding + 0.5f);
+      data.DownRay.From = supportFrom;
+      data.DownRay.To = supportTo;
+      var supportHit = space.IntersectRay(data.DownRay);
+      if (supportHit.Count > 0 && supportHit.ContainsKey("position"))
+      {
+        Vector3 hitPos = (Vector3)supportHit["position"];
+        position.Y = hitPos.Y + bottomOffset;
+        velocity.Y = 0f;
+        onFloor = true;
+      }
     }
 
     // Horizontal integration
@@ -656,7 +694,7 @@ public partial class EnemyAIManager : Node
     if (index < 0 || index >= _simData.Count)
       return;
 
-    ref EnemySimData data = ref _simData[index];
+    ref EnemySimData data = ref CollectionsMarshal.AsSpan(_simData)[index];
     if (data.Active)
       _activeSimEnemies.Remove(data.Proxy);
 
@@ -676,7 +714,7 @@ public partial class EnemyAIManager : Node
   {
     for (int i = 0; i < _simData.Count; i++)
     {
-      ref EnemySimData data = ref _simData[i];
+      ref EnemySimData data = ref CollectionsMarshal.AsSpan(_simData)[i];
       if (!data.Active)
         continue;
       Enemy enemy = data.Proxy;

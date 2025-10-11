@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Shared.Runtime;
 
 /// <summary>
 /// Lightweight in-game console for spawning enemies and running quick test commands.
@@ -164,8 +165,8 @@ public partial class DebugConsoleUi : CanvasLayer
   {
     RegisterCommand("help", args => ShowHelp(), "help - list available commands");
     RegisterCommand("clear", args => ClearOutput(), "clear - erase console output");
-    RegisterCommand("spawn_enemy", SpawnEnemiesCommand, "spawn_enemy [count] [radius] - spawn enemies near the player");
-    RegisterCommand("spawn_enemies", SpawnEnemiesCommand, "spawn_enemies [count] [radius] - spawn enemies near the player");
+    RegisterCommand("spawn_enemy", SpawnEnemiesCommand, "spawn_enemy [count] [max_radius] [min_radius] - spawn enemies near the player");
+    RegisterCommand("spawn_enemies", SpawnEnemiesCommand, "spawn_enemies [count] [max_radius] [min_radius] - spawn enemies near the player");
     RegisterCommand("kill_enemies", args => KillEnemies(), "kill_enemies - remove all active enemies");
   }
 
@@ -441,13 +442,26 @@ public partial class DebugConsoleUi : CanvasLayer
     }
     count = Math.Max(1, count);
 
-    float radius = 6f;
-    if (args.Length >= 2 && !float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out radius))
+    float maxRadius = 6f;
+    if (args.Length >= 2 && !float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out maxRadius))
     {
       AppendLine($"Invalid radius '{args[1]}'.");
       return;
     }
-    radius = MathF.Max(0f, radius);
+    maxRadius = MathF.Max(0f, maxRadius);
+
+    float minRadius = 0f;
+    if (args.Length >= 3)
+    {
+      if (!float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float parsedMin))
+      {
+        AppendLine($"Invalid min radius '{args[2]}'.");
+        return;
+      }
+      parsedMin = MathF.Max(0f, parsedMin);
+      minRadius = MathF.Min(parsedMin, maxRadius);
+      maxRadius = MathF.Max(parsedMin, maxRadius);
+    }
 
     var player = Player.Instance;
     if (player == null || !IsInstanceValid(player))
@@ -470,6 +484,12 @@ public partial class DebugConsoleUi : CanvasLayer
       return;
     }
 
+    float spawnHeight = EnemySpawnUtility.GetSpawnHeightOffset(_enemyScene);
+    var space = player.GetWorld3D()?.DirectSpaceState;
+    var exclude = new Godot.Collections.Array<Rid>();
+    if (player is PhysicsBody3D playerBody)
+      exclude.Add(playerBody.GetRid());
+
     var rng = new RandomNumberGenerator();
     rng.Randomize();
 
@@ -480,17 +500,21 @@ public partial class DebugConsoleUi : CanvasLayer
       if (instance == null)
         continue;
 
-      Vector3 spawnOrigin = player.GlobalTransform.Origin;
-      if (radius > 0.01f)
-      {
-        float angle = rng.RandfRange(0f, Mathf.Tau);
-        float distance = radius * rng.Randf();
-        spawnOrigin += new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distance;
-      }
-      spawnOrigin += new Vector3(0f, 0.5f, 0f);
+      Vector3 sample = EnemySpawnUtility.SamplePlanarPosition(
+        player.GlobalTransform.Origin,
+        minRadius,
+        maxRadius,
+        rng);
+
+      uint mask = instance is PhysicsBody3D body ? body.CollisionMask : uint.MaxValue;
+      Vector3 grounded = EnemySpawnUtility.ResolveGroundedPosition(sample, spawnHeight, space, mask, exclude);
 
       parent.AddChild(instance);
-      instance.GlobalTransform = new Transform3D(Basis.Identity, spawnOrigin);
+      instance.GlobalTransform = new Transform3D(Basis.Identity, grounded);
+
+      if (instance is Enemy enemy)
+        enemy.CallDeferred(nameof(Enemy.EnsureSimulationSync));
+
       spawned++;
     }
 
