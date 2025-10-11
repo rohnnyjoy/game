@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using AI;
+using Shared.Runtime;
 
 #nullable enable
 
@@ -405,17 +406,111 @@ public partial class EnemyAIManager : Node
 
   private void PerformMovement(ref EnemySimData data, Enemy enemy, float dt)
   {
-    // Preserve vertical velocity (engine gravity + contacts), drive XZ.
+    // Respect physics gravity; steer while preserving impulses and enforce slope-invariant ground speed.
     Vector3 v = enemy.Velocity;
-    v.X = data.HorizontalVelocity.X;
-    v.Z = data.HorizontalVelocity.Z;
+
+    // Current and desired horizontal velocities
+    Vector3 desiredXZ = data.HorizontalVelocity;
+
+    // Compute steering suppression based on current horizontal knockback magnitude
+    Vector3 kbXZ = new Vector3(data.KnockbackVelocity.X, 0f, data.KnockbackVelocity.Z);
+    float kbLen = kbXZ.Length();
+    float maxKb = MathF.Max(0.01f, enemy.MaxKnockbackSpeed);
+    float suppression = Mathf.Clamp(kbLen / maxKb, 0f, 1f);
+
+    // Weight steering down proportionally to knockback strength (up to 80% reduction)
+    float steerWeight = 1f - 0.8f * suppression;
+    Vector3 targetXZ = desiredXZ * steerWeight;
+
+    // Ground probing to obtain a reliable surface normal
+    bool hasGround = TryGetGroundNormal(enemy, in data, out Vector3 groundNormal, out float groundDist);
+    groundNormal = hasGround ? groundNormal : Vector3.Up;
+
+    // Always add knockback as an impulse-like velocity; do not overwrite tangential speed.
     v += data.KnockbackVelocity;
     enemy.Velocity = v;
 
     data.Position = enemy.GlobalTransform.Origin;
     data.Velocity = enemy.Velocity;
-    data.HorizontalVelocity = new Vector3(data.Velocity.X, 0f, data.Velocity.Z);
+    // Keep HorizontalVelocity as the steering target set by UpdateSteering; do not overwrite with current.
     data.OnFloor = false;
+
+    // Physics-native assist: counter gravity along slope and friction; accelerate toward target surface speed.
+    if (targetXZ.LengthSquared() > 0.000001f && hasGround)
+    {
+      float desiredSpeed = targetXZ.Length();
+      Vector3 desiredDir3 = targetXZ.Normalized();
+      Vector3 surfDir = desiredDir3 - groundNormal * desiredDir3.Dot(groundNormal);
+      if (surfDir.LengthSquared() > 0.000001f)
+        surfDir = surfDir.Normalized();
+      else
+        surfDir = desiredDir3;
+
+      Vector3 vCur = enemy.Velocity;
+      Vector3 vN = groundNormal * vCur.Dot(groundNormal);
+      Vector3 vT = vCur - vN;
+      float currentSpeed = vT.Length();
+
+      float mass = MathF.Max(0.001f, enemy.Mass);
+      float mu = (enemy.PhysicsMaterialOverride is PhysicsMaterial pm) ? pm.Friction : 0.9f;
+
+      // Gravity vector used by this simulation.
+      Vector3 gVec = Vector3.Down * Enemy.GRAVITY;
+      // Cancel gravity component parallel to the ground so up/down slopes don't change speed.
+      Vector3 gParallel = gVec - groundNormal * gVec.Dot(groundNormal);
+      Vector3 antiGravity = -gParallel * mass;
+
+      // Friction compensation using N = m*g*cos(theta)
+      float cosTheta = Mathf.Abs(Vector3.Down.Dot(groundNormal.Normalized()));
+      float normalForceMag = mass * Enemy.GRAVITY * cosTheta;
+      float frictionForceMag = mu * normalForceMag;
+
+      // Accelerate toward desired surface speed
+      float accelGain = 30f; // m/s^2 per unit speed error
+      float speedError = MathF.Max(0f, desiredSpeed - currentSpeed);
+      float accelForceMag = speedError * mass * accelGain;
+
+      Vector3 totalForce = surfDir * (frictionForceMag + accelForceMag) + antiGravity;
+      if (totalForce.LengthSquared() > 0.000001f)
+        enemy.ApplyCentralForce(totalForce);
+    }
+  }
+
+  private bool TryGetGroundNormal(Enemy enemy, in EnemySimData data, out Vector3 normal, out float distance)
+  {
+    normal = Vector3.Up;
+    distance = float.PositiveInfinity;
+    var space = GetTree()?.Root?.World3D?.DirectSpaceState;
+    if (space == null)
+      return false;
+
+    Vector3 origin = enemy.GlobalTransform.Origin;
+    float castUp = MathF.Max(0.2f, data.CapsuleRadius + 0.2f);
+    float castDown = MathF.Max(1.0f, data.CapsuleRadius + 1.2f);
+    Vector3 from = origin + Vector3.Up * castUp;
+    Vector3 to = origin - Vector3.Up * castDown;
+
+    var query = new PhysicsRayQueryParameters3D
+    {
+      From = from,
+      To = to,
+      CollisionMask = PhysicsLayers.Mask(PhysicsLayers.Layer.World),
+      CollideWithAreas = false,
+      CollideWithBodies = true,
+      HitBackFaces = true,
+      HitFromInside = true,
+      Exclude = new Godot.Collections.Array<Rid> { enemy.GetRid() },
+    };
+
+    var hit = space.IntersectRay(query);
+    if (hit.Count == 0)
+      return false;
+
+    if (hit.ContainsKey("normal"))
+      normal = ((Vector3)hit["normal"]).Normalized();
+    if (hit.ContainsKey("position"))
+      distance = (origin - (Vector3)hit["position"]).Length();
+    return true;
   }
 
   private void ApplyGravity(ref EnemySimData data, Enemy enemy, float delta)
