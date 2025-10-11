@@ -62,7 +62,7 @@ public partial class BulletManager : Node3D
     public List<uint> TrailIdsToRemove = new List<uint>();
     public PhysicsRayQueryParameters3D[] RayQueryCache = new PhysicsRayQueryParameters3D[5];
     public Stack<TrailBuffer> TrailBufferPool = new Stack<TrailBuffer>();
-  
+
     public BulletBehaviorConfig BehaviorConfig = BulletBehaviorConfig.None;
     public CollisionOp[] CollisionOps = System.Array.Empty<CollisionOp>();
 
@@ -284,7 +284,7 @@ public partial class BulletManager : Node3D
   [Export]
   public float DefaultKnockback { get; set; } = 3.5f;
   [Export]
-  public float ExplosionKnockbackMultiplier { get; set; } = 3.0f;
+  public float ExplosionKnockbackMultiplier { get; set; } = 90.0f;
 
   public override void _EnterTree()
   {
@@ -725,89 +725,89 @@ public partial class BulletManager : Node3D
       switch (step.Kind)
       {
         case DamagePreStepKind.SpeedScale:
-        {
-          if (currentSpeed <= 0.0001f)
+          {
+            if (currentSpeed <= 0.0001f)
+              break;
+
+            float extraDamage = currentSpeed * MathF.Max(0.0f, step.ParamA);
+            float extraKnockback = currentSpeed * MathF.Max(0.0f, step.ParamB);
+
+            damage += extraDamage;
+            knockbackScale += extraKnockback;
             break;
-
-          float extraDamage = currentSpeed * MathF.Max(0.0f, step.ParamA);
-          float extraKnockback = currentSpeed * MathF.Max(0.0f, step.ParamB);
-
-          damage += extraDamage;
-          knockbackScale += extraKnockback;
-          break;
-        }
+          }
         case DamagePreStepKind.CritChance:
-        {
-          float chance = MathF.Max(0.0f, step.ParamA);
-          float mult = MathF.Max(1.0f, step.ParamB);
-          // Roll crit; apply once per impact
-          if (!bullet.LastCrit)
           {
-            float roll = (float)GD.RandRange(0.0, 1.0);
-            if (roll < chance)
+            float chance = MathF.Max(0.0f, step.ParamA);
+            float mult = MathF.Max(1.0f, step.ParamB);
+            // Roll crit; apply once per impact
+            if (!bullet.LastCrit)
             {
-              damage *= mult;
-              bullet.LastCrit = true;
-              bullet.LastCritMultiplier = mult;
+              float roll = (float)GD.RandRange(0.0, 1.0);
+              if (roll < chance)
+              {
+                damage *= mult;
+                bullet.LastCrit = true;
+                bullet.LastCritMultiplier = mult;
+              }
             }
-          }
-          break;
-        }
-        case DamagePreStepKind.Metronome:
-        {
-          if (step.StateIndex < 0 || arch.MetronomeStates.Length == 0 || step.StateIndex >= arch.MetronomeStates.Length)
             break;
-
-          var state = arch.MetronomeStates[step.StateIndex];
-          float now = GetTimeSeconds();
-          if (state.ResetDelay > 0.0f && (now - state.LastHitAt) > state.ResetDelay)
-          {
-            state.Streak = 0;
-            state.HasEnemy = false;
-            state.LastEnemyId = 0;
           }
-
-          if (!enemyHit || enemyId == 0)
+        case DamagePreStepKind.Metronome:
           {
-            state.Streak = 0;
-            state.HasEnemy = false;
-            state.LastEnemyId = 0;
+            if (step.StateIndex < 0 || arch.MetronomeStates.Length == 0 || step.StateIndex >= arch.MetronomeStates.Length)
+              break;
+
+            var state = arch.MetronomeStates[step.StateIndex];
+            float now = GetTimeSeconds();
+            if (state.ResetDelay > 0.0f && (now - state.LastHitAt) > state.ResetDelay)
+            {
+              state.Streak = 0;
+              state.HasEnemy = false;
+              state.LastEnemyId = 0;
+            }
+
+            if (!enemyHit || enemyId == 0)
+            {
+              state.Streak = 0;
+              state.HasEnemy = false;
+              state.LastEnemyId = 0;
+              state.LastHitAt = now;
+              arch.MetronomeStates[step.StateIndex] = state;
+              Instance?.UpdateMetronomeBadge(arch);
+              break;
+            }
+
+            if (!state.HasEnemy || state.LastEnemyId != enemyId)
+            {
+              state.Streak = 0;
+              state.LastEnemyId = enemyId;
+              state.HasEnemy = true;
+            }
+
+            float multiplier = 1.0f + state.StackIncrement * Math.Max(0, state.Streak);
+            if (state.MaxMultiplier > 0.0f)
+              multiplier = MathF.Min(multiplier, state.MaxMultiplier);
+            damage *= MathF.Max(0.0f, multiplier);
+
+            if (state.StackIncrement > 0.0f)
+            {
+              int next = state.Streak + 1;
+              if (state.MaxStacks > 0)
+                next = Math.Min(next, state.MaxStacks);
+              state.Streak = Math.Max(0, next);
+            }
+            else
+            {
+              state.Streak = 0;
+            }
+
             state.LastHitAt = now;
             arch.MetronomeStates[step.StateIndex] = state;
+            // Update HUD badge with current multiplier snapshot
             Instance?.UpdateMetronomeBadge(arch);
             break;
           }
-
-          if (!state.HasEnemy || state.LastEnemyId != enemyId)
-          {
-            state.Streak = 0;
-            state.LastEnemyId = enemyId;
-            state.HasEnemy = true;
-          }
-
-          float multiplier = 1.0f + state.StackIncrement * Math.Max(0, state.Streak);
-          if (state.MaxMultiplier > 0.0f)
-            multiplier = MathF.Min(multiplier, state.MaxMultiplier);
-          damage *= MathF.Max(0.0f, multiplier);
-
-          if (state.StackIncrement > 0.0f)
-          {
-            int next = state.Streak + 1;
-            if (state.MaxStacks > 0)
-              next = Math.Min(next, state.MaxStacks);
-            state.Streak = Math.Max(0, next);
-          }
-          else
-          {
-            state.Streak = 0;
-          }
-
-          state.LastHitAt = now;
-          arch.MetronomeStates[step.StateIndex] = state;
-          // Update HUD badge with current multiplier snapshot
-          Instance?.UpdateMetronomeBadge(arch);
-          break;
-        }
       }
     }
   }
@@ -876,73 +876,73 @@ public partial class BulletManager : Node3D
       switch (step.Kind)
       {
         case DamagePostStepKind.OverkillTransfer:
-        {
-          GD.Print($"[CursedSkull] leftover={leftover:0.##} enemy={(enemy != null ? enemy.Name : "null")} radius={step.ParamA:0.##}");
-          if (leftover <= 0.0f || enemy == null)
+          {
+            GD.Print($"[CursedSkull] leftover={leftover:0.##} enemy={(enemy != null ? enemy.Name : "null")} radius={step.ParamA:0.##}");
+            if (leftover <= 0.0f || enemy == null)
+              break;
+
+            Node3D? neighbor = FindNearestEnemy(enemy.GlobalTransform.Origin, step.ParamA, enemy);
+            GD.Print($"[CursedSkull] neighbor={(neighbor != null ? neighbor.Name : "null")}");
+            if (neighbor == null || neighbor == enemy || !IsInstanceValid(neighbor))
+            {
+              GD.Print("[CursedSkull] transfer aborted (no valid neighbor)");
+              break;
+            }
+
+            try
+            {
+              float beamStrength = Mathf.Clamp(0.35f + leftover * 0.05f, 0.35f, 2.5f);
+              float beamWidth = Mathf.Clamp(0.45f + leftover * 0.01f, 0.45f, 1.35f);
+              Vector3 originOffset = CalculateBeamVerticalOffset(enemy);
+              Vector3 targetOffset = CalculateBeamVerticalOffset(neighbor);
+              BeamVfxManager.Spawn(enemy, originOffset, neighbor, targetOffset, beamStrength, widthOverride: beamWidth);
+            }
+            catch (Exception fxEx)
+            {
+              GD.PrintErr($"CursedSkull beam spawn failed: {fxEx.Message}");
+            }
+
+            try
+            {
+              bool applied = false;
+              if (neighbor is Enemy en)
+              {
+                en.TakeDamage(leftover);
+                applied = true;
+              }
+              else if (neighbor.HasMethod("take_damage"))
+              {
+                neighbor.CallDeferred("take_damage", leftover);
+                applied = true;
+              }
+
+              if (applied)
+              {
+                FloatingNumber3D.Spawn(this, neighbor, leftover);
+                Vector3 dir = bullet.Velocity.LengthSquared() > 0.000001f ? bullet.Velocity.Normalized() : Vector3.Forward;
+                dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
+                var leftoverSnap = new ImpactSnapshot(
+                  damage: leftover,
+                  knockbackScale: snapshot.KnockbackScale,
+                  enemyHit: true,
+                  enemyId: (ulong)neighbor.GetInstanceId(),
+                  hitPosition: neighbor.GlobalTransform.Origin,
+                  hitNormal: -dir
+                );
+                GlobalEvents.Instance?.EmitDamageDealt(neighbor, leftoverSnap, dir, DefaultKnockback);
+                GD.Print("[CursedSkull] transfer applied");
+              }
+              else
+              {
+                GD.Print("[CursedSkull] transfer aborted (neighbor lacks take_damage)");
+              }
+            }
+            catch (Exception e)
+            {
+              GD.PrintErr($"CursedSkull transfer failed: {e.Message}");
+            }
             break;
-
-          Node3D? neighbor = FindNearestEnemy(enemy.GlobalTransform.Origin, step.ParamA, enemy);
-          GD.Print($"[CursedSkull] neighbor={(neighbor != null ? neighbor.Name : "null")}");
-          if (neighbor == null || neighbor == enemy || !IsInstanceValid(neighbor))
-          {
-            GD.Print("[CursedSkull] transfer aborted (no valid neighbor)");
-            break;
           }
-
-          try
-          {
-            float beamStrength = Mathf.Clamp(0.35f + leftover * 0.05f, 0.35f, 2.5f);
-            float beamWidth = Mathf.Clamp(0.45f + leftover * 0.01f, 0.45f, 1.35f);
-            Vector3 originOffset = CalculateBeamVerticalOffset(enemy);
-            Vector3 targetOffset = CalculateBeamVerticalOffset(neighbor);
-            BeamVfxManager.Spawn(enemy, originOffset, neighbor, targetOffset, beamStrength, widthOverride: beamWidth);
-          }
-          catch (Exception fxEx)
-          {
-            GD.PrintErr($"CursedSkull beam spawn failed: {fxEx.Message}");
-          }
-
-          try
-          {
-            bool applied = false;
-            if (neighbor is Enemy en)
-            {
-              en.TakeDamage(leftover);
-              applied = true;
-            }
-            else if (neighbor.HasMethod("take_damage"))
-            {
-              neighbor.CallDeferred("take_damage", leftover);
-              applied = true;
-            }
-
-            if (applied)
-            {
-            FloatingNumber3D.Spawn(this, neighbor, leftover);
-            Vector3 dir = bullet.Velocity.LengthSquared() > 0.000001f ? bullet.Velocity.Normalized() : Vector3.Forward;
-            dir = new Vector3(dir.X, 0.15f * dir.Y, dir.Z).Normalized();
-            var leftoverSnap = new ImpactSnapshot(
-              damage: leftover,
-              knockbackScale: snapshot.KnockbackScale,
-              enemyHit: true,
-              enemyId: (ulong)neighbor.GetInstanceId(),
-              hitPosition: neighbor.GlobalTransform.Origin,
-              hitNormal: -dir
-            );
-            GlobalEvents.Instance?.EmitDamageDealt(neighbor, leftoverSnap, dir, DefaultKnockback);
-              GD.Print("[CursedSkull] transfer applied");
-            }
-            else
-            {
-              GD.Print("[CursedSkull] transfer aborted (neighbor lacks take_damage)");
-            }
-          }
-          catch (Exception e)
-          {
-            GD.PrintErr($"CursedSkull transfer failed: {e.Message}");
-          }
-          break;
-        }
       }
     }
   }
@@ -1591,7 +1591,7 @@ public partial class BulletManager : Node3D
               GlobalEvents.Instance?.EmitImpactOccurred(hitPos, hitNormal, travelDir);
               if (DebugLogCollisions)
               {
-                GD.Print($"[BulletManager] impact at ({hitPos.X:0.00},{hitPos.Y:0.00},{hitPos.Z:0.00}) n=({hitNormal.X:0.00},{hitNormal.Y:0.00},{hitNormal.Z:0.00}) collider={(collider!=null?collider.Name:"null")} id={colliderId}");
+                GD.Print($"[BulletManager] impact at ({hitPos.X:0.00},{hitPos.Y:0.00},{hitPos.Z:0.00}) n=({hitNormal.X:0.00},{hitNormal.Y:0.00},{hitNormal.Z:0.00}) collider={(collider != null ? collider.Name : "null")} id={colliderId}");
               }
 
               ProcessCollisionOrdered(ref b, arch, hitPos, hitNormal, nextPos, colliderId, isEnemy, collider, impact);
@@ -2101,38 +2101,38 @@ public partial class BulletManager
       switch (op.Kind)
       {
         case SteeringOpKind.Homing:
-        {
-          Node3D? nearest = FindNearestEnemy(b.Position, op.ParamA);
-          if (nearest != null)
           {
-            Vector3 desiredDir = nearest.GlobalTransform.Origin - b.Position;
-            if (desiredDir.LengthSquared() > 0.000001f)
+            Node3D? nearest = FindNearestEnemy(b.Position, op.ParamA);
+            if (nearest != null)
             {
-              desiredDir = desiredDir.Normalized();
-              float strength = Mathf.Clamp(op.ParamB, 0f, 1f);
-              Vector3 blendedDir = BlendDirections(curDir, desiredDir, strength);
-              b.Velocity = blendedDir * speed;
-              curDir = blendedDir;
+              Vector3 desiredDir = nearest.GlobalTransform.Origin - b.Position;
+              if (desiredDir.LengthSquared() > 0.000001f)
+              {
+                desiredDir = desiredDir.Normalized();
+                float strength = Mathf.Clamp(op.ParamB, 0f, 1f);
+                Vector3 blendedDir = BlendDirections(curDir, desiredDir, strength);
+                b.Velocity = blendedDir * speed;
+                curDir = blendedDir;
+              }
             }
+            break;
           }
-          break;
-        }
         case SteeringOpKind.Tracking:
-        {
-          if (!steeringCache.HasTrackingTarget)
-            break;
+          {
+            if (!steeringCache.HasTrackingTarget)
+              break;
 
-          Vector3 desiredDir = steeringCache.TrackingTarget - b.Position;
-          if (desiredDir.LengthSquared() < 0.000001f)
-            break;
+            Vector3 desiredDir = steeringCache.TrackingTarget - b.Position;
+            if (desiredDir.LengthSquared() < 0.000001f)
+              break;
 
-          desiredDir = desiredDir.Normalized();
-          float strength = Mathf.Clamp(op.ParamA, 0f, 1f);
-          Vector3 blendedDir = BlendDirections(curDir, desiredDir, strength);
-          b.Velocity = blendedDir * speed;
-          curDir = blendedDir;
-          break;
-        }
+            desiredDir = desiredDir.Normalized();
+            float strength = Mathf.Clamp(op.ParamA, 0f, 1f);
+            Vector3 blendedDir = BlendDirections(curDir, desiredDir, strength);
+            b.Velocity = blendedDir * speed;
+            curDir = blendedDir;
+            break;
+          }
       }
     }
   }
@@ -2206,9 +2206,18 @@ public partial class BulletManager
         Color? numColor = snapshot.IsCrit ? Colors.Yellow : (Color?)null;
         FloatingNumber3D.Spawn(this, enemyNode, damage, numColor);
 
-        // Emit global damage for knockback with simple radial falloff
-        Vector3 radial = (enemyNode.GlobalTransform.Origin - center);
-        Vector3 dir = radial.LengthSquared() > 0.000001f ? radial.Normalized() : Vector3.Up;
+        // Emit global damage for knockback with a mostly-horizontal impulse and slight upward bias.
+        // This avoids unnatural straight-up launch when the explosion center is directly below the enemy.
+        Vector3 delta = enemyNode.GlobalTransform.Origin - center;
+        Vector3 planar = new Vector3(delta.X, 0f, delta.Z);
+        if (planar.LengthSquared() <= 0.000001f)
+        {
+          // Fallback: use the enemy's forward as a stable horizontal direction
+          Vector3 fwd = enemyNode.GlobalTransform.Basis.Z;
+          planar = new Vector3(fwd.X, 0f, fwd.Z);
+        }
+        Vector3 planarDir = planar.LengthSquared() > 0.000001f ? planar.Normalized() : Vector3.Forward;
+        Vector3 dir = (planarDir + Vector3.Up * 0.2f).Normalized();
         float falloff = Mathf.Clamp(1.0f - (dist / Mathf.Max(0.0001f, radius)), 0.0f, 1.0f);
         GlobalEvents.Instance?.EmitDamageDealt(enemyNode, snapshot, dir, baseKnock, falloff);
       }
