@@ -108,6 +108,9 @@ common/max_physics_steps_per_frame=1
 jolt_physics_3d/simulation/velocity_steps=6
 jolt_physics_3d/simulation/position_steps=1
 jolt_physics_3d/simulation/penetration_slop=0.00105
+jolt_physics_3d/simulation/speculative_contact_distance=0.1
+jolt_physics_3d/simulation/body_pair_contact_cache_distance_threshold=0.025
+jolt_physics_3d/simulation/body_pair_contact_cache_angle_threshold=0.10472
 3d/solver/solver_iterations=6
 
 [rendering]

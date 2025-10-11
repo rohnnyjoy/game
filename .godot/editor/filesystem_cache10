@@ -1,5 +1,5 @@
 63f7b34db8d8cdea90c76aacccf841ec
-::res://::1760148425
+::res://::1760150183
 AGENTS.md::TextFile::-1::1759787857::0::1::::<><><>0<>0<><>::
 Crosshair.cs::CSharpScript::5489242402427178278::1759968421::0::1::::<>Control<><>0<>0<><>::
 crystal_cluster.tscn::PackedScene::418933897563620330::1742586369::0::1::::<><><>0<>0<><>::uid://bshrlerkwv2p3::::res://models/stylized_crystal.glb
@@ -207,7 +207,7 @@ texture_12.png::CompressedTexture2D/CompressedTexture2D::4415144967384604254::16
 texture_13.png::CompressedTexture2D/CompressedTexture2D::1228184785722532910::1695149700::1759968421::1::::<><><>0<>0<>24ddd60aec93146538a172e589cccdc3<>res://.godot/imported/texture_13.png-891332ffbf32d9b94212aaf3a11a15a9.ctex::
 ::res://ai/::1760148425
 AIScheduler.cs::CSharpScript::1051468043105870140::1759791069::0::1::::<><><>0<>0<><>::
-EnemyAIManager.cs::CSharpScript::5120349317733626476::1760148679::0::1::::<>Node<><>0<>0<><>::
+EnemyAIManager.cs::CSharpScript::5120349317733626476::1760149890::0::1::::<>Node<><>0<>0<><>::
 ::res://assets/::1759836404
 ::res://assets/fonts/::1759968421
 Born2bSportyV2.ttf::FontFile/FontFile::4284228967575939785::1759670086::1759968421::1::::<><><>0<>0<>0021a9aa559d467c4f6ec92afbd37fc4<>res://.godot/imported/Born2bSportyV2.ttf-8616a612cd10abeffb5609e36bfef856.fontdata::
@@ -224,10 +224,10 @@ hit.mp3::AudioStreamMP3::8624689673039367573::1760144196::1760144228::1::::<><><
 impact2.wav::AudioStreamWAV/AudioStreamWAV::2061957517999683306::1759699214::1759699215::1::::<><><>0<>0<>aa5903b9dcea258390255aba63009b35<>res://.godot/imported/impact2.wav-1c479126f35fffdfd9f117c920ffb490.sample::
 impact.wav::AudioStreamWAV/AudioStreamWAV::3322374049758142491::1759699214::1759699215::1::::<><><>0<>0<>4650cb24bb6831db51371d8d22cd1e98<>res://.godot/imported/impact.wav-085770fdb0237196658e43d323d23eac.sample::
 paper1.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::8876264149756544264::1759699214::1759717298::1::::<><><>0<>0<>fbf2b4c57b4c33465a8cd37dd7294113<>res://.godot/imported/paper1.ogg-2cdaf6a396847339591591d6d850c615.oggvorbisstr::
-::res://assets/sounds_lufs/::1760149471
+::res://assets/sounds_lufs/::1760150270
 coin1_lufs.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::6211551281286487413::1759714353::1759714395::1::::<><><>0<>0<>5ad6265ce23b7959fe35099610404e3b<>res://.godot/imported/coin1_lufs.ogg-13316124fa784f016f5a128957dcca1b.oggvorbisstr::
-impact_lufs.wav::AudioStreamWAV/AudioStreamWAV::4160480631773184053::1759714341::1760149477::1::::<><><>0<>0<>72daa34a018a382d4c917883331eb703<>res://.godot/imported/impact_lufs.wav-8abce80a28a32e139c1ebf966889aedc.sample::
-::res://assets/sounds_normalized/::1760149471
+impact_lufs.wav::AudioStreamWAV/AudioStreamWAV::4160480631773184053::1759714341::1760150344::1::::<><><>0<>0<>72daa34a018a382d4c917883331eb703<>res://.godot/imported/impact_lufs.wav-8abce80a28a32e139c1ebf966889aedc.sample::
+::res://assets/sounds_normalized/::1760150270
 ambientFire1_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::2112588390570383214::1759713741::1759713746::1::::<><><>0<>0<>4c4d49f94998befbcc2546801380e2dc<>res://.godot/imported/ambientFire1_norm.ogg-c27d878d85ed76f44db8ca4b36819fee.oggvorbisstr::
 ambientFire2_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::2567300583142859036::1759713740::1759713746::1::::<><><>0<>0<>108b36aef450d991e8465294d987c984<>res://.godot/imported/ambientFire2_norm.ogg-29f55198f8922bd74771abb386cb3b52.oggvorbisstr::
 ambientFire3_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::4324945252124060482::1759713739::1759713746::1::::<><><>0<>0<>ccfac9793a319d88fcb32090da12bb92<>res://.godot/imported/ambientFire3_norm.ogg-b88d9f6d3df7df71860efa088f34a961.oggvorbisstr::
@@ -269,13 +269,13 @@ glass5_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::2954851231416731581:
 glass6_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::2520614555332737417::1759713741::1759713746::1::::<><><>0<>0<>7c8bf4610ca7ce888bed98e3be49a1c8<>res://.godot/imported/glass6_norm.ogg-aa8808c28f0333ee2451835096a21827.oggvorbisstr::
 gold_seal_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::8082637006194066011::1759713759::1759713888::1::::<><><>0<>0<>7030209bcc2cc72300d52cae754dd8be<>res://.godot/imported/gold_seal_norm.ogg-90fd1462bd9c0a8c65048b07f504027b.oggvorbisstr::
 gong_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::6406705241702979051::1759713743::1759713746::1::::<><><>0<>0<>84df26a6bf80e2a93e5af1e66848eb10<>res://.godot/imported/gong_norm.ogg-0c9d450533e1bf811a74d208587bae57.oggvorbisstr::
-gun2_norm.wav::AudioStreamWAV/AudioStreamWAV::3973652785284701436::1759713737::1760149477::1::::<><><>0<>0<>d957d2dddc2788b0da472b8f9360ab62<>res://.godot/imported/gun2_norm.wav-6e657a3293552c9e7216985f0250f83b.sample::
-gun_norm.wav::AudioStreamWAV/AudioStreamWAV::245700332701284412::1759713738::1760149477::1::::<><><>0<>0<>de3808f0f24c18a18ea336f3e3d0518d<>res://.godot/imported/gun_norm.wav-780f6307c458fe2a8e98b02f89467d74.sample::
+gun2_norm.wav::AudioStreamWAV/AudioStreamWAV::3973652785284701436::1759713737::1760150344::1::::<><><>0<>0<>d957d2dddc2788b0da472b8f9360ab62<>res://.godot/imported/gun2_norm.wav-6e657a3293552c9e7216985f0250f83b.sample::
+gun_norm.wav::AudioStreamWAV/AudioStreamWAV::245700332701284412::1759713738::1760150344::1::::<><><>0<>0<>de3808f0f24c18a18ea336f3e3d0518d<>res://.godot/imported/gun_norm.wav-780f6307c458fe2a8e98b02f89467d74.sample::
 highlight1_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::4492059240427129270::1759713758::1759713888::1::::<><><>0<>0<>07a10be9e5fcfa9833b2d7dbd10a0466<>res://.godot/imported/highlight1_norm.ogg-560dd65c791959534a2a2da4caafbe5d.oggvorbisstr::
 highlight2_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::1237196952133298469::1759713757::1759713888::1::::<><><>0<>0<>9a345895f677f3084e356274d3ab6a04<>res://.godot/imported/highlight2_norm.ogg-d0cc852571133246225a5294a9530fcc.oggvorbisstr::
 holo1_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::8220133062041439380::1759713757::1759713888::1::::<><><>0<>0<>4e7ea8579199809b6102b2b265ddf4c5<>res://.godot/imported/holo1_norm.ogg-1c892b0c0b983ccefc859d2b95d607b3.oggvorbisstr::
-impact2_norm.wav::AudioStreamWAV/AudioStreamWAV::8888586758697449070::1759713738::1760149477::1::::<><><>0<>0<>24fc1f5eb9ef9b343fd89a248a450bb3<>res://.godot/imported/impact2_norm.wav-ba498d3adb3ac12f5d05cda32f11d39f.sample::
-impact_norm.wav::AudioStreamWAV/AudioStreamWAV::2451709631307635528::1759713737::1760149477::1::::<><><>0<>0<>73ddc39bc238887da3ce20f775f71e5e<>res://.godot/imported/impact_norm.wav-ccb27a9f490ea6a8b1191322b6fdd84e.sample::
+impact2_norm.wav::AudioStreamWAV/AudioStreamWAV::8888586758697449070::1759713738::1760150344::1::::<><><>0<>0<>24fc1f5eb9ef9b343fd89a248a450bb3<>res://.godot/imported/impact2_norm.wav-ba498d3adb3ac12f5d05cda32f11d39f.sample::
+impact_norm.wav::AudioStreamWAV/AudioStreamWAV::2451709631307635528::1759713737::1760150344::1::::<><><>0<>0<>73ddc39bc238887da3ce20f775f71e5e<>res://.godot/imported/impact_norm.wav-ccb27a9f490ea6a8b1191322b6fdd84e.sample::
 introPad1_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::7328361621510688531::1759713759::1759713888::1::::<><><>0<>0<>f84053761596da3a68ad61f16f42f0d8<>res://.godot/imported/introPad1_norm.ogg-4515afd450fd39d3f31a45dfe8fbd1bb.oggvorbisstr::
 magic_crumple2_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::4782254692838281838::1759713740::1759713746::1::::<><><>0<>0<>716fa99f0682961cc9c2a63c7b71c6dd<>res://.godot/imported/magic_crumple2_norm.ogg-26f68e3bd020dd9643151a3ea5acd64b.oggvorbisstr::
 magic_crumple3_norm.ogg::AudioStreamOggVorbis/AudioStreamOggVorbis::4871200509494113921::1759713739::1759713746::1::::<><><>0<>0<>06f7ee16c7837282c2ee4e2327a239db<>res://.godot/imported/magic_crumple3_norm.ogg-45522520acdee5f9b4e8c09d43c799d1.oggvorbisstr::
@@ -372,7 +372,7 @@ BasicBullet.tscn::PackedScene::2252512493627945274::1759961489::0::1::::<><><>0<
 basic_bullet.fbx::PackedScene/PackedScene::4429474944995573519::1742474776::1759968421::1::::<><><>0<>0<>f88eae977731ed6b8d189ab2bbba751f<>res://.godot/imported/basic_bullet.fbx-2bf023a9dcf007a0c215528e6ccd97e9.scn::
 ::res://bullets/manager/::1760104856
 BulletBehaviors.cs::CSharpScript::2144640927535944646::1759610590::0::1::::<><><>0<>0<><>::
-BulletManager.cs::CSharpScript::2926281655340085118::1760112593::0::1::::<>Node3D<><>0<>0<><>::
+BulletManager.cs::CSharpScript::2926281655340085118::1760149740::0::1::::<>Node3D<><>0<>0<><>::
 ::res://bullets/modifiers/::1759866804
 BulletModifier.cs::CSharpScript::5321398716978452832::1742500433::0::1::::<>Resource<><>0<>1<><>::
 ::res://constants/::1759779357
@@ -915,7 +915,7 @@ DamageKind.cs::CSharpScript::32707015415996743::1760029012::0::1::::<><><>0<>0<>
 DamageRequest.cs::CSharpScript::2392902293087812428::1760034475::0::1::::<><><>0<>0<><>::
 DamageResult.cs::CSharpScript::5850705214235221248::1760029036::0::1::::<><><>0<>0<><>::
 DamageSystem.cs::CSharpScript::5910837043701123652::1760103381::0::1::::<><><>0<>0<><>::
-EnemySpawnUtility.cs::CSharpScript::588540505045095912::1760140099::0::1::::<><><>0<>0<><>::
+EnemySpawnUtility.cs::CSharpScript::588540505045095912::1760149960::0::1::::<><><>0<>0<><>::
 IDamageReceiver.cs::CSharpScript::7325068233351608546::1760029044::0::1::::<><><>0<>0<><>::
 PhysicsLayers.cs::CSharpScript::8071152994843430789::1760037864::0::1::::<><><>0<>0<><>::
 ::res://shared/shaders/::1760139568
@@ -942,7 +942,7 @@ ShopItem.cs::CSharpScript::5536435681201776681::1760019965::0::1::::<>RigidBody3
 ::res://shop/materials/::1760022814
 ShopSafeZone.material.tres::StandardMaterial3D::-1::1760024230::0::1::::<><><>0<>0<><>::
 ::res://spawning/::1760140078
-EnemySpawner.cs::CSharpScript::182049020381854786::1760140121::0::1::::<>Node3D<><>0<>0<><>::
+EnemySpawner.cs::CSharpScript::182049020381854786::1760149966::0::1::::<>Node3D<><>0<>0<><>::
 ::res://sprites/::1759709141
 ::res://tests/::1759589591
 ::res://tests/MultiplayerFPSTutorial.Tests/::1759836515
@@ -980,7 +980,7 @@ MoneyComboUi.cs::CSharpScript::6119760988942934454::1760144998::0::1::::<>Contro
 MoneyTotalUi.cs::CSharpScript::909086913826243449::1760098987::0::1::::<>Control<><>0<>0<><>::
 PauseMenu.cs::CSharpScript::6751817450060210155::1760099030::0::1::::<>CanvasLayer<><>0<>0<><>::
 ProfilerOverlay.cs::CSharpScript::5108014588473175865::1760099165::0::1::::<>Control<><>0<>0<><>::
-DebugConsoleUi.cs::CSharpScript::7506972506566329570::1760140273::0::1::::<>CanvasLayer<><>0<>0<><>::
+DebugConsoleUi.cs::CSharpScript::7506972506566329570::1760149971::0::1::::<>CanvasLayer<><>0<>0<><>::
 RunTimerDisplay.cs::CSharpScript::1355385982393330276::1760099048::0::1::::<>Control<><>0<>0<><>::
 TooltipUi.cs::CSharpScript::5321525631454941175::1760104228::0::1::::<>Control<><>0<>0<><>::
 TopLeftHud.tscn::PackedScene::7432381902979141613::1759961400::0::1::::<><><>0<>0<><>::uid://bvrbdf3ge55dd::::res://ui/HealthUi.cs<>res://ui/HudModuleBar.cs<>uid://dbqo378qsrfc1::::res://ui/DifficultyDisplay.cs<>uid://tktakr5g8adw::::res://ui/RunTimerDisplay.cs<>uid://to8qfy83go8s::::res://ui/KillCountDisplay.cs

@@ -243,6 +243,10 @@ public partial class EnemyAIManager : Node
         continue;
       }
 
+      // Sync cached kinematics with the physics body before any decisions.
+      data.Position = enemy.GlobalTransform.Origin;
+      data.Velocity = enemy.Velocity;
+
       Node3D? nearestPlayer = null;
       float nearestDist2 = float.PositiveInfinity;
       if (PlayerCache.Count > 0)
@@ -321,8 +325,7 @@ public partial class EnemyAIManager : Node
 
       // Cheap contact damage check without per-enemy Areas/signals
       TryDealContactDamage(enemy, ref data);
-
-      enemy.ApplySimulation(data.Position, data.Velocity);
+      
     }
 
     _cursor = AIScheduler.AdvanceCursor(total, MaxAiUpdatesPerFrame, _cursor);

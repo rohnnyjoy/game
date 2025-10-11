@@ -30,6 +30,7 @@ public partial class EnemySpawner : Node3D
 
   [Export(PropertyHint.Range, "1.0,100.0,0.5")] public float MinSpawnRadius { get; set; } = 12.0f;
   [Export(PropertyHint.Range, "1.0,200.0,0.5")] public float MaxSpawnRadius { get; set; } = 32.0f;
+  [Export(PropertyHint.Range, "0.0,50.0,0.1")] public float MinSpawnSeparation { get; set; } = EnemySpawnUtility.DefaultMinSpawnSeparation;
   [Export(PropertyHint.Range, "0,500")] public int MaxAliveEnemies { get; set; } = 30;
   [Export(PropertyHint.Range, "0,25")] public int BurstCount { get; set; } = 3; // spawn multiple per tick if desired
 
@@ -106,23 +107,37 @@ public partial class EnemySpawner : Node3D
     if (player is PhysicsBody3D playerBody)
       exclude.Add(playerBody.GetRid());
 
+    // Build an avoidance list: start with current active enemy positions, and append newly accepted positions as we spawn.
+    var avoidPositions = new System.Collections.Generic.List<Vector3>(Math.Min(MaxAliveEnemies, 256));
+    EnemySpawnUtility.FillActiveEnemyPositions(avoidPositions);
+
     for (int i = 0; i < toSpawn && alive < MaxAliveEnemies; i++)
     {
       var instance = EnemyScene.Instantiate<Node3D>();
       if (instance == null)
         continue;
 
-      Vector3 sample = EnemySpawnUtility.SamplePlanarPosition(
-        player.GlobalTransform.Origin,
-        MinSpawnRadius,
-        MaxSpawnRadius,
-        _rng);
+      if (!EnemySpawnUtility.TrySampleSeparatedPosition(
+        center: player.GlobalTransform.Origin,
+        minRadius: MinSpawnRadius,
+        maxRadius: MaxSpawnRadius,
+        minSeparation: MathF.Max(0f, MinSpawnSeparation),
+        rng: _rng,
+        existing: avoidPositions,
+        out Vector3 sample))
+      {
+        // Fallback to a simple sample if separation failed repeatedly
+        sample = EnemySpawnUtility.SamplePlanarPosition(player.GlobalTransform.Origin, MinSpawnRadius, MaxSpawnRadius, _rng);
+      }
 
       uint mask = instance is PhysicsBody3D body ? body.CollisionMask : uint.MaxValue;
       Vector3 grounded = EnemySpawnUtility.ResolveGroundedPosition(sample, spawnHeight, space, mask, exclude);
 
       parent.AddChild(instance);
       instance.GlobalTransform = new Transform3D(Basis.Identity, grounded);
+
+      // Track accepted planar positions so subsequent spawns this tick keep spacing.
+      avoidPositions.Add(sample);
 
       if (instance is Enemy enemy)
         enemy.CallDeferred(nameof(Enemy.EnsureSimulationSync));

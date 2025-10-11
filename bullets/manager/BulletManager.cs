@@ -283,6 +283,8 @@ public partial class BulletManager : Node3D
   public bool DebugLogCollisions { get; set; } = true;
   [Export]
   public float DefaultKnockback { get; set; } = 3.5f;
+  [Export]
+  public float ExplosionKnockbackMultiplier { get; set; } = 3.0f;
 
   public override void _EnterTree()
   {
@@ -2183,6 +2185,7 @@ public partial class BulletManager
     GlobalEvents.Instance?.EmitExplosionOccurred(center, cfg.Radius);
     float radius = cfg.Radius;
     float damage = snapshot.Damage * cfg.DamageMultiplier;
+    float baseKnock = MathF.Max(0.0f, DefaultKnockback) * MathF.Max(0.0f, ExplosionKnockbackMultiplier);
     foreach (Enemy enemyNode in EnemyAIManager.ActiveSimulationEnemies)
     {
       if (!IsInstanceValid(enemyNode))
@@ -2207,7 +2210,7 @@ public partial class BulletManager
         Vector3 radial = (enemyNode.GlobalTransform.Origin - center);
         Vector3 dir = radial.LengthSquared() > 0.000001f ? radial.Normalized() : Vector3.Up;
         float falloff = Mathf.Clamp(1.0f - (dist / Mathf.Max(0.0001f, radius)), 0.0f, 1.0f);
-        GlobalEvents.Instance?.EmitDamageDealt(enemyNode, snapshot, dir, DefaultKnockback, falloff);
+        GlobalEvents.Instance?.EmitDamageDealt(enemyNode, snapshot, dir, baseKnock, falloff);
       }
     }
   }

@@ -494,23 +494,36 @@ public partial class DebugConsoleUi : CanvasLayer
     rng.Randomize();
 
     int spawned = 0;
+    var avoidPositions = new List<Vector3>(Math.Max(16, count));
+    EnemySpawnUtility.FillActiveEnemyPositions(avoidPositions);
+    float minSeparation = EnemySpawnUtility.DefaultMinSpawnSeparation;
     for (int i = 0; i < count; i++)
     {
       var instance = _enemyScene.Instantiate<Node3D>();
       if (instance == null)
         continue;
 
-      Vector3 sample = EnemySpawnUtility.SamplePlanarPosition(
-        player.GlobalTransform.Origin,
-        minRadius,
-        maxRadius,
-        rng);
+      Vector3 sample;
+      if (!EnemySpawnUtility.TrySampleSeparatedPosition(
+            center: player.GlobalTransform.Origin,
+            minRadius: minRadius,
+            maxRadius: maxRadius,
+            minSeparation: minSeparation,
+            rng: rng,
+            existing: avoidPositions,
+            out sample))
+      {
+        // Fallback to a simple sample if separation fails repeatedly
+        sample = EnemySpawnUtility.SamplePlanarPosition(player.GlobalTransform.Origin, minRadius, maxRadius, rng);
+      }
 
       uint mask = instance is PhysicsBody3D body ? body.CollisionMask : uint.MaxValue;
       Vector3 grounded = EnemySpawnUtility.ResolveGroundedPosition(sample, spawnHeight, space, mask, exclude);
 
       parent.AddChild(instance);
       instance.GlobalTransform = new Transform3D(Basis.Identity, grounded);
+
+      avoidPositions.Add(sample);
 
       if (instance is Enemy enemy)
         enemy.CallDeferred(nameof(Enemy.EnsureSimulationSync));

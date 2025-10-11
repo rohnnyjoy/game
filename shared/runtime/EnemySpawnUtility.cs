@@ -11,6 +11,7 @@ namespace Shared.Runtime
   {
     private const float DefaultSpawnHeight = 1.0f;
     private const float RaycastHeight = 50.0f;
+    public const float DefaultMinSpawnSeparation = 3.0f; // meters
 
     private static readonly Dictionary<string, float> SpawnHeightCache = new(StringComparer.Ordinal);
 
@@ -72,6 +73,67 @@ namespace Shared.Runtime
       }
 
       return basePosition + Vector3.Up * spawnHeight;
+    }
+
+    /// <summary>
+    /// Try to sample a planar position around the given center that is at least <paramref name="minSeparation"/>
+    /// away (XZ/planar) from all positions in <paramref name="existing"/>. Returns true on success.
+    /// The returned position is not grounded; call ResolveGroundedPosition afterwards.
+    /// </summary>
+    public static bool TrySampleSeparatedPosition(
+      Vector3 center,
+      float minRadius,
+      float maxRadius,
+      float minSeparation,
+      RandomNumberGenerator rng,
+      System.Collections.Generic.IList<Vector3> existing,
+      out Vector3 position,
+      int maxAttempts = 32)
+    {
+      position = center;
+      float sepSq = MathF.Max(0f, minSeparation) * MathF.Max(0f, minSeparation);
+      for (int attempt = 0; attempt < Math.Max(1, maxAttempts); attempt++)
+      {
+        Vector3 sample = SamplePlanarPosition(center, minRadius, maxRadius, rng);
+        bool ok = true;
+        for (int i = 0; i < existing.Count; i++)
+        {
+          if (PlanarDistanceSquared(sample, existing[i]) < sepSq)
+          {
+            ok = false;
+            break;
+          }
+        }
+        if (ok)
+        {
+          position = sample;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    /// <summary>
+    /// Collect current active enemy positions into the provided list.
+    /// </summary>
+    public static void FillActiveEnemyPositions(System.Collections.Generic.IList<Vector3> into)
+    {
+      if (into == null)
+        return;
+      foreach (var e in Enemy.ActiveEnemies)
+      {
+        if (e != null && e.IsInsideTree() && e.IsNodeReady())
+        {
+          into.Add(e.GlobalTransform.Origin);
+        }
+      }
+    }
+
+    private static float PlanarDistanceSquared(in Vector3 a, in Vector3 b)
+    {
+      float dx = a.X - b.X;
+      float dz = a.Z - b.Z;
+      return dx * dx + dz * dz;
     }
 
     public static void SyncEnemyWithSimulation(Enemy enemy)
