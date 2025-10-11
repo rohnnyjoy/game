@@ -13,6 +13,9 @@ namespace Combat
   public partial class DamageFeedback : Node
   {
     private readonly List<MeshInstance3D> _meshInstances = new();
+    // Record the original MaterialOverride for each mesh so we can reliably
+    // restore even if multiple flashes overlap.
+    private readonly Dictionary<MeshInstance3D, Material?> _originalOverride = new();
     private StandardMaterial3D _flashMaterial = default!;
     private int _flashToken = 0;
 
@@ -37,6 +40,13 @@ namespace Combat
         EmissionEnabled = true,
         Emission = new Color(1, 1, 1, 1)
       };
+
+      // Capture original overrides after collection so restores are stable.
+      foreach (var mi in _meshInstances)
+      {
+        if (GodotObject.IsInstanceValid(mi))
+          _originalOverride[mi] = mi.MaterialOverride;
+      }
     }
 
     private void CollectMeshInstances(Node node)
@@ -64,15 +74,14 @@ namespace Combat
     {
       _flashToken++;
       int token = _flashToken;
-
-      var previousMaterials = new List<(MeshInstance3D Mesh, Material? Material)>(_meshInstances.Count);
-
       foreach (var mi in _meshInstances)
       {
         if (!GodotObject.IsInstanceValid(mi))
           continue;
-
-        previousMaterials.Add((mi, mi.MaterialOverride));
+        // If we don't have a baseline for this mesh yet (e.g., dynamically added),
+        // or it changed externally since _Ready, capture its current non-flash state.
+        if (!_originalOverride.ContainsKey(mi) || _originalOverride[mi] == _flashMaterial)
+          _originalOverride[mi] = mi.MaterialOverride;
         mi.MaterialOverride = _flashMaterial;
       }
 
@@ -81,10 +90,13 @@ namespace Combat
 
       if (token == _flashToken)
       {
-        foreach (var entry in previousMaterials)
+        foreach (var mi in _meshInstances)
         {
-          if (GodotObject.IsInstanceValid(entry.Mesh))
-            entry.Mesh.MaterialOverride = entry.Material;
+          if (!GodotObject.IsInstanceValid(mi))
+            continue;
+          // Restore to the captured original, not whatever was set mid-flash.
+          Material? restore = _originalOverride.TryGetValue(mi, out var mat) ? mat : null;
+          mi.MaterialOverride = restore;
         }
       }
     }

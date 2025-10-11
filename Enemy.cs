@@ -218,7 +218,7 @@ public partial class Enemy : RigidBody3D
       // Balanced: enough grip to prevent sliding on most slopes
       // without heavily resisting our driven horizontal velocity.
       Friction = 0.9f,
-      Bounce = 0.0f
+      Bounce = 0.1f
     };
     ContactMonitor = false;
     MaxContactsReported = 0;

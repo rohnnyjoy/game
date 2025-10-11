@@ -357,13 +357,24 @@ public partial class EnemyAIManager : Node
     if (!data.Active)
       return;
 
-    Vector3 adjusted = impulse;
-    float len = adjusted.Length();
-    float max = MathF.Max(0.01f, enemy.MaxKnockbackSpeed);
-    if (len > max)
-      adjusted = adjusted / len * max;
+    // Treat the incoming vector as a desired delta-velocity; apply it as a one-shot
+    // rigidbody impulse (J = m * dv) and retain a decaying copy only for steering blending.
+    Vector3 dv = impulse;
+    float dvLen = dv.Length();
+    float maxDv = MathF.Max(0.01f, enemy.MaxKnockbackSpeed);
+    if (dvLen > maxDv)
+      dv = dv / dvLen * maxDv;
 
-    data.KnockbackVelocity = adjusted;
+    float mass = MathF.Max(0.001f, enemy.Mass);
+    Vector3 J = dv * mass;
+    try
+    {
+      enemy.ApplyCentralImpulse(J);
+    }
+    catch { }
+
+    // Keep a decaying vector for temporary steering suppression during recovery.
+    data.KnockbackVelocity = dv;
     data.ForcedPhysicsSteps = Math.Max(data.ForcedPhysicsSteps, 2);
   }
 
@@ -406,75 +417,57 @@ public partial class EnemyAIManager : Node
 
   private void PerformMovement(ref EnemySimData data, Enemy enemy, float dt)
   {
-    // Respect physics gravity; steer while preserving impulses and enforce slope-invariant ground speed.
+    // Pure RigidBody control: apply steering as forces toward a ground-plane target
+    // velocity; treat knockback impulses as physics impulses (already applied).
     Vector3 v = enemy.Velocity;
 
-    // Current and desired horizontal velocities
+    // Desired horizontal velocity from steering (computed in UpdateSteering)
     Vector3 desiredXZ = data.HorizontalVelocity;
 
-    // Compute steering suppression based on current horizontal knockback magnitude
-    Vector3 kbXZ = new Vector3(data.KnockbackVelocity.X, 0f, data.KnockbackVelocity.Z);
-    float kbLen = kbXZ.Length();
-    float maxKb = MathF.Max(0.01f, enemy.MaxKnockbackSpeed);
-    float suppression = Mathf.Clamp(kbLen / maxKb, 0f, 1f);
-
-    // Weight steering down proportionally to knockback strength (up to 80% reduction)
-    float steerWeight = 1f - 0.8f * suppression;
-    Vector3 targetXZ = desiredXZ * steerWeight;
-
     // Ground probing to obtain a reliable surface normal
-    bool hasGround = TryGetGroundNormal(enemy, in data, out Vector3 groundNormal, out float groundDist);
+    bool hasGround = TryGetGroundNormal(enemy, in data, out Vector3 groundNormal, out float _);
     groundNormal = hasGround ? groundNormal : Vector3.Up;
 
-    // Always add knockback as an impulse-like velocity; do not overwrite tangential speed.
-    v += data.KnockbackVelocity;
-    enemy.Velocity = v;
+    // Scale steering based on current knockback recovery (decaying vector used as proxy)
+    float kbLen = new Vector3(data.KnockbackVelocity.X, 0f, data.KnockbackVelocity.Z).Length();
+    float maxKb = MathF.Max(0.01f, enemy.MaxKnockbackSpeed);
+    float kbSuppression = Mathf.Clamp(kbLen / maxKb, 0f, 1f);
+    float steerScale = 1f - kbSuppression; // 0 -> full suppress, 1 -> full steering
 
-    data.Position = enemy.GlobalTransform.Origin;
-    data.Velocity = enemy.Velocity;
-    // Keep HorizontalVelocity as the steering target set by UpdateSteering; do not overwrite with current.
-    data.OnFloor = false;
-
-    // Physics-native assist: counter gravity along slope and friction; accelerate toward target surface speed.
-    if (targetXZ.LengthSquared() > 0.000001f && hasGround)
+    if (hasGround && desiredXZ.LengthSquared() > 0.000001f && steerScale > 0.001f)
     {
-      float desiredSpeed = targetXZ.Length();
-      Vector3 desiredDir3 = targetXZ.Normalized();
+      float desiredSpeed = desiredXZ.Length();
+      Vector3 desiredDir3 = desiredXZ.Normalized();
       Vector3 surfDir = desiredDir3 - groundNormal * desiredDir3.Dot(groundNormal);
       if (surfDir.LengthSquared() > 0.000001f)
         surfDir = surfDir.Normalized();
       else
         surfDir = desiredDir3;
 
-      Vector3 vCur = enemy.Velocity;
-      Vector3 vN = groundNormal * vCur.Dot(groundNormal);
-      Vector3 vT = vCur - vN;
-      float currentSpeed = vT.Length();
+      // Current tangential velocity vs target
+      Vector3 vN = groundNormal * v.Dot(groundNormal);
+      Vector3 vT = v - vN;
+      Vector3 vtTarget = surfDir * desiredSpeed;
+      Vector3 velError = vtTarget - vT;
+
+      // PD-like acceleration toward target tangential velocity
+      float accelGain = 25f; // m/s^2 per unit velocity error
+      float maxAccel = 80f;  // cap to avoid spikes
+      Vector3 desiredAccel = velError * (accelGain * steerScale);
+      if (desiredAccel.Length() > maxAccel)
+        desiredAccel = desiredAccel.Normalized() * maxAccel;
 
       float mass = MathF.Max(0.001f, enemy.Mass);
-      float mu = (enemy.PhysicsMaterialOverride is PhysicsMaterial pm) ? pm.Friction : 0.9f;
-
-      // Gravity vector used by this simulation.
-      Vector3 gVec = Vector3.Down * Enemy.GRAVITY;
-      // Cancel gravity component parallel to the ground so up/down slopes don't change speed.
-      Vector3 gParallel = gVec - groundNormal * gVec.Dot(groundNormal);
-      Vector3 antiGravity = -gParallel * mass;
-
-      // Friction compensation using N = m*g*cos(theta)
-      float cosTheta = Mathf.Abs(Vector3.Down.Dot(groundNormal.Normalized()));
-      float normalForceMag = mass * Enemy.GRAVITY * cosTheta;
-      float frictionForceMag = mu * normalForceMag;
-
-      // Accelerate toward desired surface speed
-      float accelGain = 30f; // m/s^2 per unit speed error
-      float speedError = MathF.Max(0f, desiredSpeed - currentSpeed);
-      float accelForceMag = speedError * mass * accelGain;
-
-      Vector3 totalForce = surfDir * (frictionForceMag + accelForceMag) + antiGravity;
-      if (totalForce.LengthSquared() > 0.000001f)
-        enemy.ApplyCentralForce(totalForce);
+      Vector3 force = desiredAccel * mass;
+      if (force.LengthSquared() > 0.000001f)
+        enemy.ApplyCentralForce(force);
     }
+
+    data.Position = enemy.GlobalTransform.Origin;
+    data.Velocity = enemy.Velocity;
+    data.OnFloor = false;
   }
+
 
   private bool TryGetGroundNormal(Enemy enemy, in EnemySimData data, out Vector3 normal, out float distance)
   {
