@@ -137,10 +137,11 @@ public partial class GameUI : CanvasLayer
 
   private void ApplyWindowMode()
   {
+    UserSettings.EnsureLoaded();
     var win = GetWindow();
     if (win != null)
     {
-      win.Mode = Window.ModeEnum.Maximized;
+      win.Mode = UserSettings.FullscreenEnabled ? Window.ModeEnum.Fullscreen : Window.ModeEnum.Maximized;
     }
   }
 

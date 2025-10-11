@@ -86,6 +86,7 @@ public partial class GlobalEvents : Node
   public override void _Ready()
   {
     Instance = this;
+    UserSettings.EnsureLoaded();
     AssetWarmup.Run(this);
     // Prewarm runtime-generated resources to avoid first-use hitches
     Coin.Prewarm();
