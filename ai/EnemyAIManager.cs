@@ -247,13 +247,6 @@ public partial class EnemyAIManager : Node
     }
 
     RefreshPlayerCache();
-    var world = GetTree().Root?.World3D;
-    PhysicsDirectSpaceState3D? space = world?.DirectSpaceState;
-    if (space == null)
-    {
-      _frameIndex++;
-      return;
-    }
 
     float dt = (float)delta;
     var (start, count) = AIScheduler.ComputeSlice(total, MaxAiUpdatesPerFrame, _cursor);
@@ -354,7 +347,7 @@ public partial class EnemyAIManager : Node
 
       data.Velocity += data.KnockbackVelocity;
 
-      PerformMovement(ref data, enemy, effectiveDelta, space);
+      PerformMovement(ref data, enemy, effectiveDelta);
 
       data.KnockbackVelocity = data.KnockbackVelocity.MoveToward(Vector3.Zero, enemy.KnockbackDamping * effectiveDelta);
       if (data.ForcedPhysicsSteps > 0)
@@ -440,111 +433,15 @@ public partial class EnemyAIManager : Node
     enemy.ApplySimulation(data.Position, data.Velocity);
   }
 
-  private void PerformMovement(ref EnemySimData data, Enemy enemy, float dt, PhysicsDirectSpaceState3D space)
+  private void PerformMovement(ref EnemySimData data, Enemy enemy, float dt)
   {
-    Vector3 position = data.Position;
-    Vector3 velocity = data.Velocity;
+    enemy.Velocity = data.Velocity;
+    enemy.MoveAndSlide();
 
-    float bottomOffset = data.CapsuleHalfHeight;
-    float rayPadding = 0.2f;
-
-    // Vertical integration
-    float verticalStep = velocity.Y * dt;
-    bool onFloor = false;
-
-    if (verticalStep < -0.0001f)
-    {
-      Vector3 from = position + Vector3.Down * (bottomOffset - data.CapsuleRadius * 0.25f);
-      Vector3 to = from + Vector3.Down * (MathF.Abs(verticalStep) + rayPadding);
-      data.DownRay.From = from;
-      data.DownRay.To = to;
-      var hit = space.IntersectRay(data.DownRay);
-      if (hit.Count > 0)
-      {
-        Vector3 hitPos = hit.ContainsKey("position") ? (Vector3)hit["position"] : to;
-        position.Y = hitPos.Y + bottomOffset;
-        velocity.Y = 0f;
-        onFloor = true;
-      }
-      else
-      {
-        position += Vector3.Down * MathF.Abs(verticalStep);
-      }
-    }
-    else if (verticalStep > 0.0001f)
-    {
-      Vector3 from = position + Vector3.Up * (bottomOffset - data.CapsuleRadius * 0.25f);
-      Vector3 to = from + Vector3.Up * (verticalStep + rayPadding);
-      data.UpRay.From = from;
-      data.UpRay.To = to;
-      var hit = space.IntersectRay(data.UpRay);
-      if (hit.Count > 0)
-      {
-        Vector3 hitPos = hit.ContainsKey("position") ? (Vector3)hit["position"] : to;
-        position.Y = hitPos.Y - bottomOffset;
-        velocity.Y = 0f;
-      }
-      else
-      {
-        position += Vector3.Up * verticalStep;
-      }
-    }
-    else
-    {
-      position.Y += verticalStep;
-
-      Vector3 supportFrom = position + Vector3.Down * (bottomOffset - data.CapsuleRadius * 0.25f);
-      Vector3 supportTo = supportFrom + Vector3.Down * (rayPadding + 0.5f);
-      data.DownRay.From = supportFrom;
-      data.DownRay.To = supportTo;
-      var supportHit = space.IntersectRay(data.DownRay);
-      if (supportHit.Count > 0 && supportHit.ContainsKey("position"))
-      {
-        Vector3 hitPos = (Vector3)supportHit["position"];
-        position.Y = hitPos.Y + bottomOffset;
-        velocity.Y = 0f;
-        onFloor = true;
-      }
-    }
-
-    // Horizontal integration
-    Vector3 horizontalStep = new Vector3(velocity.X, 0f, velocity.Z) * dt;
-    float stepLength = horizontalStep.Length();
-    if (stepLength > 0.0001f)
-    {
-      Vector3 dir = horizontalStep / stepLength;
-      Vector3 rayOrigin = position + Vector3.Up * (bottomOffset - data.CapsuleRadius);
-      Vector3 rayTarget = rayOrigin + dir * (stepLength + data.CapsuleRadius);
-      data.HorizontalRay.From = rayOrigin;
-      data.HorizontalRay.To = rayTarget;
-      var hit = space.IntersectRay(data.HorizontalRay);
-      if (hit.Count > 0)
-      {
-        Vector3 hitPos = hit.ContainsKey("position") ? (Vector3)hit["position"] : rayTarget;
-        Vector3 normal = hit.ContainsKey("normal") ? (Vector3)hit["normal"] : Vector3.Up;
-        float travel = (hitPos - rayOrigin).Length() - data.CapsuleRadius;
-        travel = MathF.Max(0f, travel);
-        float applied = MathF.Min(stepLength, travel);
-        position += dir * applied;
-        Vector3 slideVel = new Vector3(velocity.X, 0f, velocity.Z).Slide(normal);
-        velocity.X = slideVel.X;
-        velocity.Z = slideVel.Z;
-        data.HorizontalVelocity = slideVel;
-      }
-      else
-      {
-        position += horizontalStep;
-      }
-    }
-
-    if (onFloor)
-      data.OnFloor = true;
-    else
-      data.OnFloor = false;
-
-    data.Position = position;
-    data.Velocity = velocity;
-    data.HorizontalVelocity = new Vector3(velocity.X, 0f, velocity.Z);
+    data.Position = enemy.GlobalTransform.Origin;
+    data.Velocity = enemy.Velocity;
+    data.HorizontalVelocity = new Vector3(data.Velocity.X, 0f, data.Velocity.Z);
+    data.OnFloor = enemy.IsOnFloor();
   }
 
   private void ApplyGravity(ref EnemySimData data, Enemy enemy, float delta)
