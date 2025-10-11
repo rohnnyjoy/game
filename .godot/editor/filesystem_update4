@@ -132,3 +132,4 @@ res://shared/rendering/OutlineSetup.gd
 res://scenes/outline/OutlineXrayDemo.tscn
 res://shared/rendering/OutlineTag.cs
 res://shared/rendering/OutlineSetup.cs
+res://bullets/manager/BulletTrailEmitter.cs

@@ -42,6 +42,7 @@ public partial class EnemySpawner : Node3D
   private Godot.Timer _timer = default!;
   private Godot.Timer? _difficultyTimer;
   private RandomNumberGenerator _rng = new RandomNumberGenerator();
+  private int _pendingSpawnBursts;
 
   public override void _Ready()
   {
@@ -60,7 +61,7 @@ public partial class EnemySpawner : Node3D
     // Ensure timer is running with the latest wait time
     _timer.Start();
     // Trigger an initial deferred tick so Player.Instance is available
-    CallDeferred(nameof(OnTimerTimeout));
+    QueueSpawnBurst();
 
     SetupDifficultyTimer();
   }
@@ -85,6 +86,27 @@ public partial class EnemySpawner : Node3D
   }
 
   private void OnTimerTimeout()
+  {
+    QueueSpawnBurst();
+  }
+
+  private void QueueSpawnBurst()
+  {
+    _pendingSpawnBursts++;
+    if (_pendingSpawnBursts == 1)
+      CallDeferred(nameof(ProcessPendingSpawnBursts));
+  }
+
+  private void ProcessPendingSpawnBursts()
+  {
+    while (_pendingSpawnBursts > 0)
+    {
+      _pendingSpawnBursts--;
+      RunSpawnBurst();
+    }
+  }
+
+  private void RunSpawnBurst()
   {
     if (EnemyScene == null)
       return;

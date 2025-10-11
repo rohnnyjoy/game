@@ -21,6 +21,8 @@ public partial class DynaTextControl : Control
   [Export] public bool AmbientRotate = true;
   [Export] public bool AmbientFloat = true;
   [Export] public bool AmbientBump = false;    // keep off for subtle ambient
+  [Export] public bool UseMovementLean = false;
+  [Export] public bool PulseAddsRotation = false;
   [Export] public float AmbientQuiverAmount = 0.0f; // default off; use transient quiver to match Balatro
   [Export] public float AmbientQuiverSpeed = 0.5f;
   [Export] public bool CenterInRect = true;
@@ -55,6 +57,8 @@ public partial class DynaTextControl : Control
       Rotate = AmbientRotate,
       Float = AmbientFloat,
       Bump = AmbientBump,
+      Lean = UseMovementLean,
+      PulseAffectsRotation = PulseAddsRotation,
       TextHeightScale = MathF.Max(0.5f, MathF.Min(2f, TextHeightScale)),
       OffsetYExtraPx = OffsetYExtraPx,
       SpacingExtraPx = LetterSpacingExtraPx,
