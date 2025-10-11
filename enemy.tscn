@@ -36,10 +36,7 @@ _data = {
 &"shoot": SubResource("Animation_efeb8")
 }
 
-[node name="Enemy" type="CharacterBody3D"]
-floor_block_on_wall = false
-floor_max_angle = 1.0472
-floor_snap_length = 0.2
+[node name="Enemy" type="RigidBody3D"]
 script = ExtResource("1_6tcda")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]

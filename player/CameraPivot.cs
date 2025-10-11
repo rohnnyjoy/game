@@ -32,6 +32,7 @@ public partial class CameraPivot : Node3D
   private float baseShoulderOffset;
   private Input.MouseModeEnum _lastMouseMode;
   private bool _skipNextMouseMotion;
+  private Vector3 _finalLocalCameraOffset; // computed in physics, applied in _Process
 
   public override void _Ready()
   {
@@ -56,6 +57,13 @@ public partial class CameraPivot : Node3D
     pitch = Mathf.Clamp(Mathf.DegToRad(InitialPitchDegrees), MinPitch, MaxPitch);
     SyncPlayerYaw();
     ApplyPivotRotation();
+
+    // Initialize cached camera offset so first _Process frame has a sane position.
+    _finalLocalCameraOffset = new Vector3(
+      baseShoulderOffset,
+      CameraOffset.Y,
+      (InvertOrbitZ ? -1f : 1f) * targetDistance
+    );
 
     // We read mouse in _Input for lowest latency, update camera visuals in _Process,
     // and keep the physics body yaw in sync via _PhysicsProcess.
@@ -113,7 +121,9 @@ public partial class CameraPivot : Node3D
     }
 
     ApplyPivotRotation();
-    UpdateCameraPosition();
+    // Apply last physics-computed camera offset to the rig.
+    if (cameraRig != null)
+      cameraRig.Position = _finalLocalCameraOffset;
   }
 
   public override void _PhysicsProcess(double delta)
@@ -124,6 +134,9 @@ public partial class CameraPivot : Node3D
     // Once per physics tick, snap the physics body's yaw to the latest target yaw.
     // This keeps movement/collisions deterministic and aligned with the view direction.
     SyncPlayerYaw();
+
+    // Compute camera collision in physics and cache the local offset.
+    ComputeCameraPositionPhysics();
   }
 
   private bool ShouldApplyLookInput()
@@ -171,7 +184,7 @@ public partial class CameraPivot : Node3D
     Rotation = new Vector3(pitch, yawOffset, 0f);
   }
 
-  private void UpdateCameraPosition()
+  private void ComputeCameraPositionPhysics()
   {
     if (cameraRig == null)
       return;
@@ -214,8 +227,7 @@ public partial class CameraPivot : Node3D
     }
 
     Transform3D inv = globalTransform.AffineInverse();
-    Vector3 finalLocal = inv * finalWorld;
-    cameraRig.Position = finalLocal;
+    _finalLocalCameraOffset = inv * finalWorld;
   }
 
   // Smallest signed angle from "from" to "to", normalized to [-π, π].

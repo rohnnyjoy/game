@@ -11,6 +11,7 @@ public partial class InteractionManager : Node
 
   private Player _player;
   private Camera3D _camera;
+  private SphereShape3D _interactSphere;
 
   private readonly Dictionary<string, OptionEntry> _activeOptions = new(StringComparer.OrdinalIgnoreCase);
   private readonly List<InteractableContext> _contextBuffer = new();
@@ -21,6 +22,9 @@ public partial class InteractionManager : Node
   {
     _player = GetNode<Player>(PlayerPath);
     _camera = GetNode<Camera3D>(CameraPath);
+
+    // Pre-create the query shape to avoid per-frame allocations and ensure it's configured.
+    _interactSphere = new SphereShape3D { Radius = MathF.Max(InteractRadius, 0f) };
   }
 
   public override void _Input(InputEvent @event)
@@ -59,13 +63,24 @@ public partial class InteractionManager : Node
       return;
     }
 
+    // Guard against invalid radius which can produce a null Jolt shape.
+    if (InteractRadius <= 0f)
+    {
+      ClearInteractions();
+      return;
+    }
+
     _contextBuffer.Clear();
 
     Vector3 origin = _player.GlobalPosition;
+    // Keep the sphere radius in sync with the export value.
+    if (!Mathf.IsEqualApprox(_interactSphere.Radius, InteractRadius))
+      _interactSphere.Radius = InteractRadius;
+
     PhysicsShapeQueryParameters3D query = new PhysicsShapeQueryParameters3D
     {
       Transform = new Transform3D(Basis.Identity, origin),
-      Shape = new SphereShape3D { Radius = InteractRadius },
+      Shape = _interactSphere,
       CollideWithBodies = true,
       CollideWithAreas = true
     };
@@ -78,6 +93,10 @@ public partial class InteractionManager : Node
     }
 
     PhysicsDirectSpaceState3D spaceState = world3d.DirectSpaceState;
+    // Exclude the player from results to avoid self-hits.
+    var exclude = new Godot.Collections.Array<Rid>();
+    exclude.Add(_player.GetRid());
+    query.Exclude = exclude;
     var results = (Godot.Collections.Array<Godot.Collections.Dictionary>)spaceState.IntersectShape(query, MaxResults);
 
     foreach (Godot.Collections.Dictionary result in results)

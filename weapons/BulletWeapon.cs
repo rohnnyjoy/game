@@ -65,6 +65,8 @@ public partial class BulletWeapon : Weapon
   private GpuParticles3D muzzleFlashInstance;
   // Gunshot audio
   private AudioStreamPlayer3D _gunShot;
+  // Cached aim computed during physics (safe for Jolt)
+  private Vector3 _cachedAimDirection = Vector3.Forward;
   [Export]
   public string SfxGunPath { get; set; } = "res://assets/sounds/gun.wav";
 
@@ -113,6 +115,20 @@ public partial class BulletWeapon : Weapon
       Muzzle.AddChild(_gunShot);
     else
       AddChild(_gunShot);
+
+    // Initialize cached aim using current camera forward to avoid null direction on first frame.
+    var cam = GetViewport()?.GetCamera3D();
+    if (cam != null)
+    {
+      Vector2 sc = GetViewport().GetVisibleRect().Size / 2;
+      Vector3 ro = cam.ProjectRayOrigin(sc);
+      Vector3 rd = cam.ProjectRayNormal(sc);
+      Vector3 re = ro + rd * 1000f;
+      Vector3 origin = BulletOrigin != null ? BulletOrigin.GlobalTransform.Origin : GlobalTransform.Origin;
+      _cachedAimDirection = (re - origin).Normalized();
+      if (_cachedAimDirection == Vector3.Zero)
+        _cachedAimDirection = -cam.GlobalTransform.Basis.Z;
+    }
   }
 
   public override void OnPress()
@@ -291,26 +307,10 @@ public partial class BulletWeapon : Weapon
 
   private Vector3 ComputeBulletDirection()
   {
-    Camera3D camera = GetViewport().GetCamera3D();
-    if (camera == null)
-      return Vector3.Forward;
-
-    Vector2 screenCenter = GetViewport().GetVisibleRect().Size / 2;
-    Vector3 rayOrigin = camera.ProjectRayOrigin(screenCenter);
-    Vector3 rayDirection = camera.ProjectRayNormal(screenCenter);
-    Vector3 rayEnd = rayOrigin + rayDirection * 1000;
-
-    var spaceState = GetWorld3D().DirectSpaceState;
-    var query = new PhysicsRayQueryParameters3D
-    {
-      From = rayOrigin,
-      To = rayEnd
-    };
-    Godot.Collections.Dictionary result = spaceState.IntersectRay(query);
-    Vector3 target = (result != null && result.ContainsKey("position"))
-                     ? (Vector3)result["position"]
-                     : rayEnd;
-    Vector3 baseDirection = (target - BulletOrigin.GlobalTransform.Origin).Normalized();
+    // Use physics-cached aim to avoid DirectSpaceState access from input thread (Jolt-safe).
+    Vector3 baseDirection = _cachedAimDirection;
+    if (baseDirection == Vector3.Zero)
+      baseDirection = -GlobalTransform.Basis.Z; // forward fallback
 
     // Apply accuracy-based spread.
     float accuracy = GetAccuracy();
@@ -407,6 +407,34 @@ public partial class BulletWeapon : Weapon
   {
     // Drive firing cadence from physics to avoid async _Process jitter.
     UpdateFiringState((float)delta);
+
+    // Update cached aim direction using a physics ray (safe with Jolt).
+    Camera3D camera = GetViewport()?.GetCamera3D();
+    if (camera != null)
+    {
+      Vector2 screenCenter = GetViewport().GetVisibleRect().Size / 2;
+      Vector3 rayOrigin = camera.ProjectRayOrigin(screenCenter);
+      Vector3 rayDirection = camera.ProjectRayNormal(screenCenter);
+      Vector3 rayEnd = rayOrigin + rayDirection * 1000f;
+
+      var spaceState = GetWorld3D()?.DirectSpaceState;
+      Vector3 target = rayEnd;
+      if (spaceState != null)
+      {
+        var query = PhysicsRayQueryParameters3D.Create(rayOrigin, rayEnd);
+        // Optionally exclude the weapon holder if available (best-effort)
+        // query.Exclude = new Godot.Collections.Array<Rid>();
+
+        Godot.Collections.Dictionary result = spaceState.IntersectRay(query);
+        if (result != null && result.ContainsKey("position"))
+          target = (Vector3)result["position"];
+      }
+
+      Vector3 origin = BulletOrigin != null ? BulletOrigin.GlobalTransform.Origin : GlobalTransform.Origin;
+      Vector3 dir = (target - origin).Normalized();
+      if (dir != Vector3.Zero)
+        _cachedAimDirection = dir;
+    }
   }
 
   private void UpdateFiringState(float dt)

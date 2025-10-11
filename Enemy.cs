@@ -6,7 +6,7 @@ using Shared.Effects;
 using Shared.Runtime;
 using System.Threading.Tasks;
 
-public partial class Enemy : CharacterBody3D
+public partial class Enemy : RigidBody3D
 {
   private static readonly HashSet<Enemy> _activeEnemies = new();
   public static IReadOnlyCollection<Enemy> ActiveEnemies => _activeEnemies;
@@ -58,6 +58,13 @@ public partial class Enemy : CharacterBody3D
   private uint _restrictedCollisionLayers = PhysicsLayers.Mask(PhysicsLayers.Layer.SafeZone);
   private bool _collisionProfileInitialized;
   private Vector3 _currentVelocity = Vector3.Zero;
+
+  // Shim to keep existing code working while using RigidBody3D
+  public Vector3 Velocity
+  {
+    get => LinearVelocity;
+    set => LinearVelocity = value;
+  }
 
   internal int SimulationHandle { get; set; } = -1;
   internal bool IsDying => _isDying;
@@ -175,7 +182,6 @@ public partial class Enemy : CharacterBody3D
   [Export] public float ContactDamage { get; set; } = 10f;
   [Export] public float ContactKnockbackStrength { get; set; } = 3f;
   [Export] public float ContactDamageCooldown { get; set; } = 0.5f;
-  private Area3D _contactArea;
   private readonly Dictionary<long, float> _lastHitAt = new();
 
   // Onready nodes
@@ -206,8 +212,36 @@ public partial class Enemy : CharacterBody3D
     // Connect local damage signal to shared visual feedback
     Connect(nameof(Damaged), new Callable(this, nameof(OnDamaged)));
 
-    // Setup contact damage detection area
-    SetupContactDamageArea();
+    // Physics tuning: lightweight rigid body settings
+    PhysicsMaterialOverride ??= new PhysicsMaterial
+    {
+      // Balanced: enough grip to prevent sliding on most slopes
+      // without heavily resisting our driven horizontal velocity.
+      Friction = 0.9f,
+      Bounce = 0.0f
+    };
+    ContactMonitor = false;
+    MaxContactsReported = 0;
+    CanSleep = true;
+    // Enable CCD to avoid tunneling when falling fast.
+    ContinuousCd = true;
+    // Enable engine gravity; scale to match our desired 60 m/s^2 feel.
+    float defaultG = 9.8f;
+    try
+    {
+      object setting = ProjectSettings.GetSetting("physics/3d/default_gravity");
+      if (setting is double dg)
+        defaultG = (float)dg;
+      else if (setting is float fg)
+        defaultG = fg;
+      else if (setting != null)
+        defaultG = Convert.ToSingle(setting);
+    }
+    catch { /* fallback to 9.8 */ }
+    GravityScale = defaultG > 0.001f ? GRAVITY / defaultG : 1.0f;
+    // Keep damping minimal so AI-driven velocity isn't overly reduced.
+    LinearDamp = 0.02f;
+    AngularDamp = 3.5f;
 
     _dissolveMeshes.Clear();
     CollectDissolveMeshes(this);
@@ -235,30 +269,20 @@ public partial class Enemy : CharacterBody3D
     EnemyAIManager.Instance?.Register(this);
 
     _currentVelocity = Vector3.Zero;
+
+    // Keep enemies upright; avoid tipping over when using a capsule rigidbody.
+    AxisLockAngularX = true;
+    AxisLockAngularZ = true;
   }
 
   private void ConfigureCollisionProfile()
   {
-    _baseCollisionLayers = CollisionLayer;
-    if (_baseCollisionLayers == 0)
-    {
-      _baseCollisionLayers = PhysicsLayers.Mask(PhysicsLayers.Layer.Enemy);
-    }
-    else if (!PhysicsLayers.Contains(_baseCollisionLayers, PhysicsLayers.Layer.Enemy))
-    {
-      _baseCollisionLayers = PhysicsLayers.Add(_baseCollisionLayers, PhysicsLayers.Layer.Enemy);
-    }
-
-    _baseCollisionLayers = PhysicsLayers.Remove(_baseCollisionLayers, PhysicsLayers.Layer.World);
-    if (_baseCollisionLayers == 0)
-      _baseCollisionLayers = PhysicsLayers.Mask(PhysicsLayers.Layer.Enemy);
+    // Place enemies on the Enemy layer only.
+    _baseCollisionLayers = PhysicsLayers.Mask(PhysicsLayers.Layer.Enemy);
     CollisionLayer = _baseCollisionLayers;
 
-    _baseCollisionMask = CollisionMask;
-    if (_baseCollisionMask == 0)
-      _baseCollisionMask = PhysicsLayers.Mask(PhysicsLayers.Layer.World, PhysicsLayers.Layer.Player, PhysicsLayers.Layer.Enemy);
-    else if (!PhysicsLayers.Contains(_baseCollisionMask, PhysicsLayers.Layer.Enemy))
-      _baseCollisionMask = PhysicsLayers.Add(_baseCollisionMask, PhysicsLayers.Layer.Enemy);
+    // Collide only with World and Enemy to allow pile-ups; avoid FX/sensors/etc.
+    _baseCollisionMask = PhysicsLayers.Mask(PhysicsLayers.Layer.World, PhysicsLayers.Layer.Enemy);
 
     _collisionProfileInitialized = true;
     RefreshCollisionMask();
@@ -269,12 +293,13 @@ public partial class Enemy : CharacterBody3D
     if (!_collisionProfileInitialized)
       return;
 
-    CollisionMask = _baseCollisionMask | _restrictedCollisionLayers;
+    // Do not include sensor/fx layers in the body mask.
+    CollisionMask = _baseCollisionMask;
   }
 
   internal void ApplySimulation(Vector3 position, Vector3 velocity)
   {
-    GlobalPosition = position;
+    // With a RigidBody3D we avoid teleporting each frame. Apply velocity only.
     Velocity = velocity;
     _currentVelocity = velocity;
   }
@@ -313,20 +338,18 @@ public partial class Enemy : CharacterBody3D
     if (next == SimulationState.Sleeping)
     {
       StopAndResetVisuals();
-      if (_contactArea != null)
-      {
-        _contactArea.Monitoring = false;
-        _contactArea.Monitorable = false;
-      }
+      Sleeping = true;
       TargetOverride = null;
+      ApplyCollisionMaskForState(next);
       return;
     }
 
-    if (_contactArea != null)
-    {
-      _contactArea.Monitoring = true;
-      _contactArea.Monitorable = true;
-    }
+    Sleeping = false;
+    // If entering far LOD and essentially idle, allow physics to sleep to exit solver quickly.
+    if (next == SimulationState.BudgetFar && LinearVelocity.LengthSquared() < 0.04f)
+      Sleeping = true;
+
+    ApplyCollisionMaskForState(next);
   }
 
   public void SetSpeedMultiplier(float multiplier)
@@ -366,19 +389,13 @@ public partial class Enemy : CharacterBody3D
     _isDying = true;
 
     Velocity = Vector3.Zero;
+    Freeze = true;
     SetPhysicsProcess(false);
     SetProcess(false);
 
     CollisionLayer = 0;
     CollisionMask = 0;
     DisableCollisionShapes();
-    if (_contactArea != null)
-    {
-      _contactArea.Monitoring = false;
-      _contactArea.Monitorable = false;
-      _contactArea.CollisionLayer = 0;
-      _contactArea.CollisionMask = 0;
-    }
 
     EmitSignal(nameof(EnemyDied));
     GlobalEvents.Instance.EmitEnemyDied();
@@ -395,6 +412,16 @@ public partial class Enemy : CharacterBody3D
     SpawnDissolveParticles();
 
     _ = RunDeathDissolveAsync();
+  }
+
+  internal void ApplyCollisionMaskForState(SimulationState state)
+  {
+    // Active: collide with World and Enemy for believable pile-ups near player.
+    // Other states: collide with World only to cut Enemy↔Enemy pairs in the solver.
+    if (state == SimulationState.Active)
+      CollisionMask = PhysicsLayers.Mask(PhysicsLayers.Layer.World, PhysicsLayers.Layer.Enemy);
+    else
+      CollisionMask = PhysicsLayers.Mask(PhysicsLayers.Layer.World);
   }
 
   private void SpawnCoins(int count)
@@ -448,45 +475,7 @@ public partial class Enemy : CharacterBody3D
     EnemyAIManager.Instance?.SyncEnemyTransform(this);
   }
 
-  private void SetupContactDamageArea()
-  {
-    _contactArea = new Area3D
-    {
-      Monitoring = true,
-      Monitorable = true,
-      // Sense only the player layer (layer 2 in Player.tscn)
-      CollisionMask = (uint)(1 << 1)
-    };
-    AddChild(_contactArea);
-
-    // Try to mirror the main collider's shape for more accurate contact.
-    var bodyShape = GetNodeOrNull<CollisionShape3D>("CollisionShape3D");
-    if (bodyShape?.Shape is CapsuleShape3D cap)
-    {
-      var capCopy = new CapsuleShape3D { Radius = cap.Radius + 0.05f, Height = cap.Height };
-      var cs = new CollisionShape3D { Shape = capCopy };
-      _contactArea.AddChild(cs);
-    }
-    else
-    {
-      // Fallback small sphere around the body center.
-      var sphere = new SphereShape3D { Radius = 0.7f };
-      var cs = new CollisionShape3D { Shape = sphere };
-      _contactArea.AddChild(cs);
-    }
-
-    _contactArea.BodyEntered += OnContactBodyEntered;
-  }
-
-  private void OnContactBodyEntered(Node3D body)
-  {
-    if (body == null || !IsInstanceValid(body)) return;
-    if (!body.IsInGroup("players")) return;
-    if (body is Player player)
-      TryDamagePlayer(player);
-  }
-
-  private void TryDamagePlayer(Player player)
+  internal void TryDamagePlayer(Player player)
   {
     if (player == null || !IsInstanceValid(player)) return;
     long id = (long)player.GetInstanceId();

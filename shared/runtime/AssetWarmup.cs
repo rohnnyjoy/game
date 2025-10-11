@@ -18,6 +18,8 @@ namespace Shared.Runtime
     {
       "res://assets/fonts/Born2bSportyV2.ttf",
       "res://assets/sounds/gun.wav",
+      "res://assets/sounds/hit.mp3",
+      "res://assets/sounds/hit.mp3",
       "res://assets/sounds/impact.wav",
       "res://assets/sprites/effects/curse_32x96.png",
       "res://assets/sprites/effects/dust/dust_28x12.png",

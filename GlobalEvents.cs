@@ -162,6 +162,8 @@ public partial class GlobalEvents : Node
     {
       player.ApplyKnockback(impulse);
     }
+    // Play a dedicated hit sound at the target's position
+    HitSound.Play(this, target.GlobalTransform.Origin);
     // (Reverted) No global screen shake trigger here
   }
 

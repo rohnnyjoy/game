@@ -63,6 +63,7 @@ public partial class EnemyAIManager : Node
   [Export] public int MidRangeIntervalFrames { get; set; } = 2;
   [Export] public int FarRangeIntervalFrames { get; set; } = 5;
   [Export] public bool EnableLod { get; set; } = true;
+  [Export] public bool DisableActivationRadius { get; set; } = true;
 
   private struct EnemySimData
   {
@@ -82,13 +83,6 @@ public partial class EnemyAIManager : Node
     public float StartX;
     public int PatrolDirection;
     public float CapsuleRadius;
-    public float CapsuleHalfHeight;
-    public uint CollisionMask;
-    public Rid BodyRid;
-    public Godot.Collections.Array<Rid> Exclude;
-    public PhysicsRayQueryParameters3D DownRay;
-    public PhysicsRayQueryParameters3D UpRay;
-    public PhysicsRayQueryParameters3D HorizontalRay;
   }
 
   private readonly List<EnemySimData> _simData = new();
@@ -158,33 +152,6 @@ public partial class EnemyAIManager : Node
       _simData.Add(default);
 
     (float capsuleRadius, float capsuleHalfHeight) = ExtractCapsuleDimensions(enemy);
-    Rid bodyRid = enemy.GetRid();
-    var exclude = new Godot.Collections.Array<Rid>();
-    exclude.Add(bodyRid);
-
-    var downQuery = new PhysicsRayQueryParameters3D
-    {
-      CollisionMask = enemy.CollisionMask,
-      HitBackFaces = true,
-      HitFromInside = true,
-      Exclude = exclude
-    };
-
-    var upQuery = new PhysicsRayQueryParameters3D
-    {
-      CollisionMask = enemy.CollisionMask,
-      HitBackFaces = true,
-      HitFromInside = true,
-      Exclude = exclude
-    };
-
-    var horizontalQuery = new PhysicsRayQueryParameters3D
-    {
-      CollisionMask = enemy.CollisionMask,
-      HitBackFaces = true,
-      HitFromInside = true,
-      Exclude = exclude
-    };
 
     EnemySimData data = new EnemySimData
     {
@@ -204,13 +171,7 @@ public partial class EnemyAIManager : Node
       StartX = enemy.GlobalTransform.Origin.X,
       PatrolDirection = 1,
       CapsuleRadius = capsuleRadius,
-      CapsuleHalfHeight = capsuleHalfHeight,
-      CollisionMask = enemy.CollisionMask,
-      BodyRid = bodyRid,
-      Exclude = exclude,
-      DownRay = downQuery,
-      UpRay = upQuery,
-      HorizontalRay = horizontalQuery
+      
     };
 
     CollectionsMarshal.AsSpan(_simData)[index] = data;
@@ -292,9 +253,11 @@ public partial class EnemyAIManager : Node
       float farRadiusSq = enemy.FarSimulationRadius * enemy.FarSimulationRadius;
       float sleepRadiusSq = enemy.SleepSimulationRadius * enemy.SleepSimulationRadius;
 
-      Enemy.SimulationState desiredState = DetermineSimulationState(data, nearestDist2,
-        activeRadiusSq, midRadiusSq, farRadiusSq, sleepRadiusSq,
-        enemy.SleepSimulationRadius, enemy.FarSimulationRadius);
+      Enemy.SimulationState desiredState = DisableActivationRadius
+        ? Enemy.SimulationState.Active
+        : DetermineSimulationState(data, nearestDist2,
+          activeRadiusSq, midRadiusSq, farRadiusSq, sleepRadiusSq,
+          enemy.SleepSimulationRadius, enemy.FarSimulationRadius);
 
       if (data.State != desiredState)
       {
@@ -324,7 +287,7 @@ public partial class EnemyAIManager : Node
       Node3D? target = null;
       if (enemy.TargetOverride != null && GodotObject.IsInstanceValid(enemy.TargetOverride))
         target = enemy.TargetOverride;
-      else if (nearestPlayer != null && nearestDist2 <= _maxConsiderDistanceSquared)
+      else if (nearestPlayer != null && (DisableActivationRadius || nearestDist2 <= _maxConsiderDistanceSquared))
         target = nearestPlayer;
 
       data.AccumulatedDelta += dt;
@@ -336,7 +299,8 @@ public partial class EnemyAIManager : Node
       bool shouldRunPhysics = ShouldRunPhysics(ref data);
       if (!shouldRunPhysics)
       {
-        enemy.ApplySimulation(data.Position, data.Velocity);
+        // Skip writing to the physics body so engine gravity and contacts
+        // continue to act normally during LOD-skipped frames.
         continue;
       }
 
@@ -345,7 +309,7 @@ public partial class EnemyAIManager : Node
 
       ApplyGravity(ref data, enemy, effectiveDelta);
 
-      data.Velocity += data.KnockbackVelocity;
+      // Knockback is applied in PerformMovement alongside XZ steering.
 
       PerformMovement(ref data, enemy, effectiveDelta);
 
@@ -354,6 +318,9 @@ public partial class EnemyAIManager : Node
         data.ForcedPhysicsSteps--;
 
       TickRestrictedVolumes(enemy, ref data, effectiveDelta);
+
+      // Cheap contact damage check without per-enemy Areas/signals
+      TryDealContactDamage(enemy, ref data);
 
       enemy.ApplySimulation(data.Position, data.Velocity);
     }
@@ -435,26 +402,25 @@ public partial class EnemyAIManager : Node
 
   private void PerformMovement(ref EnemySimData data, Enemy enemy, float dt)
   {
-    enemy.Velocity = data.Velocity;
-    enemy.MoveAndSlide();
+    // Preserve vertical velocity (engine gravity + contacts), drive XZ.
+    Vector3 v = enemy.Velocity;
+    v.X = data.HorizontalVelocity.X;
+    v.Z = data.HorizontalVelocity.Z;
+    v += data.KnockbackVelocity;
+    enemy.Velocity = v;
 
     data.Position = enemy.GlobalTransform.Origin;
     data.Velocity = enemy.Velocity;
     data.HorizontalVelocity = new Vector3(data.Velocity.X, 0f, data.Velocity.Z);
-    data.OnFloor = enemy.IsOnFloor();
+    data.OnFloor = false;
   }
 
   private void ApplyGravity(ref EnemySimData data, Enemy enemy, float delta)
   {
-    if (data.OnFloor)
-    {
-      if (data.Velocity.Y < 0f)
-        data.Velocity = new Vector3(data.Velocity.X, 0f, data.Velocity.Z);
-      return;
-    }
-
-    data.Velocity = new Vector3(data.Velocity.X, data.Velocity.Y - Enemy.GRAVITY * delta, data.Velocity.Z);
+    // Rely on engine gravity (via Enemy.GravityScale). Nothing to do here.
   }
+
+  // Floor probing logic removed; physics engine handles grounding.
 
   private void UpdateSteering(ref EnemySimData data, Enemy enemy, Node3D? target)
   {
@@ -575,6 +541,9 @@ public partial class EnemyAIManager : Node
     if (cumulativePush.LengthSquared() <= 0.000001f)
       return;
 
+    // Apply horizontal displacement directly to the rigidbody and keep data in sync.
+    Vector3 newPos = new Vector3(position.X, enemy.GlobalTransform.Origin.Y, position.Z);
+    enemy.GlobalPosition = newPos;
     data.Position = new Vector3(position.X, data.Position.Y, position.Z);
 
     Vector3 normal = cumulativePush.Normalized();
@@ -583,6 +552,32 @@ public partial class EnemyAIManager : Node
       data.Velocity = data.Velocity.Slide(normal);
       data.KnockbackVelocity = data.KnockbackVelocity.Slide(normal);
       data.HorizontalVelocity = new Vector3(data.Velocity.X, 0f, data.Velocity.Z);
+    }
+  }
+
+  private void TryDealContactDamage(Enemy enemy, ref EnemySimData data)
+  {
+    if (PlayerCache.Count == 0)
+      return;
+
+    // Use capsule radius + approximate player radius as contact threshold.
+    float contactRadius = MathF.Max(0.2f, data.CapsuleRadius + 0.6f);
+    float contactRadiusSq = contactRadius * contactRadius;
+
+    Vector3 enemyPos = data.Position;
+    for (int i = 0; i < PlayerCache.Count; i++)
+    {
+      Node3D node = PlayerCache[i];
+      if (node is not Player player || !GodotObject.IsInstanceValid(player))
+        continue;
+
+      Vector3 diff = player.GlobalTransform.Origin - enemyPos;
+      // Favor mostly horizontal hit to avoid vertical contact during jumps.
+      diff.Y *= 0.4f;
+      if (diff.LengthSquared() <= contactRadiusSq)
+      {
+        enemy.TryDamagePlayer(player);
+      }
     }
   }
 
@@ -603,7 +598,6 @@ public partial class EnemyAIManager : Node
 
     data.Active = false;
     data.Proxy = null!;
-    data.Exclude = new Godot.Collections.Array<Rid>();
     _freeIndices.Push(index);
   }
 
